@@ -1,0 +1,75 @@
+# Node & Vite
+node_modules/
+dist/
+build/
+.env
+.env.*
+
+# System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# Android/Emulator/VirtualBox/Gradle
+.android/
+.gradle/
+.VirtualBox/
+*.vbox*
+*.vdi
+*.vhd
+*.qcow2
+*.img
+*.key
+*.dat
+*.log
+*.ini
+*.txt
+*.xml
+*.lock
+*.tmp
+*.db
+*.sqlite
+*.bin
+*.apk
+*.keystore
+*.token
+*.jar
+*.class
+
+# OS
+NTUSER.DAT*
+AppData/
+.cache/
+.lmstudio*/
+.ProductionCrate/
+.Yandex*/
+Saved Games/
+Music/
+Videos/
+Downloads/
+Favorites/
+Contacts/
+Links/
+Searches/
+
+# Cursor/Editor
+.cursor/
+
+# Other
+*.bak
+*.old
+*.swp
+*.swo
+*.tmp
+
+# Auth tokens, secrets, misc
+*.auth_token
+*.secret
+*.pem
+.emulator_console_auth_token
+.lmstudio-home-pointer
+
+# Android Studio projects
+AndroidStudioProjects/ 
