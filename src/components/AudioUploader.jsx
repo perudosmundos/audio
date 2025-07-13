@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { UploadCloud, FileAudio, X, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { getLocaleString } from '@/lib/locales';
-import r2Service from '@/lib/r2Service'; 
+import storageService from '@/lib/storageService'; 
 import assemblyAIService from '@/lib/assemblyAIService';
 import { getFileNameWithoutExtension } from '@/lib/utils';
 
@@ -83,12 +83,15 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
 
     for (const file of files) {
       try {
-        const { fileUrl: workerFileUrl, fileKey, bucketName } = await r2Service.uploadFile(
+        const { fileUrl: workerFileUrl, fileKey, bucketName } = await storageService.uploadFile(
           file, 
           (progress) => setUploadProgress(progress),
           currentLanguage
         );
-        toast({ title: getLocaleString('uploadToR2Success', currentLanguage), description: `${file.name} (Bucket: ${bucketName})` });
+        
+        const storageInfo = storageService.getStorageInfo();
+        const successMessage = storageInfo.isVKCloud ? 'uploadToVKCloudSuccess' : 'uploadToR2Success';
+        toast({ title: getLocaleString(successMessage, currentLanguage), description: `${file.name} (Bucket: ${bucketName})` });
 
         const audioForDuration = new Audio(URL.createObjectURL(file));
         let duration = 0;

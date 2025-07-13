@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
 import { getProxiedAudioUrl } from '@/lib/utils';
-import r2Service from '@/lib/r2Service';
+import storageService from '@/lib/storageService';
 
 const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
   const [episodeData, setEpisodeData] = useState(null);
@@ -97,8 +97,8 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       
       let finalAudioUrl = episode.audio_url;
       if (!finalAudioUrl && episode.r2_object_key && episode.r2_bucket_name) {
-        finalAudioUrl = r2Service.getPublicUrl(episode.r2_object_key, episode.r2_bucket_name);
-        console.log('useEpisodeData: Generated R2 URL', finalAudioUrl);
+        finalAudioUrl = await storageService.getPublicUrl(episode.r2_object_key, episode.r2_bucket_name);
+        console.log('useEpisodeData: Generated storage URL', finalAudioUrl);
       }
       
       // Применяем прокси для обхода CORS

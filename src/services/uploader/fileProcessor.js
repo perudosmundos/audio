@@ -1,7 +1,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import r2Service from '@/lib/r2Service';
+import storageService from '@/lib/storageService';
 import assemblyAIService from '@/lib/assemblyAIService';
 import { parseQuestionsFromDescriptionString } from '@/lib/podcastService';
 import { translateTextOpenAI } from '@/lib/openAIService';
@@ -66,15 +66,15 @@ export const processSingleItem = async ({
     }
     
     if (!userConfirmedOverwriteGlobal || !workerFileUrl) {
-      const fileExistsInR2 = await r2Service.checkFileExists(file.name);
-      if (fileExistsInR2.exists && !userConfirmedOverwriteGlobal) {
-        workerFileUrl = fileExistsInR2.fileUrl;
+      const fileExistsInStorage = await storageService.checkFileExists(file.name);
+      if (fileExistsInStorage.exists && !userConfirmedOverwriteGlobal) {
+        workerFileUrl = fileExistsInStorage.fileUrl;
         r2FileKey = file.name.replace(/\s+/g, '_'); 
-        bucketNameUsed = fileExistsInR2.bucketName;
+        bucketNameUsed = fileExistsInStorage.bucketName;
         updateItemState(itemData.id, { uploadProgress: 100 }); 
         toast({ title: getLocaleString('fileAlreadyInR2Title', currentLanguage), description: getLocaleString('fileAlreadyInR2Desc', currentLanguage, { fileName: file.name }), variant: "info" });
       } else {
-        const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await r2Service.uploadFile(
+        const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await storageService.uploadFile(
           file,
           (progress) => updateItemState(itemData.id, { uploadProgress: progress }),
           currentLanguage,

@@ -8,7 +8,7 @@ import { Trash2, Loader2, Search, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import { formatShortDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import r2Service from '@/lib/r2Service';
+import storageService from '@/lib/storageService';
 
 const ManageEpisodesPage = ({ currentLanguage }) => {
   const [episodes, setEpisodes] = useState([]);
@@ -67,9 +67,9 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
       if (transcriptsError) throw new Error(getLocaleString('errorDeletingTranscripts', currentLanguage, { errorMessage: transcriptsError.message }));
       
       if (r2_object_key && r2_bucket_name) {
-        const deleteR2Result = await r2Service.deleteFile(r2_object_key, r2_bucket_name, currentLanguage);
-        if (!deleteR2Result.success) {
-           toast({ title: getLocaleString('warning', currentLanguage), description: getLocaleString('errorDeletingR2FilePartial', currentLanguage, {fileName: r2_object_key, errorMessage: deleteR2Result.error}), variant: 'destructive' });
+        const deleteStorageResult = await storageService.deleteFile(r2_object_key, r2_bucket_name, currentLanguage);
+        if (!deleteStorageResult.success) {
+           toast({ title: getLocaleString('warning', currentLanguage), description: getLocaleString('errorDeletingR2FilePartial', currentLanguage, {fileName: r2_object_key, errorMessage: deleteStorageResult.error}), variant: 'destructive' });
         } else {
            toast({ title: getLocaleString('fileDeletedFromR2Title', currentLanguage), description: getLocaleString('fileDeletedFromR2Desc', currentLanguage, {fileName: r2_object_key}) });
         }
