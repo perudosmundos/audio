@@ -1,6 +1,10 @@
+# Установка кодировки UTF-8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 # === НАСТРОЙКИ ===
 $repoUrl = "https://github.com/perudosmundos/audio.git"
-$commitMsg = "Автоматический коммит: обновление проекта"
+$commitMsg = "Auto commit: project update"
 # ==================
 
 # Проверка, есть ли .git
@@ -21,7 +25,7 @@ git diff --cached --quiet
 if ($LASTEXITCODE -ne 0) {
     git commit -m "$commitMsg"
 } else {
-    Write-Host "Нет изменений для коммита."
+    Write-Host "No changes to commit."
 }
 
 # Отправить на GitHub
