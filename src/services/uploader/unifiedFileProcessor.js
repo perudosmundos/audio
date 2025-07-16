@@ -47,8 +47,8 @@ export const generateInitialItemData = async (file, targetLang, currentLanguage,
           .from('timeOld')
           .select(columnToFetch)
           .eq('date', dateFromFile)
-          .single();
-        if (error && error.code !== 'PGRST116') throw error; 
+          .maybeSingle();
+        if (error) throw error; 
         if (data) {
           timingsText = data[columnToFetch] || '';
         }
@@ -119,9 +119,9 @@ export const processSingleItem = async ({
         .from('episodes')
         .select('slug, audio_url, r2_object_key, r2_bucket_name')
         .eq('slug', episodeSlug)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
          console.error("Supabase check episode error:", checkError);
          throw new Error(getLocaleString('errorCheckingEpisodeDB', currentLanguage, {errorMessage: checkError.message}));
       }
@@ -212,7 +212,7 @@ export const processSingleItem = async ({
       .from('episodes')
       .upsert(episodePayload, { onConflict: 'slug' })
       .select('slug')
-      .single();
+      .maybeSingle();
 
     if (episodeDbError) throw new Error(getLocaleString('supabaseEpisodeError', currentLanguage, {errorMessage: episodeDbError.message}));
     

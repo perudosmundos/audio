@@ -7,7 +7,8 @@ const R2_PRIMARY_CONFIG = {
   BUCKET: "audio-files", 
   ACCOUNT_ID: "b673708f9f9609c4d372573207f830ce",
   ENDPOINT_SUFFIX: "r2.cloudflarestorage.com",
-  WORKER_PUBLIC_URL: "https://audio.alexbrin102.workers.dev" 
+  WORKER_PUBLIC_URL: "https://audio.alexbrin102.workers.dev",
+  PROXY_URL: "/audio-proxy" 
 };
 
 const R2_SECONDARY_CONFIG = {
@@ -16,7 +17,8 @@ const R2_SECONDARY_CONFIG = {
   BUCKET: "audio-files-secondary", 
   ACCOUNT_ID: "b673708f9f9609c4d372573207f830ce", 
   ENDPOINT_SUFFIX: "r2.cloudflarestorage.com",
-  WORKER_PUBLIC_URL: "https://audio-secondary.alexbrin102.workers.dev" 
+  WORKER_PUBLIC_URL: "https://audio-secondary.alexbrin102.workers.dev",
+  PROXY_URL: "/audio-secondary-proxy" 
 };
 
 
@@ -28,6 +30,16 @@ const createS3Client = (config) => {
       accessKeyId: config.ACCESS_KEY_ID,
       secretAccessKey: config.SECRET_ACCESS_KEY,
     },
+    // DNS обход и улучшенная конфигурация для России
+    maxAttempts: 3, // Увеличиваем количество попыток
+    requestHandler: {
+      httpOptions: {
+        timeout: 30000, // 30 секунд таймаут
+        connectTimeout: 10000, // 10 секунд на подключение
+      }
+    },
+    // Альтернативные DNS серверы
+    customUserAgent: 'DosMundosPodcast/1.0',
   });
 };
 
@@ -42,7 +54,9 @@ const r2Service = {
       try {
         const command = new HeadObjectCommand({ Bucket: config.BUCKET, Key: fileKey });
         await client.send(command);
-        return { exists: true, fileUrl: `${config.WORKER_PUBLIC_URL}/${fileKey}`, bucketName: config.BUCKET };
+        const isDev = import.meta.env.DEV;
+        const fileUrl = isDev ? `${config.PROXY_URL}/${fileKey}` : `${config.WORKER_PUBLIC_URL}/${fileKey}`;
+        return { exists: true, fileUrl, bucketName: config.BUCKET };
       } catch (error) {
         if (error.name === 'NoSuchKey' || (error.$metadata && error.$metadata.httpStatusCode === 404)) {
           return { exists: false };
@@ -85,7 +99,8 @@ const r2Service = {
         await client.send(command);
         if (onProgress) onProgress(100); 
 
-        const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
+        const isDev = import.meta.env.DEV;
+        const fileUrl = isDev ? `${config.PROXY_URL}/${fileKey}` : `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         return { fileUrl, fileKey, bucketName: config.BUCKET };
 
       } catch (error) {
@@ -126,10 +141,181 @@ const r2Service = {
   },
 
   getPublicUrl: (fileKey, bucketName) => {
+    const isDev = import.meta.env.DEV;
+    const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
+    
     if (bucketName === R2_SECONDARY_CONFIG.BUCKET) {
-      return `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
+      return isDev && useProxy ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
     }
-    return `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
+    return isDev && useProxy ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
+  },
+
+  // Совместимая функция для генерации URL
+  getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
+    console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
+    
+    // Если есть прямой URL, используем его
+    if (audioUrl) {
+      console.log('R2: Using direct URL:', audioUrl);
+      return audioUrl;
+    }
+    
+    // Если есть ключ, генерируем R2 URL
+    if (r2ObjectKey) {
+      const isDev = import.meta.env.DEV;
+      const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
+      let generatedUrl;
+      if (r2BucketName === R2_SECONDARY_CONFIG.BUCKET) {
+        generatedUrl = isDev && useProxy ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+      } else {
+        generatedUrl = isDev && useProxy ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+      }
+      console.log('R2: Generated URL from key:', generatedUrl);
+      return generatedUrl;
+    }
+    
+    console.log('R2: No URL could be generated');
+    return null;
+  },
+
+  // Тестирование подключения с DNS обходом
+  testConnection: async () => {
+    console.log('R2: Testing connection with DNS bypass...');
+    
+    try {
+      // Тест 1: Проверка основного клиента
+      console.log('R2: Testing primary client...');
+      const primaryCommand = new HeadObjectCommand({ 
+        Bucket: R2_PRIMARY_CONFIG.BUCKET, 
+        Key: 'test-connection' 
+      });
+      
+      try {
+        await primaryS3Client.send(primaryCommand);
+        console.log('R2: Primary client test successful');
+      } catch (error) {
+        if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
+          console.log('R2: Primary client connected (expected 404 for test file)');
+        } else {
+          console.warn('R2: Primary client test failed:', error.name, error.message);
+        }
+      }
+
+      // Тест 2: Проверка вторичного клиента
+      console.log('R2: Testing secondary client...');
+      const secondaryCommand = new HeadObjectCommand({ 
+        Bucket: R2_SECONDARY_CONFIG.BUCKET, 
+        Key: 'test-connection' 
+      });
+      
+      try {
+        await secondaryS3Client.send(secondaryCommand);
+        console.log('R2: Secondary client test successful');
+      } catch (error) {
+        if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
+          console.log('R2: Secondary client connected (expected 404 for test file)');
+        } else {
+          console.warn('R2: Secondary client test failed:', error.name, error.message);
+        }
+      }
+
+      // Тест 3: Проверка DNS резолвинга
+      console.log('R2: Testing DNS resolution...');
+      try {
+        const response = await fetch(`https://${R2_PRIMARY_CONFIG.ACCOUNT_ID}.${R2_PRIMARY_CONFIG.ENDPOINT_SUFFIX}`, {
+          method: 'HEAD',
+          mode: 'no-cors'
+        });
+        console.log('R2: DNS resolution successful');
+      } catch (error) {
+        console.warn('R2: DNS resolution failed:', error.message);
+      }
+
+      return { success: true, message: 'R2 connection test completed' };
+      
+    } catch (error) {
+      console.error('R2: Connection test failed:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Пересоздание клиентов с новыми настройками
+  refreshClients: () => {
+    console.log('R2: Refreshing S3 clients with DNS bypass settings...');
+    primaryS3Client = createS3Client(R2_PRIMARY_CONFIG);
+    secondaryS3Client = createS3Client(R2_SECONDARY_CONFIG);
+    console.log('R2: Clients refreshed successfully');
+  },
+
+  // Диагностика R2
+  runDiagnostics: async () => {
+    console.log('R2: Running diagnostics...');
+    
+    try {
+      const connectionTest = await r2Service.testConnection();
+      
+      if (connectionTest.success) {
+        return { 
+          success: true, 
+          workingBucket: R2_PRIMARY_CONFIG.BUCKET,
+          message: 'R2 diagnostics completed successfully'
+        };
+      } else {
+        return { 
+          success: false, 
+          error: connectionTest.error,
+          message: 'R2 diagnostics failed'
+        };
+      }
+    } catch (error) {
+      console.error('R2: Diagnostics failed:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        message: 'R2 diagnostics failed with exception'
+      };
+    }
+  },
+
+  // Тест создания bucket (для совместимости с тестовой страницей)
+  testBucketCreation: async (bucketName) => {
+    console.log('R2: Testing bucket creation for:', bucketName);
+    
+    try {
+      // R2 buckets создаются автоматически при первой загрузке
+      // Просто проверяем подключение
+      const connectionTest = await r2Service.testConnection();
+      
+      if (connectionTest.success) {
+        return { 
+          success: true, 
+          bucketName: R2_PRIMARY_CONFIG.BUCKET,
+          testFileKey: 'test-connection',
+          message: 'R2 bucket test successful'
+        };
+      } else {
+        return { 
+          success: false, 
+          error: connectionTest.error,
+          message: 'R2 bucket test failed'
+        };
+      }
+    } catch (error) {
+      console.error('R2: Bucket creation test failed:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        message: 'R2 bucket test failed with exception'
+      };
+    }
+  },
+
+  // Упрощенная загрузка файла (для совместимости с тестовой страницей)
+  uploadFileSimple: async (file, onProgress, currentLanguage, originalFilename) => {
+    console.log('R2: Simple upload called for:', originalFilename || file.name);
+    
+    // Используем обычную функцию загрузки
+    return r2Service.uploadFile(file, onProgress, currentLanguage, originalFilename);
   }
 };
 

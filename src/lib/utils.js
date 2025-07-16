@@ -68,14 +68,26 @@ export const getProxiedAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
   // Если URL уже использует прокси, возвращаем как есть
-  if (originalUrl.includes('/audio-proxy/')) {
+  if (originalUrl.includes('/audio-proxy/') || originalUrl.includes('/audio-secondary-proxy/')) {
     return originalUrl;
   }
   
-  // Если это URL от audio.alexbrin102.workers.dev, используем прокси
+  // Проверяем, нужно ли использовать прокси (можно отключить для тестирования)
+  const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
+  
+  // Для Cloudflare R2 URL в режиме разработки используем прокси
   if (originalUrl.includes('audio.alexbrin102.workers.dev')) {
-    const url = new URL(originalUrl);
-    return `http://localhost:5174/audio-proxy${url.pathname}`;
+    const isDev = import.meta.env.DEV;
+    if (isDev && useProxy) {
+      return originalUrl.replace('https://audio.alexbrin102.workers.dev', '/audio-proxy');
+    }
+  }
+  
+  if (originalUrl.includes('audio-secondary.alexbrin102.workers.dev')) {
+    const isDev = import.meta.env.DEV;
+    if (isDev && useProxy) {
+      return originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/audio-secondary-proxy');
+    }
   }
   
   // Для других URL возвращаем как есть

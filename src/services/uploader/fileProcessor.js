@@ -1,7 +1,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import storageService from '@/lib/storageService';
+import r2Service from '@/lib/r2Service';
 import assemblyAIService from '@/lib/assemblyAIService';
 import { parseQuestionsFromDescriptionString } from '@/lib/podcastService';
 import { translateTextOpenAI } from '@/lib/openAIService';
@@ -44,9 +44,9 @@ export const processSingleItem = async ({
         .from('episodes')
         .select('slug, audio_url, r2_object_key, r2_bucket_name')
         .eq('slug', episodeSlug)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
          console.error("Supabase check episode error:", checkError);
          throw new Error(getLocaleString('errorCheckingEpisodeDB', currentLanguage, {errorMessage: checkError.message}));
       }
@@ -66,17 +66,20 @@ export const processSingleItem = async ({
     }
     
     if (!userConfirmedOverwriteGlobal || !workerFileUrl) {
-      const fileExistsInStorage = await storageService.checkFileExists(file.name);
-      if (fileExistsInStorage.exists && !userConfirmedOverwriteGlobal) {
-        workerFileUrl = fileExistsInStorage.fileUrl;
+      const fileExistsInR2 = await r2Service.checkFileExists(file.name);
+      if (fileExistsInR2.exists && !userConfirmedOverwriteGlobal) {
+        workerFileUrl = fileExistsInR2.fileUrl;
         r2FileKey = file.name.replace(/\s+/g, '_'); 
-        bucketNameUsed = fileExistsInStorage.bucketName;
+        bucketNameUsed = fileExistsInR2.bucketName;
         updateItemState(itemData.id, { uploadProgress: 100 }); 
         toast({ title: getLocaleString('fileAlreadyInR2Title', currentLanguage), description: getLocaleString('fileAlreadyInR2Desc', currentLanguage, { fileName: file.name }), variant: "info" });
       } else {
-        const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await storageService.uploadFile(
+        const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await r2Service.uploadFile(
           file,
-          (progress) => updateItemState(itemData.id, { uploadProgress: progress }),
+          (progress, details) => updateItemState(itemData.id, { 
+            uploadProgress: progress,
+            uploadProgressDetails: details
+          }),
           currentLanguage,
           file.name 
         );
@@ -137,7 +140,7 @@ export const processSingleItem = async ({
       .from('episodes')
       .upsert(episodePayload, { onConflict: 'slug' })
       .select('slug')
-      .single();
+      .maybeSingle();
 
     if (episodeDbError) throw new Error(getLocaleString('supabaseEpisodeError', currentLanguage, {errorMessage: episodeDbError.message}));
     
@@ -242,7 +245,7 @@ export const processSingleItem = async ({
                 edited_transcript_data: null 
             };
             
-            const { error: transcriptDbError } = await supabase.from('transcripts').upsert(transcriptPayload, { onConflict: 'episode_slug, lang' }).select().single();
+            const { error: transcriptDbError } = await supabase.from('transcripts').upsert(transcriptPayload, { onConflict: 'episode_slug, lang' }).select().maybeSingle();
 
             if (transcriptDbError) {
               if(transcriptDbError.message.includes('constraint matching the ON CONFLICT specification')) {

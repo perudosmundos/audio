@@ -141,7 +141,8 @@ const usePlayerPlayback = ({
       isPlayingState, 
       hasAudioUrl: !!episodeData?.audio_url,
       audioUrl: episodeData?.audio_url,
-      isSeeking: isSeekingRef.current
+      isSeeking: isSeekingRef.current,
+      audioPaused: audioRef.current?.paused
     });
     
     if (audioRef.current && !isSeekingRef.current) {
@@ -177,8 +178,9 @@ const usePlayerPlayback = ({
         }
       } else {
         if (!audioRef.current.paused) {
-            console.log('usePlayerPlayback: Pausing audio');
+            console.log('usePlayerPlayback: Pausing audio, currentTime before pause:', audioRef.current.currentTime);
             audioRef.current.pause();
+            console.log('usePlayerPlayback: Audio paused, currentTime after pause:', audioRef.current.currentTime);
         }
       }
     } else {
@@ -190,6 +192,46 @@ const usePlayerPlayback = ({
       });
     }
   }, [isPlayingState, episodeData?.audio_url]);
+
+  // Синхронизация состояния с реальным состоянием аудио элемента
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+
+    const handlePlay = () => {
+      console.log('usePlayerPlayback: Audio play event, syncing state');
+      if (!isPlayingState) {
+        setIsPlayingState(true);
+        onPlayerStateChange?.({ isPlaying: true });
+      }
+    };
+
+    const handlePause = () => {
+      console.log('usePlayerPlayback: Audio pause event, syncing state');
+      if (isPlayingState) {
+        setIsPlayingState(false);
+        onPlayerStateChange?.({ isPlaying: false });
+      }
+    };
+
+    const handleEnded = () => {
+      console.log('usePlayerPlayback: Audio ended event, syncing state');
+      if (isPlayingState) {
+        setIsPlayingState(false);
+        onPlayerStateChange?.({ isPlaying: false });
+      }
+    };
+
+    audioElement.addEventListener('play', handlePlay);
+    audioElement.addEventListener('pause', handlePause);
+    audioElement.addEventListener('ended', handleEnded);
+
+    return () => {
+      audioElement.removeEventListener('play', handlePlay);
+      audioElement.removeEventListener('pause', handlePause);
+      audioElement.removeEventListener('ended', handleEnded);
+    };
+  }, [audioRef, isPlayingState, setIsPlayingState, onPlayerStateChange]);
 
   // Автоматический старт воспроизведения при загрузке нового эпизода
   useEffect(() => {

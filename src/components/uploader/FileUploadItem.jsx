@@ -25,7 +25,8 @@ const FileUploadItem = ({
     uploadComplete,
     transcriptionStatus,
     transcriptionError,
-    isTranslatingTimings
+    isTranslatingTimings,
+    uploadProgressDetails
   } = itemData;
 
   const handleTimingsUpdate = (e) => {
@@ -112,7 +113,14 @@ const FileUploadItem = ({
       {isUploading && (
         <div className="mt-2">
           <Progress value={uploadProgress} className="w-full [&>div]:bg-purple-400 h-2" />
-          <p className="text-xs text-center mt-1 text-purple-300">{getLocaleString('uploading', currentLanguage)} {uploadProgress}%</p>
+          <div className="text-xs text-center mt-1 text-purple-300">
+            {uploadProgressDetails?.message || getLocaleString('uploading', currentLanguage)} {uploadProgress}%
+            {uploadProgressDetails && (
+              <div className="text-xs text-purple-200 mt-1">
+                {uploadProgressDetails.uploadedMB} / {uploadProgressDetails.totalMB} MB
+              </div>
+            )}
+          </div>
         </div>
       )}
 

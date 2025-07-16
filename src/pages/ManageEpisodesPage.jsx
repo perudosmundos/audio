@@ -8,7 +8,7 @@ import { Trash2, Loader2, Search, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import { formatShortDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import storageService from '@/lib/storageService';
+import r2Service from '@/lib/r2Service';
 
 const ManageEpisodesPage = ({ currentLanguage }) => {
   const [episodes, setEpisodes] = useState([]);
@@ -17,6 +17,8 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [episodeToDelete, setEpisodeToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [episodesWithMissingFiles, setEpisodesWithMissingFiles] = useState([]);
+  const [checkingMissingFiles, setCheckingMissingFiles] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -36,9 +38,54 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
     setLoading(false);
   }, [currentLanguage, toast]);
 
+  const checkMissingFiles = useCallback(async () => {
+    if (!episodes || episodes.length === 0) return;
+    
+    setCheckingMissingFiles(true);
+    const missingFiles = [];
+    
+    // Check files in batches
+    const batchSize = 3;
+    for (let i = 0; i < episodes.length; i += batchSize) {
+      const batch = episodes.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (episode) => {
+        if (!episode.r2_object_key) return null;
+        
+        try {
+          const { exists } = await r2Service.checkFileExists(episode.r2_object_key);
+          if (!exists) {
+            return episode;
+          }
+        } catch (error) {
+          console.warn('Error checking file for episode:', episode.slug, error);
+        }
+        return null;
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(result => {
+        if (result) missingFiles.push(result);
+      });
+      
+      // Small delay between batches
+      if (i + batchSize < episodes.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    setEpisodesWithMissingFiles(missingFiles);
+    setCheckingMissingFiles(false);
+  }, [episodes]);
+
   useEffect(() => {
     fetchEpisodes();
   }, [fetchEpisodes]);
+
+  useEffect(() => {
+    if (episodes.length > 0) {
+      checkMissingFiles();
+    }
+  }, [episodes, checkMissingFiles]);
 
   const handleDeleteClick = (episode) => {
     setEpisodeToDelete(episode);
@@ -67,9 +114,9 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
       if (transcriptsError) throw new Error(getLocaleString('errorDeletingTranscripts', currentLanguage, { errorMessage: transcriptsError.message }));
       
       if (r2_object_key && r2_bucket_name) {
-        const deleteStorageResult = await storageService.deleteFile(r2_object_key, r2_bucket_name, currentLanguage);
-        if (!deleteStorageResult.success) {
-           toast({ title: getLocaleString('warning', currentLanguage), description: getLocaleString('errorDeletingR2FilePartial', currentLanguage, {fileName: r2_object_key, errorMessage: deleteStorageResult.error}), variant: 'destructive' });
+        const deleteArchiveResult = await r2Service.deleteFile(r2_object_key, r2_bucket_name, currentLanguage);
+        if (!deleteArchiveResult.success) {
+           toast({ title: getLocaleString('warning', currentLanguage), description: getLocaleString('errorDeletingR2FilePartial', currentLanguage, {fileName: r2_object_key, errorMessage: deleteArchiveResult.error}), variant: 'destructive' });
         } else {
            toast({ title: getLocaleString('fileDeletedFromR2Title', currentLanguage), description: getLocaleString('fileDeletedFromR2Desc', currentLanguage, {fileName: r2_object_key}) });
         }
@@ -135,6 +182,50 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
         </div>
       </div>
+
+      {/* Missing Files Section */}
+      {episodesWithMissingFiles.length > 0 && (
+        <div className="mb-8 p-4 bg-red-500/20 border border-red-500/40 rounded-lg">
+          <h2 className="text-lg font-semibold text-red-300 mb-3 flex items-center">
+            <ShieldAlert className="h-5 w-5 mr-2" />
+            {getLocaleString('episodesWithMissingFiles', currentLanguage)} ({episodesWithMissingFiles.length})
+          </h2>
+          <p className="text-sm text-red-200 mb-4">
+            {getLocaleString('missingFilesDescription', currentLanguage)}
+          </p>
+          <ul className="space-y-2">
+            {episodesWithMissingFiles.map(episode => (
+              <li key={episode.slug} className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-medium text-red-200">
+                    {formatEpisodeTitle(episode.title, episode.date, episode.lang === 'all' ? currentLanguage : episode.lang)}
+                  </h3>
+                  <p className="text-xs text-red-300">{episode.slug} - {episode.r2_object_key}</p>
+                </div>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => handleDeleteClick(episode)}
+                  className="bg-red-700 hover:bg-red-800 text-white"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  {getLocaleString('delete', currentLanguage)}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {checkingMissingFiles && (
+        <div className="mb-6 p-4 bg-yellow-500/20 border border-yellow-500/40 rounded-lg">
+          <div className="flex items-center">
+            <Loader2 className="h-5 w-5 animate-spin text-yellow-400 mr-2" />
+            <span className="text-yellow-200">{getLocaleString('checkingMissingFiles', currentLanguage)}</span>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center py-10">

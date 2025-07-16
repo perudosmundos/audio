@@ -3,7 +3,22 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
 import { getProxiedAudioUrl } from '@/lib/utils';
-import storageService from '@/lib/storageService';
+import r2Service from '@/lib/r2Service';
+
+// Utility function to check if a file exists on Archive.org
+export const checkEpisodeFileExists = async (episode) => {
+  if (!episode.r2_object_key || !episode.audio_url) {
+    return { exists: false, error: 'No file key or URL' };
+  }
+  
+  try {
+    const fileExists = await r2Service.checkFileExists(episode.r2_object_key);
+    return { exists: fileExists.exists, error: null };
+  } catch (error) {
+    console.warn('Error checking file existence for episode:', episode.slug, error);
+    return { exists: false, error: error.message };
+  }
+};
 
 const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
   const [episodeData, setEpisodeData] = useState(null);
@@ -20,9 +35,9 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         .select('transcript_data, edited_transcript_data, status')
         .eq('episode_slug', epSlug)
         .eq('lang', langForTranscript)
-        .single();
+        .maybeSingle();
 
-      if (transcriptError && transcriptError.code !== 'PGRST116') throw transcriptError;
+      if (transcriptError) throw transcriptError;
       
       if (data) {
         const finalTranscriptData = data.edited_transcript_data || data.transcript_data;
@@ -82,10 +97,15 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         .from('episodes')
         .select('slug, title, lang, audio_url, duration, date, created_at, r2_object_key, r2_bucket_name')
         .eq('slug', episodeSlug)
-        .single();
+        .maybeSingle();
 
       if (episodeError) throw episodeError;
-      if (!episode) throw new Error(getLocaleString('episodeNotFound', currentLanguage));
+      if (!episode) {
+        console.warn('Episode not found:', episodeSlug);
+        setError(getLocaleString('episodeNotFound', currentLanguage));
+        setLoading(false);
+        return;
+      }
       
       console.log('useEpisodeData: Episode data loaded', { 
         slug: episode.slug, 
@@ -95,11 +115,12 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         r2_bucket_name: episode.r2_bucket_name
       });
       
-      let finalAudioUrl = episode.audio_url;
-      if (!finalAudioUrl && episode.r2_object_key && episode.r2_bucket_name) {
-        finalAudioUrl = await storageService.getPublicUrl(episode.r2_object_key, episode.r2_bucket_name);
-        console.log('useEpisodeData: Generated storage URL', finalAudioUrl);
-      }
+      let finalAudioUrl = r2Service.getCompatibleUrl(
+        episode.audio_url, 
+        episode.r2_object_key, 
+        episode.r2_bucket_name
+      );
+      console.log('useEpisodeData: Generated compatible URL', finalAudioUrl);
       
       // Применяем прокси для обхода CORS
       finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);

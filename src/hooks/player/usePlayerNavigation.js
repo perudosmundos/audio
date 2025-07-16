@@ -86,7 +86,9 @@ const usePlayerNavigation = ({
     console.log('usePlayerNavigation: togglePlayPause called', { 
       isPlayingState, 
       hasAudioUrl: !!episodeData?.audio_url,
-      hasAudioRef: !!audioRef.current 
+      hasAudioRef: !!audioRef.current,
+      audioCurrentTime: audioRef.current?.currentTime,
+      audioPaused: audioRef.current?.paused
     });
     
     if (!episodeData?.audio_url && audioRef.current) {
@@ -96,8 +98,17 @@ const usePlayerNavigation = ({
         onPlayerStateChange?.({isPlaying: false});
         return;
     }
-    const newIsPlaying = !isPlayingState;
-    console.log('usePlayerNavigation: Setting isPlaying to', newIsPlaying);
+    
+    // Проверяем реальное состояние аудио элемента
+    const audioIsActuallyPlaying = audioRef.current && !audioRef.current.paused;
+    const newIsPlaying = !audioIsActuallyPlaying;
+    
+    console.log('usePlayerNavigation: Audio state check', { 
+      audioIsActuallyPlaying, 
+      newIsPlaying, 
+      isPlayingState 
+    });
+    
     setIsPlayingState(newIsPlaying);
     onPlayerStateChange?.({isPlaying: newIsPlaying});
   }, [episodeData?.audio_url, toast, currentLanguage, audioRef, isPlayingState, setIsPlayingState, onPlayerStateChange]);

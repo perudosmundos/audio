@@ -7,7 +7,7 @@ import { UploadCloud, Loader2, PlusCircle, ArrowLeft, Settings2, Trash2, Search,
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
-import storageService from '@/lib/storageService';
+import r2Service from '@/lib/r2Service';
 import useFileUploadManager from '@/hooks/useFileUploadManager';
 import FileUploadItem from '@/components/uploader/FileUploadItem';
 import OverwriteDialog from '@/components/uploader/OverwriteDialog';
@@ -98,9 +98,9 @@ const ManageEpisodesList = ({ currentLanguage }) => {
         if (transcriptsError) throw new Error(getLocaleString('errorDeletingTranscripts', currentLanguage, { errorMessage: transcriptsError.message }));
         
         if (r2_object_key && r2_bucket_name) {
-          const deleteStorageResult = await storageService.deleteFile(r2_object_key, r2_bucket_name, currentLanguage);
-          if (!deleteStorageResult.success) {
-             toast({ title: getLocaleString('warning', currentLanguage), description: getLocaleString('errorDeletingR2FilePartial', currentLanguage, {fileName: r2_object_key, errorMessage: deleteStorageResult.error}), variant: 'destructive' });
+          const deleteArchiveResult = await r2Service.deleteFile(r2_object_key, r2_bucket_name, currentLanguage);
+          if (!deleteArchiveResult.success) {
+             toast({ title: getLocaleString('warning', currentLanguage), description: getLocaleString('errorDeletingR2FilePartial', currentLanguage, {fileName: r2_object_key, errorMessage: deleteArchiveResult.error}), variant: 'destructive' });
           } else {
              toast({ title: getLocaleString('fileDeletedFromR2Title', currentLanguage), description: getLocaleString('fileDeletedFromR2Desc', currentLanguage, {fileName: r2_object_key}) });
           }

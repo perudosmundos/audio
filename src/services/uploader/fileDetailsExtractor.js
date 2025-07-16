@@ -37,15 +37,15 @@ export const generateInitialItemData = async (file, targetLang, currentLanguage,
     try {
       const columnToFetch = targetLang === 'ru' ? 'timings_ru' : targetLang === 'es' ? 'timings_es' : null;
       if (columnToFetch) {
-        const { data, error } = await supabase
-          .from('timeOld')
-          .select(columnToFetch)
-          .eq('date', dateFromFile)
-          .single();
-        if (error && error.code !== 'PGRST116') throw error; 
-        if (data) {
-          timingsText = data[columnToFetch] || '';
-        }
+              const { data, error } = await supabase
+        .from('timeOld')
+        .select(columnToFetch)
+        .eq('date', dateFromFile)
+        .maybeSingle();
+      if (error) throw error; 
+      if (data) {
+        timingsText = data[columnToFetch] || '';
+      }
       }
     } catch (err) {
       console.error(`Error fetching timings for ${file.name} (${targetLang}):`, err);

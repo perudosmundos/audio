@@ -7,13 +7,14 @@ import { Progress } from '@/components/ui/progress';
 import { UploadCloud, FileAudio, X, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { getLocaleString } from '@/lib/locales';
-import storageService from '@/lib/storageService'; 
+import r2Service from '@/lib/r2Service'; 
 import assemblyAIService from '@/lib/assemblyAIService';
 import { getFileNameWithoutExtension } from '@/lib/utils';
 
 const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) => {
   const [files, setFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgressDetails, setUploadProgressDetails] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -78,20 +79,21 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
 
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadProgressDetails(null);
     setUploadError(null);
     setUploadComplete(false);
 
     for (const file of files) {
       try {
-        const { fileUrl: workerFileUrl, fileKey, bucketName } = await storageService.uploadFile(
+        const { fileUrl: workerFileUrl, fileKey, bucketName } = await r2Service.uploadFile(
           file, 
-          (progress) => setUploadProgress(progress),
+          (progress, details) => {
+            setUploadProgress(progress);
+            setUploadProgressDetails(details);
+          },
           currentLanguage
         );
-        
-        const storageInfo = storageService.getStorageInfo();
-        const successMessage = storageInfo.isVKCloud ? 'uploadToVKCloudSuccess' : 'uploadToR2Success';
-        toast({ title: getLocaleString(successMessage, currentLanguage), description: `${file.name} (Bucket: ${bucketName})` });
+        toast({ title: getLocaleString('uploadToR2Success', currentLanguage), description: `${file.name} (Archive.org: ${bucketName})` });
 
         const audioForDuration = new Audio(URL.createObjectURL(file));
         let duration = 0;
@@ -120,7 +122,7 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
             }
           ])
           .select('slug')
-          .single();
+          .maybeSingle();
 
         if (dbError) {
             if (dbError.code === '23505') { // Unique violation for slug
@@ -185,6 +187,7 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
     if (isUploading) return; 
     setFiles([]);
     setUploadProgress(0);
+    setUploadProgressDetails(null);
     setUploadError(null);
     setUploadComplete(false);
     onClose();
@@ -233,7 +236,14 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
         {isUploading && (
           <div className="mt-4">
             <Progress value={uploadProgress} className="w-full [&>div]:bg-purple-500" />
-            <p className="text-sm text-center mt-2 text-purple-300">{getLocaleString('uploading', currentLanguage)} {uploadProgress}%</p>
+            <div className="text-sm text-center mt-2 text-purple-300">
+              {uploadProgressDetails?.message || getLocaleString('uploading', currentLanguage)} {uploadProgress}%
+              {uploadProgressDetails && (
+                <div className="text-xs text-purple-200 mt-1">
+                  {uploadProgressDetails.uploadedMB} / {uploadProgressDetails.totalMB} MB
+                </div>
+              )}
+            </div>
           </div>
         )}
 
