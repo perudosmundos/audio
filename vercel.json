@@ -1,4 +1,12 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "functions": {
     "api/audio-proxy/[...path].js": {
       "maxDuration": 30

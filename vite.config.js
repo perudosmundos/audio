@@ -290,6 +290,7 @@ export default defineConfig({
 				'@babel/generator',
 				'@babel/types'
 			]
-		}
+		},
+		outDir: 'dist'
 	}
 });
