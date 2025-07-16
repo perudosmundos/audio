@@ -108,3 +108,55 @@ export const getProxiedAudioUrl = (originalUrl) => {
   // Для других URL возвращаем как есть
   return originalUrl;
 };
+
+// Функция для проверки доступности прокси
+export const testProxyAvailability = async (proxyUrl) => {
+  try {
+    const response = await fetch(proxyUrl, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.warn('Proxy test failed:', error);
+    return false;
+  }
+};
+
+// Функция для получения URL с fallback
+export const getAudioUrlWithFallback = async (originalUrl) => {
+  if (!originalUrl) return originalUrl;
+  
+  // Если это не Cloudflare URL, возвращаем как есть
+  if (!originalUrl.includes('audio.alexbrin102.workers.dev') && 
+      !originalUrl.includes('audio-secondary.alexbrin102.workers.dev')) {
+    return originalUrl;
+  }
+  
+  const isDev = import.meta.env.DEV;
+  const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
+  
+  if (!useProxy) {
+    return originalUrl; // Возвращаем прямой URL
+  }
+  
+  // Генерируем прокси URL
+  let proxyUrl;
+  if (originalUrl.includes('audio.alexbrin102.workers.dev')) {
+    proxyUrl = isDev 
+      ? originalUrl.replace('https://audio.alexbrin102.workers.dev', '/audio-proxy')
+      : originalUrl.replace('https://audio.alexbrin102.workers.dev', '/api/audio-proxy');
+  } else {
+    proxyUrl = isDev 
+      ? originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/audio-secondary-proxy')
+      : originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/api/audio-secondary-proxy');
+  }
+  
+  // В продакшене проверяем доступность прокси
+  if (!isDev) {
+    const proxyAvailable = await testProxyAvailability(proxyUrl);
+    if (!proxyAvailable) {
+      console.warn('Proxy not available, using direct URL');
+      return originalUrl; // Fallback на прямой URL
+    }
+  }
+  
+  return proxyUrl;
+};

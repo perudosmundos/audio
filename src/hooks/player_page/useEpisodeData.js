@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import { getProxiedAudioUrl } from '@/lib/utils';
+import { getProxiedAudioUrl, getAudioUrlWithFallback } from '@/lib/utils';
 import r2Service from '@/lib/r2Service';
 
 // Utility function to check if a file exists on Archive.org
@@ -122,9 +122,15 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       );
       console.log('useEpisodeData: Generated compatible URL', finalAudioUrl);
       
-      // Применяем прокси для обхода CORS
-      finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
-      console.log('useEpisodeData: Final audio URL (with proxy)', finalAudioUrl);
+      // Применяем прокси для обхода CORS с fallback
+      try {
+        finalAudioUrl = await getAudioUrlWithFallback(finalAudioUrl);
+        console.log('useEpisodeData: Final audio URL (with fallback)', finalAudioUrl);
+      } catch (error) {
+        console.warn('useEpisodeData: Fallback failed, using original URL', error);
+        finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
+      }
+      
       console.log('useEpisodeData: Proxy setting in localStorage:', localStorage.getItem('useAudioProxy'));
       console.log('useEpisodeData: Is development mode:', import.meta.env.DEV);
       setEpisodeData({...episode, audio_url: finalAudioUrl});
