@@ -125,6 +125,8 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       // Применяем прокси для обхода CORS
       finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
       console.log('useEpisodeData: Final audio URL (with proxy)', finalAudioUrl);
+      console.log('useEpisodeData: Proxy setting in localStorage:', localStorage.getItem('useAudioProxy'));
+      console.log('useEpisodeData: Is development mode:', import.meta.env.DEV);
       setEpisodeData({...episode, audio_url: finalAudioUrl});
       
       const langForContent = episode.lang === 'all' ? currentLanguage : episode.lang;

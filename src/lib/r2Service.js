@@ -142,6 +142,12 @@ const r2Service = {
 
   getPublicUrl: (fileKey, bucketName) => {
     const isDev = import.meta.env.DEV;
+    
+    // Устанавливаем прокси по умолчанию, если не установлен
+    if (localStorage.getItem('useAudioProxy') === null) {
+      localStorage.setItem('useAudioProxy', 'true');
+    }
+    
     const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
     
     if (bucketName === R2_SECONDARY_CONFIG.BUCKET) {
@@ -153,6 +159,11 @@ const r2Service = {
   // Совместимая функция для генерации URL
   getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
+    
+    // Устанавливаем прокси по умолчанию, если не установлен
+    if (localStorage.getItem('useAudioProxy') === null) {
+      localStorage.setItem('useAudioProxy', 'true');
+    }
     
     // Если есть прямой URL, используем его
     if (audioUrl) {

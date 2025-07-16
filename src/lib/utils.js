@@ -72,7 +72,12 @@ export const getProxiedAudioUrl = (originalUrl) => {
     return originalUrl;
   }
   
-  // Проверяем, нужно ли использовать прокси (можно отключить для тестирования)
+  // Устанавливаем прокси по умолчанию, если не установлен
+  if (localStorage.getItem('useAudioProxy') === null) {
+    localStorage.setItem('useAudioProxy', 'true');
+  }
+  
+  // Проверяем, нужно ли использовать прокси (по умолчанию включен)
   const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
   
   // Для Cloudflare R2 URL в режиме разработки используем прокси
