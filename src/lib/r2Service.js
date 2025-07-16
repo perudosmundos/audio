@@ -8,7 +8,8 @@ const R2_PRIMARY_CONFIG = {
   ACCOUNT_ID: "b673708f9f9609c4d372573207f830ce",
   ENDPOINT_SUFFIX: "r2.cloudflarestorage.com",
   WORKER_PUBLIC_URL: "https://audio.alexbrin102.workers.dev",
-  PROXY_URL: "/audio-proxy" 
+  PROXY_URL: "/audio-proxy",
+  API_PROXY_URL: "/api/audio-proxy"
 };
 
 const R2_SECONDARY_CONFIG = {
@@ -18,7 +19,8 @@ const R2_SECONDARY_CONFIG = {
   ACCOUNT_ID: "b673708f9f9609c4d372573207f830ce", 
   ENDPOINT_SUFFIX: "r2.cloudflarestorage.com",
   WORKER_PUBLIC_URL: "https://audio-secondary.alexbrin102.workers.dev",
-  PROXY_URL: "/audio-secondary-proxy" 
+  PROXY_URL: "/audio-secondary-proxy",
+  API_PROXY_URL: "/api/audio-secondary-proxy"
 };
 
 
@@ -151,9 +153,16 @@ const r2Service = {
     const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
     
     if (bucketName === R2_SECONDARY_CONFIG.BUCKET) {
-      return isDev && useProxy ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
+      if (useProxy) {
+        return isDev ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_SECONDARY_CONFIG.API_PROXY_URL}/${fileKey}`;
+      }
+      return `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
     }
-    return isDev && useProxy ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
+    
+    if (useProxy) {
+      return isDev ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_PRIMARY_CONFIG.API_PROXY_URL}/${fileKey}`;
+    }
+    return `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
   },
 
   // Совместимая функция для генерации URL
@@ -177,9 +186,17 @@ const r2Service = {
       const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
       let generatedUrl;
       if (r2BucketName === R2_SECONDARY_CONFIG.BUCKET) {
-        generatedUrl = isDev && useProxy ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+        if (useProxy) {
+          generatedUrl = isDev ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_SECONDARY_CONFIG.API_PROXY_URL}/${r2ObjectKey}`;
+        } else {
+          generatedUrl = `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+        }
       } else {
-        generatedUrl = isDev && useProxy ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+        if (useProxy) {
+          generatedUrl = isDev ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_PRIMARY_CONFIG.API_PROXY_URL}/${r2ObjectKey}`;
+        } else {
+          generatedUrl = `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+        }
       }
       console.log('R2: Generated URL from key:', generatedUrl);
       return generatedUrl;

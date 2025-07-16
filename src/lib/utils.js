@@ -80,17 +80,27 @@ export const getProxiedAudioUrl = (originalUrl) => {
   // Проверяем, нужно ли использовать прокси (по умолчанию включен)
   const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
   
-  // Для Cloudflare R2 URL в режиме разработки используем прокси
+  // Для Cloudflare R2 URL используем прокси в разработке и продакшене
   if (originalUrl.includes('audio.alexbrin102.workers.dev')) {
     const isDev = import.meta.env.DEV;
-    if (isDev && useProxy) {
+    if (useProxy) {
+      // В продакшене используем API route для прокси
+      if (!isDev) {
+        return originalUrl.replace('https://audio.alexbrin102.workers.dev', '/api/audio-proxy');
+      }
+      // В разработке используем Vite прокси
       return originalUrl.replace('https://audio.alexbrin102.workers.dev', '/audio-proxy');
     }
   }
   
   if (originalUrl.includes('audio-secondary.alexbrin102.workers.dev')) {
     const isDev = import.meta.env.DEV;
-    if (isDev && useProxy) {
+    if (useProxy) {
+      // В продакшене используем API route для прокси
+      if (!isDev) {
+        return originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/api/audio-secondary-proxy');
+      }
+      // В разработке используем Vite прокси
       return originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/audio-secondary-proxy');
     }
   }

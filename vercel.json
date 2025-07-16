@@ -1,0 +1,46 @@
+{
+  "functions": {
+    "api/audio-proxy/[...path].js": {
+      "maxDuration": 30
+    },
+    "api/audio-secondary-proxy/[...path].js": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/audio-proxy/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, HEAD, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Range, Accept-Ranges, Content-Range"
+        }
+      ]
+    },
+    {
+      "source": "/api/audio-secondary-proxy/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, HEAD, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Range, Accept-Ranges, Content-Range"
+        }
+      ]
+    }
+  ]
+} 
