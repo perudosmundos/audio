@@ -56,10 +56,8 @@ const r2Service = {
       try {
         const command = new HeadObjectCommand({ Bucket: config.BUCKET, Key: fileKey });
         await client.send(command);
-        // Используем прокси для обхода CORS
-        const fileUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/audio-proxy/${fileKey}`
-          : `/api/audio-proxy/${fileKey}`;
+        // Временно отключаем прокси для тестирования
+        const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         return { exists: true, fileUrl, bucketName: config.BUCKET };
       } catch (error) {
         if (error.name === 'NoSuchKey' || (error.$metadata && error.$metadata.httpStatusCode === 404)) {
@@ -103,10 +101,8 @@ const r2Service = {
         await client.send(command);
         if (onProgress) onProgress(100); 
 
-        // Используем прокси для обхода CORS
-        const fileUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/audio-proxy/${fileKey}`
-          : `/api/audio-proxy/${fileKey}`;
+        // Временно отключаем прокси для тестирования
+        const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         return { fileUrl, fileKey, bucketName: config.BUCKET };
 
       } catch (error) {
@@ -147,53 +143,32 @@ const r2Service = {
   },
 
   getPublicUrl: (fileKey, bucketName) => {
-    // Используем прокси для обхода CORS
-    const proxyPath = bucketName === R2_SECONDARY_CONFIG.BUCKET 
-      ? 'audio-secondary-proxy' 
-      : 'audio-proxy';
-    
-    if (import.meta.env.PROD) {
-      return `${window.location.origin}/api/${proxyPath}/${fileKey}`;
-    } else {
-      return `/api/${proxyPath}/${fileKey}`;
+    // Временно отключаем прокси для тестирования
+    if (bucketName === R2_SECONDARY_CONFIG.BUCKET) {
+      return `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
     }
+    return `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
   },
 
   // Совместимая функция для генерации URL
   getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
     
-    // Если есть прямой URL, используем его (но применяем прокси если это Cloudflare Worker)
+    // Временно отключаем прокси для тестирования
     if (audioUrl) {
-      if (audioUrl.includes('alexbrin102.workers.dev')) {
-        const url = new URL(audioUrl);
-        const filePath = url.pathname.substring(1);
-        const proxyPath = audioUrl.includes('audio-secondary.alexbrin102.workers.dev') 
-          ? 'audio-secondary-proxy' 
-          : 'audio-proxy';
-        
-        const proxiedUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/${proxyPath}/${filePath}`
-          : `/api/${proxyPath}/${filePath}`;
-        
-        console.log('R2: Using proxied URL:', proxiedUrl);
-        return proxiedUrl;
-      }
       console.log('R2: Using direct URL:', audioUrl);
       return audioUrl;
     }
     
-    // Если есть ключ, генерируем проксированный R2 URL
+    // Если есть ключ, генерируем прямой R2 URL
     if (r2ObjectKey) {
-      const proxyPath = r2BucketName === R2_SECONDARY_CONFIG.BUCKET 
-        ? 'audio-secondary-proxy' 
-        : 'audio-proxy';
-      
-      const generatedUrl = import.meta.env.PROD 
-        ? `${window.location.origin}/api/${proxyPath}/${r2ObjectKey}`
-        : `/api/${proxyPath}/${r2ObjectKey}`;
-      
-      console.log('R2: Generated proxied URL from key:', generatedUrl);
+      let generatedUrl;
+      if (r2BucketName === R2_SECONDARY_CONFIG.BUCKET) {
+        generatedUrl = `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+      } else {
+        generatedUrl = `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
+      }
+      console.log('R2: Generated direct URL from key:', generatedUrl);
       return generatedUrl;
     }
     

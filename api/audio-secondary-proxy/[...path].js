@@ -77,12 +77,24 @@ export default async function handler(req, res) {
     // Передаем статус код
     res.status(response.status);
     
-    // Стримим ответ напрямую вместо буферизации в памяти
-    if (response.body) {
-      console.log('Audio secondary proxy: Streaming response');
-      response.body.pipe(res);
+    // Используем более простой подход для стриминга
+    const reader = response.body?.getReader();
+    if (reader) {
+      console.log('Audio secondary proxy: Streaming with reader');
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+        res.end();
+      } catch (error) {
+        console.error('Audio secondary proxy: Streaming error', error);
+        res.end();
+      }
     } else {
-      // Fallback для случаев, когда body недоступен
+      // Fallback для случаев, когда reader недоступен
       console.log('Audio secondary proxy: Using fallback method');
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
