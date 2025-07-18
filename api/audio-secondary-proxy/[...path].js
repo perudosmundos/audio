@@ -77,14 +77,18 @@ export default async function handler(req, res) {
     // Передаем статус код
     res.status(response.status);
     
-    // Получаем данные как ArrayBuffer для правильной обработки
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
-    
-    // Отправляем данные
-    res.send(buffer);
+    // Стримим ответ напрямую вместо буферизации в памяти
+    if (response.body) {
+      console.log('Audio secondary proxy: Streaming response');
+      response.body.pipe(res);
+    } else {
+      // Fallback для случаев, когда body недоступен
+      console.log('Audio secondary proxy: Using fallback method');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
+      res.send(buffer);
+    }
     
   } catch (error) {
     console.error('Audio secondary proxy error:', error);
