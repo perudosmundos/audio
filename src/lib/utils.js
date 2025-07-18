@@ -67,45 +67,8 @@ export const formatShortDate = (dateString, language = 'ru') => {
 export const getProxiedAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Если URL уже использует прокси, возвращаем как есть
-  if (originalUrl.includes('/audio-proxy/') || originalUrl.includes('/audio-secondary-proxy/')) {
-    return originalUrl;
-  }
-  
-  // Устанавливаем прокси по умолчанию, если не установлен
-  if (localStorage.getItem('useAudioProxy') === null) {
-    localStorage.setItem('useAudioProxy', 'true');
-  }
-  
-  // Проверяем, нужно ли использовать прокси (по умолчанию включен)
-  const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
-  
-  // Для Cloudflare R2 URL используем прокси в разработке и продакшене
-  if (originalUrl.includes('audio.alexbrin102.workers.dev')) {
-    const isDev = import.meta.env.DEV;
-    if (useProxy) {
-      // В продакшене используем API route для прокси
-      if (!isDev) {
-        return originalUrl.replace('https://audio.alexbrin102.workers.dev', '/api/audio-proxy');
-      }
-      // В разработке используем Vite прокси
-      return originalUrl.replace('https://audio.alexbrin102.workers.dev', '/audio-proxy');
-    }
-  }
-  
-  if (originalUrl.includes('audio-secondary.alexbrin102.workers.dev')) {
-    const isDev = import.meta.env.DEV;
-    if (useProxy) {
-      // В продакшене используем API route для прокси
-      if (!isDev) {
-        return originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/api/audio-secondary-proxy');
-      }
-      // В разработке используем Vite прокси
-      return originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/audio-secondary-proxy');
-    }
-  }
-  
-  // Для других URL возвращаем как есть
+  // Временно отключаем прокси и используем прямые ссылки на Cloudflare Worker
+  // пока не решим проблему с API роутами на Vercel
   return originalUrl;
 };
 
@@ -124,39 +87,6 @@ export const testProxyAvailability = async (proxyUrl) => {
 export const getAudioUrlWithFallback = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Если это не Cloudflare URL, возвращаем как есть
-  if (!originalUrl.includes('audio.alexbrin102.workers.dev') && 
-      !originalUrl.includes('audio-secondary.alexbrin102.workers.dev')) {
-    return originalUrl;
-  }
-  
-  const isDev = import.meta.env.DEV;
-  const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
-  
-  if (!useProxy) {
-    return originalUrl; // Возвращаем прямой URL
-  }
-  
-  // Генерируем прокси URL
-  let proxyUrl;
-  if (originalUrl.includes('audio.alexbrin102.workers.dev')) {
-    proxyUrl = isDev 
-      ? originalUrl.replace('https://audio.alexbrin102.workers.dev', '/audio-proxy')
-      : originalUrl.replace('https://audio.alexbrin102.workers.dev', '/api/audio-proxy');
-  } else {
-    proxyUrl = isDev 
-      ? originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/audio-secondary-proxy')
-      : originalUrl.replace('https://audio-secondary.alexbrin102.workers.dev', '/api/audio-secondary-proxy');
-  }
-  
-  // В продакшене проверяем доступность прокси
-  if (!isDev) {
-    const proxyAvailable = await testProxyAvailability(proxyUrl);
-    if (!proxyAvailable) {
-      console.warn('Proxy not available, using direct URL');
-      return originalUrl; // Fallback на прямой URL
-    }
-  }
-  
-  return proxyUrl;
+  // Временно отключаем прокси и используем прямые ссылки
+  return originalUrl;
 };

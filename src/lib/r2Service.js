@@ -56,8 +56,8 @@ const r2Service = {
       try {
         const command = new HeadObjectCommand({ Bucket: config.BUCKET, Key: fileKey });
         await client.send(command);
-        const isDev = import.meta.env.DEV;
-        const fileUrl = isDev ? `${config.PROXY_URL}/${fileKey}` : `${config.WORKER_PUBLIC_URL}/${fileKey}`;
+        // Временно отключаем прокси и используем прямые ссылки на Cloudflare Worker
+        const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         return { exists: true, fileUrl, bucketName: config.BUCKET };
       } catch (error) {
         if (error.name === 'NoSuchKey' || (error.$metadata && error.$metadata.httpStatusCode === 404)) {
@@ -101,8 +101,8 @@ const r2Service = {
         await client.send(command);
         if (onProgress) onProgress(100); 
 
-        const isDev = import.meta.env.DEV;
-        const fileUrl = isDev ? `${config.PROXY_URL}/${fileKey}` : `${config.WORKER_PUBLIC_URL}/${fileKey}`;
+        // Временно отключаем прокси и используем прямые ссылки на Cloudflare Worker
+        const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         return { fileUrl, fileKey, bucketName: config.BUCKET };
 
       } catch (error) {
@@ -143,24 +143,9 @@ const r2Service = {
   },
 
   getPublicUrl: (fileKey, bucketName) => {
-    const isDev = import.meta.env.DEV;
-    
-    // Устанавливаем прокси по умолчанию, если не установлен
-    if (localStorage.getItem('useAudioProxy') === null) {
-      localStorage.setItem('useAudioProxy', 'true');
-    }
-    
-    const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
-    
+    // Временно отключаем прокси и используем прямые ссылки на Cloudflare Worker
     if (bucketName === R2_SECONDARY_CONFIG.BUCKET) {
-      if (useProxy) {
-        return isDev ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_SECONDARY_CONFIG.API_PROXY_URL}/${fileKey}`;
-      }
       return `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
-    }
-    
-    if (useProxy) {
-      return isDev ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${fileKey}` : `${R2_PRIMARY_CONFIG.API_PROXY_URL}/${fileKey}`;
     }
     return `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${fileKey}`;
   },
@@ -168,11 +153,6 @@ const r2Service = {
   // Совместимая функция для генерации URL
   getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
-    
-    // Устанавливаем прокси по умолчанию, если не установлен
-    if (localStorage.getItem('useAudioProxy') === null) {
-      localStorage.setItem('useAudioProxy', 'true');
-    }
     
     // Если есть прямой URL, используем его
     if (audioUrl) {
@@ -182,21 +162,11 @@ const r2Service = {
     
     // Если есть ключ, генерируем R2 URL
     if (r2ObjectKey) {
-      const isDev = import.meta.env.DEV;
-      const useProxy = localStorage.getItem('useAudioProxy') !== 'false';
       let generatedUrl;
       if (r2BucketName === R2_SECONDARY_CONFIG.BUCKET) {
-        if (useProxy) {
-          generatedUrl = isDev ? `${R2_SECONDARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_SECONDARY_CONFIG.API_PROXY_URL}/${r2ObjectKey}`;
-        } else {
-          generatedUrl = `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
-        }
+        generatedUrl = `${R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
       } else {
-        if (useProxy) {
-          generatedUrl = isDev ? `${R2_PRIMARY_CONFIG.PROXY_URL}/${r2ObjectKey}` : `${R2_PRIMARY_CONFIG.API_PROXY_URL}/${r2ObjectKey}`;
-        } else {
-          generatedUrl = `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
-        }
+        generatedUrl = `${R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
       }
       console.log('R2: Generated URL from key:', generatedUrl);
       return generatedUrl;
