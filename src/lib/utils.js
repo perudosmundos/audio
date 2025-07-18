@@ -67,8 +67,20 @@ export const formatShortDate = (dateString, language = 'ru') => {
 export const getProxiedAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Временно отключаем прокси и используем прямые ссылки на Cloudflare Worker
-  // пока не решим проблему с API роутами на Vercel
+  // Проверяем, является ли URL Cloudflare Worker
+  if (originalUrl.includes('alexbrin102.workers.dev')) {
+    // Извлекаем путь файла из URL
+    const url = new URL(originalUrl);
+    const filePath = url.pathname.substring(1); // Убираем начальный слеш
+    
+    // В продакшене используем API роут, в разработке - Vite прокси
+    if (import.meta.env.PROD) {
+      return `${window.location.origin}/api/audio-proxy/${filePath}`;
+    } else {
+      return `/api/audio-proxy/${filePath}`;
+    }
+  }
+  
   return originalUrl;
 };
 
@@ -87,6 +99,21 @@ export const testProxyAvailability = async (proxyUrl) => {
 export const getAudioUrlWithFallback = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Временно отключаем прокси и используем прямые ссылки
+  // Проверяем, является ли URL Cloudflare Worker
+  if (originalUrl.includes('alexbrin102.workers.dev')) {
+    const proxiedUrl = getProxiedAudioUrl(originalUrl);
+    
+    // Тестируем доступность прокси
+    const isProxyAvailable = await testProxyAvailability(proxiedUrl);
+    
+    if (isProxyAvailable) {
+      console.log('Using proxied URL:', proxiedUrl);
+      return proxiedUrl;
+    } else {
+      console.warn('Proxy not available, using direct URL');
+      return originalUrl;
+    }
+  }
+  
   return originalUrl;
 };
