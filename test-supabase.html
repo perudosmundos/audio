@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест подключения к Supabase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .test-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .test-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left: 4px solid #00ff88;
+        }
+        .error {
+            border-left: 4px solid #ff4757;
+        }
+        .loading {
+            border-left: 4px solid #ffa502;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #00ff88; }
+        .status-error { background-color: #ff4757; }
+        .status-loading { background-color: #ffa502; animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .episode-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #00ff88;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Тест подключения к Supabase</h1>
+        
+        <div class="test-section">
+            <h3>📊 Статус подключения</h3>
+            <button class="test-button" onclick="testSupabaseConnection()">
+                🚀 Тестировать подключение
+            </button>
+            <div id="connectionResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📈 Статистика</h3>
+            <div id="stats" class="stats"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Последние эпизоды</h3>
+            <div id="episodesList"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Дополнительные тесты</h3>
+            <button class="test-button" onclick="testEpisodesAPI()">
+                📋 Тест API эпизодов
+            </button>
+            <button class="test-button" onclick="testQuestionsAPI()">
+                ❓ Тест API вопросов
+            </button>
+            <div id="additionalResults" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentResults = {};
+
+        async function testSupabaseConnection() {
+            const resultDiv = document.getElementById('connectionResult');
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '🔄 Тестирование подключения к Supabase...';
+
+            try {
+                const response = await fetch('/api/test-supabase');
+                const data = await response.json();
+                
+                currentResults = data;
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ Подключение успешно!\n\n📊 Результаты:\n${JSON.stringify(data, null, 2)}`;
+                    updateStats(data);
+                    updateEpisodesList(data.recentEpisodes);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ Ошибка подключения:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка сети:\n${error.message}`;
+            }
+        }
+
+        function updateStats(data) {
+            const statsDiv = document.getElementById('stats');
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${data.connectionTest.status}</div>
+                    <div class="stat-label">HTTP Статус</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${data.episodesCount}</div>
+                    <div class="stat-label">Всего эпизодов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${data.recentEpisodes.length}</div>
+                    <div class="stat-label">Последние эпизоды</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${data.connectionTest.ok ? '✅' : '❌'}</div>
+                    <div class="stat-label">Подключение</div>
+                </div>
+            `;
+        }
+
+        function updateEpisodesList(episodes) {
+            const episodesDiv = document.getElementById('episodesList');
+            if (!episodes || episodes.length === 0) {
+                episodesDiv.innerHTML = '<p>📭 Эпизоды не найдены</p>';
+                return;
+            }
+
+            episodesDiv.innerHTML = episodes.map(episode => `
+                <div class="episode-item">
+                    <strong>${episode.title || 'Без названия'}</strong><br>
+                    <small>Slug: ${episode.slug} | Язык: ${episode.lang} | Дата: ${episode.date}</small>
+                </div>
+            `).join('');
+        }
+
+        async function testEpisodesAPI() {
+            const resultDiv = document.getElementById('additionalResults');
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '🔄 Тестирование API эпизодов...';
+
+            try {
+                const response = await fetch('/api/test-episodes');
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `📋 API эпизодов:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка API эпизодов:\n${error.message}`;
+            }
+        }
+
+        async function testQuestionsAPI() {
+            const resultDiv = document.getElementById('additionalResults');
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '🔄 Тестирование API вопросов...';
+
+            try {
+                // Тестируем прямой запрос к Supabase через наш API
+                const response = await fetch('/api/test-supabase');
+                const data = await response.json();
+                
+                if (data.connectionTest.ok) {
+                    // Если основное подключение работает, тестируем вопросы
+                    const questionsResponse = await fetch('https://xvfopfzdmuiyoubamotb.supabase.co/rest/v1/questions?select=count&limit=1', {
+                        headers: {
+                            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2Zm9wZnpkbXVpeW91YmFtb3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyODExMzMsImV4cCI6MjA2NDg1NzEzM30.b0nq4Bujm9z5feMhqiXUWahYL0bFjRf2hkoPrutvN8o',
+                            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2Zm9wZnpkbXVpeW91YmFtb3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyODExMzMsImV4cCI6MjA2NDg1NzEzM30.b0nq4Bujm9z5feMhqiXUWahYL0bFjRf2hkoPrutvN8o',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const questionsData = await questionsResponse.json();
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `❓ API вопросов:\nСтатус: ${questionsResponse.status}\nДанные: ${JSON.stringify(questionsData, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '❌ Основное подключение не работает';
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка API вопросов:\n${error.message}`;
+            }
+        }
+
+        // Автоматический тест при загрузке страницы
+        window.addEventListener('load', () => {
+            console.log('Страница тестирования Supabase загружена');
+            testSupabaseConnection();
+        });
+    </script>
+</body>
+</html> 

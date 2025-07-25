@@ -21,9 +21,12 @@
     "api/test-proxy.js": {
       "maxDuration": 15
     },
-    "api/direct-audio-test.js": {
-      "maxDuration": 15
-    },
+            "api/direct-audio-test.js": {
+          "maxDuration": 15
+        },
+        "api/test-supabase.js": {
+          "maxDuration": 15
+        },
     "api/list-files.js": {
       "maxDuration": 15
     },
@@ -179,6 +182,19 @@
         {
           "key": "Access-Control-Allow-Methods",
           "value": "GET, HEAD, OPTIONS"
+        }
+      ]
+    },
+    {
+      "source": "/api/test-supabase",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
         }
       ]
     }
