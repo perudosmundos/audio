@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест основного приложения</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .test-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .result {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left: 4px solid #00ff88;
+        }
+        .error {
+            border-left: 4px solid #ff4757;
+        }
+        .loading {
+            border-left: 4px solid #ffa502;
+        }
+        .link-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .link-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .link-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Тест основного приложения</h1>
+        
+        <div class="test-section">
+            <h3>🔗 Ссылки на приложение</h3>
+            <div class="link-section">
+                <div class="link-card">
+                    <h4>🏠 Главная страница</h4>
+                    <a href="/" class="test-button">Открыть</a>
+                </div>
+                <div class="link-card">
+                    <h4>📋 Список эпизодов</h4>
+                    <a href="/episodes" class="test-button">Открыть</a>
+                </div>
+                <div class="link-card">
+                    <h4>🎵 Эпизод (RU)</h4>
+                    <a href="/episode/2025-01-29_ru" class="test-button">Открыть</a>
+                </div>
+                <div class="link-card">
+                    <h4>🎵 Эпизод (ES)</h4>
+                    <a href="/episode/2025-01-29_es" class="test-button">Открыть</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Тесты API</h3>
+            <button class="test-button" onclick="testMainApp()">
+                🚀 Тест основного приложения
+            </button>
+            <button class="test-button" onclick="testAudioPlayback()">
+                🎵 Тест воспроизведения
+            </button>
+            <div id="testResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Статус системы</h3>
+            <div id="systemStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testMainApp() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '🔄 Тестирование основного приложения...';
+
+            try {
+                const tests = [];
+                
+                // Тест 1: Главная страница
+                try {
+                    const mainResponse = await fetch('/');
+                    tests.push({
+                        name: 'Главная страница',
+                        status: mainResponse.status,
+                        ok: mainResponse.ok
+                    });
+                } catch (error) {
+                    tests.push({
+                        name: 'Главная страница',
+                        status: 'ERROR',
+                        ok: false,
+                        error: error.message
+                    });
+                }
+
+                // Тест 2: API эпизодов
+                try {
+                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    const episodesUrl = isLocalhost ? '/api/test-episodes.json' : '/api/test-episodes';
+                    const episodesResponse = await fetch(episodesUrl);
+                    const episodesData = await episodesResponse.json();
+                    
+                    tests.push({
+                        name: 'API эпизодов',
+                        status: episodesResponse.status,
+                        ok: episodesResponse.ok,
+                        data: episodesData
+                    });
+                } catch (error) {
+                    tests.push({
+                        name: 'API эпизодов',
+                        status: 'ERROR',
+                        ok: false,
+                        error: error.message
+                    });
+                }
+
+                // Тест 3: Аудио прокси
+                try {
+                    const audioResponse = await fetch('/api/audio-proxy/2025-01-29_ru', { method: 'HEAD' });
+                    tests.push({
+                        name: 'Аудио прокси',
+                        status: audioResponse.status,
+                        ok: audioResponse.ok
+                    });
+                } catch (error) {
+                    tests.push({
+                        name: 'Аудио прокси',
+                        status: 'ERROR',
+                        ok: false,
+                        error: error.message
+                    });
+                }
+
+                // Отображаем результаты
+                let result = '📊 Результаты тестирования:\n\n';
+                tests.forEach(test => {
+                    const status = test.ok ? '✅' : '❌';
+                    result += `${status} ${test.name}: ${test.status}\n`;
+                    if (test.error) {
+                        result += `   Ошибка: ${test.error}\n`;
+                    }
+                    if (test.data) {
+                        result += `   Данные: ${test.data.totalEpisodes} эпизодов\n`;
+                    }
+                    result += '\n';
+                });
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = result;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка тестирования:\n${error.message}`;
+            }
+        }
+
+        async function testAudioPlayback() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '🔄 Тестирование воспроизведения аудио...';
+
+            try {
+                const audioUrl = '/api/audio-proxy/2025-01-29_ru';
+                
+                // Создаем тестовый аудио элемент
+                const audio = new Audio(audioUrl);
+                
+                const testPromise = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Таймаут загрузки аудио (10 секунд)'));
+                    }, 10000);
+
+                    audio.addEventListener('loadedmetadata', () => {
+                        clearTimeout(timeout);
+                        resolve({
+                            duration: audio.duration,
+                            readyState: audio.readyState
+                        });
+                    });
+
+                    audio.addEventListener('error', (e) => {
+                        clearTimeout(timeout);
+                        reject(new Error(`Ошибка аудио: ${e.target.error?.message || 'Неизвестная ошибка'}`));
+                    });
+                });
+
+                const result = await testPromise;
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `✅ Аудио загружено успешно!\n\n📊 Результаты:\n- Длительность: ${Math.round(result.duration)} сек\n- Ready State: ${result.readyState}\n- URL: ${audioUrl}`;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Ошибка воспроизведения:\n${error.message}`;
+            }
+        }
+
+        function updateSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            
+            statusDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; color: ${isLocalhost ? '#00ff88' : '#ffa502'};">${isLocalhost ? '🖥️' : '🌐'}</div>
+                        <div>${isLocalhost ? 'Локальная среда' : 'Продакшен'}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; color: #00ff88;">✅</div>
+                        <div>Тестовые данные</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; color: #00ff88;">🎵</div>
+                        <div>Аудио прокси</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Автоматический тест при загрузке страницы
+        window.addEventListener('load', () => {
+            console.log('Страница тестирования основного приложения загружена');
+            updateSystemStatus();
+        });
+    </script>
+</body>
+</html> 

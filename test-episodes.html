@@ -217,9 +217,9 @@
                 let result = `📊 Тест аудио прокси:\n\n`;
                 result += `Несуществующий файл: ${testResponse.status} (ожидалось 404)\n`;
                 
-                // Тест с существующим файлом (если есть)
-                const realResponse = await fetch('/api/audio-proxy/2025-01-29_RU.mp3', { method: 'HEAD' });
-                result += `Файл 2025-01-29_RU.mp3: ${realResponse.status}\n`;
+                // Тест с существующим файлом (правильное имя без расширения)
+                const realResponse = await fetch('/api/audio-proxy/2025-01-29_ru', { method: 'HEAD' });
+                result += `Файл 2025-01-29_ru: ${realResponse.status}\n`;
                 
                 statusDiv.className = 'status success';
                 statusDiv.innerHTML = `<pre>${result}</pre>`;
