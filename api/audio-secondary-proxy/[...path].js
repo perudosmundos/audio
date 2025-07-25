@@ -118,19 +118,13 @@ export default async function handler(req, res) {
         // Передаем статус код
         res.status(response.status);
         
-        // Для больших файлов используем стриминг
-        if (contentLength && parseInt(contentLength) > 1024 * 1024) { // Больше 1MB
-          console.log('Audio secondary proxy: Streaming large file');
-          response.body.pipe(res);
-        } else {
-          // Для маленьких файлов получаем данные и отправляем их
-          console.log('Audio secondary proxy: Fetching audio data');
-          const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          
-          console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
-          res.send(buffer);
-        }
+        // ВСЕГДА используем буферизацию для аудио - стриминг может вызывать проблемы
+        console.log('Audio secondary proxy: Fetching audio data');
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
+        res.send(buffer);
         
         return; // Успешно завершаем
       } else {
