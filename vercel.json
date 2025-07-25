@@ -24,6 +24,9 @@
     "api/direct-audio-test.js": {
       "maxDuration": 15
     },
+    "api/list-files.js": {
+      "maxDuration": 15
+    },
     "api/audio-proxy/health-test.js": {
       "maxDuration": 10
     },
@@ -81,6 +84,19 @@
     },
     {
       "source": "/api/direct-audio-test",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        }
+      ]
+    },
+    {
+      "source": "/api/list-files",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
