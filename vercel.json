@@ -17,6 +17,15 @@
     },
     "api/audio-secondary-proxy/[...path].js": {
       "maxDuration": 30
+    },
+    "api/test-proxy.js": {
+      "maxDuration": 15
+    },
+    "api/audio-proxy/health-test.js": {
+      "maxDuration": 10
+    },
+    "api/audio-secondary-proxy/health-test.js": {
+      "maxDuration": 10
     }
   },
   "headers": [
@@ -51,6 +60,45 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Range, Accept-Ranges, Content-Range"
+        }
+      ]
+    },
+    {
+      "source": "/api/test-proxy",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        }
+      ]
+    },
+    {
+      "source": "/api/audio-proxy/health-test",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, HEAD, OPTIONS"
+        }
+      ]
+    },
+    {
+      "source": "/api/audio-secondary-proxy/health-test",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, HEAD, OPTIONS"
         }
       ]
     }

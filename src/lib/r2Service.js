@@ -23,6 +23,11 @@ const R2_SECONDARY_CONFIG = {
   API_PROXY_URL: "/api/audio-secondary-proxy"
 };
 
+// Кэш для хранения работоспособности прокси
+const proxyHealthCache = {
+  primary: { lastCheck: 0, isHealthy: true, lastError: null },
+  secondary: { lastCheck: 0, isHealthy: true, lastError: null }
+};
 
 const createS3Client = (config) => {
   return new S3Client({
@@ -48,6 +53,61 @@ const createS3Client = (config) => {
 let primaryS3Client = createS3Client(R2_PRIMARY_CONFIG);
 let secondaryS3Client = createS3Client(R2_SECONDARY_CONFIG);
 
+// Функция для проверки здоровья прокси
+const checkProxyHealth = async (proxyType) => {
+  const now = Date.now();
+  const cache = proxyHealthCache[proxyType];
+  
+  // Проверяем кэш (не чаще чем раз в 5 минут)
+  if (now - cache.lastCheck < 5 * 60 * 1000) {
+    return cache.isHealthy;
+  }
+  
+  try {
+    const testUrl = proxyType === 'primary' 
+      ? '/api/audio-proxy/health-test'
+      : '/api/audio-secondary-proxy/health-test';
+    
+    const response = await fetch(testUrl, {
+      method: 'HEAD',
+      timeout: 5000
+    });
+    
+    cache.isHealthy = response.ok || response.status === 404; // 404 означает что прокси работает, но файл не найден
+    cache.lastError = null;
+  } catch (error) {
+    cache.isHealthy = false;
+    cache.lastError = error.message;
+  }
+  
+  cache.lastCheck = now;
+  return cache.isHealthy;
+};
+
+// Функция для получения оптимального URL с учетом здоровья прокси
+const getOptimalProxyUrl = async (fileKey, bucketName) => {
+  const isSecondary = bucketName === R2_SECONDARY_CONFIG.BUCKET;
+  const proxyType = isSecondary ? 'secondary' : 'primary';
+  
+  // Проверяем здоровье прокси
+  const isHealthy = await checkProxyHealth(proxyType);
+  
+  if (isHealthy) {
+    // Используем основной прокси
+    const proxyPath = isSecondary ? 'audio-secondary-proxy' : 'audio-proxy';
+    return import.meta.env.PROD 
+      ? `${window.location.origin}/api/${proxyPath}/${fileKey}`
+      : `/api/${proxyPath}/${fileKey}`;
+  } else {
+    // Если основной прокси не работает, используем альтернативный
+    const fallbackProxyPath = isSecondary ? 'audio-proxy' : 'audio-secondary-proxy';
+    console.warn(`R2: Primary proxy (${proxyType}) is unhealthy, using fallback`);
+    return import.meta.env.PROD 
+      ? `${window.location.origin}/api/${fallbackProxyPath}/${fileKey}`
+      : `/api/${fallbackProxyPath}/${fileKey}`;
+  }
+};
+
 const r2Service = {
   checkFileExists: async (originalFilename) => {
     const fileKey = originalFilename.replace(/\s+/g, '_');
@@ -56,10 +116,9 @@ const r2Service = {
       try {
         const command = new HeadObjectCommand({ Bucket: config.BUCKET, Key: fileKey });
         await client.send(command);
-        // Используем прокси для обхода CORS
-        const fileUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/audio-proxy/${fileKey}`
-          : `/api/audio-proxy/${fileKey}`;
+        
+        // Используем улучшенный прокси с проверкой здоровья
+        const fileUrl = await getOptimalProxyUrl(fileKey, config.BUCKET);
         return { exists: true, fileUrl, bucketName: config.BUCKET };
       } catch (error) {
         if (error.name === 'NoSuchKey' || (error.$metadata && error.$metadata.httpStatusCode === 404)) {
@@ -103,10 +162,8 @@ const r2Service = {
         await client.send(command);
         if (onProgress) onProgress(100); 
 
-        // Используем прокси для обхода CORS
-        const fileUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/audio-proxy/${fileKey}`
-          : `/api/audio-proxy/${fileKey}`;
+        // Используем улучшенный прокси с проверкой здоровья
+        const fileUrl = await getOptimalProxyUrl(fileKey, config.BUCKET);
         return { fileUrl, fileKey, bucketName: config.BUCKET };
 
       } catch (error) {
@@ -146,21 +203,13 @@ const r2Service = {
     }
   },
 
-  getPublicUrl: (fileKey, bucketName) => {
-    // Используем прокси для обхода CORS
-    const proxyPath = bucketName === R2_SECONDARY_CONFIG.BUCKET 
-      ? 'audio-secondary-proxy' 
-      : 'audio-proxy';
-    
-    if (import.meta.env.PROD) {
-      return `${window.location.origin}/api/${proxyPath}/${fileKey}`;
-    } else {
-      return `/api/${proxyPath}/${fileKey}`;
-    }
+  getPublicUrl: async (fileKey, bucketName) => {
+    // Используем улучшенный прокси с проверкой здоровья
+    return await getOptimalProxyUrl(fileKey, bucketName);
   },
 
   // Совместимая функция для генерации URL
-  getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
+  getCompatibleUrl: async (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
     
     // Если есть прямой URL, используем его (но применяем прокси если это Cloudflare Worker)
@@ -168,14 +217,10 @@ const r2Service = {
       if (audioUrl.includes('alexbrin102.workers.dev')) {
         const url = new URL(audioUrl);
         const filePath = url.pathname.substring(1);
-        const proxyPath = audioUrl.includes('audio-secondary.alexbrin102.workers.dev') 
-          ? 'audio-secondary-proxy' 
-          : 'audio-proxy';
+        const isSecondary = audioUrl.includes('audio-secondary.alexbrin102.workers.dev');
+        const bucketName = isSecondary ? R2_SECONDARY_CONFIG.BUCKET : R2_PRIMARY_CONFIG.BUCKET;
         
-        const proxiedUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/${proxyPath}/${filePath}`
-          : `/api/${proxyPath}/${filePath}`;
-        
+        const proxiedUrl = await getOptimalProxyUrl(filePath, bucketName);
         console.log('R2: Using proxied URL:', proxiedUrl);
         return proxiedUrl;
       }
@@ -185,14 +230,7 @@ const r2Service = {
     
     // Если есть ключ, генерируем проксированный R2 URL
     if (r2ObjectKey) {
-      const proxyPath = r2BucketName === R2_SECONDARY_CONFIG.BUCKET 
-        ? 'audio-secondary-proxy' 
-        : 'audio-proxy';
-      
-      const generatedUrl = import.meta.env.PROD 
-        ? `${window.location.origin}/api/${proxyPath}/${r2ObjectKey}`
-        : `/api/${proxyPath}/${r2ObjectKey}`;
-      
+      const generatedUrl = await getOptimalProxyUrl(r2ObjectKey, r2BucketName);
       console.log('R2: Generated proxied URL from key:', generatedUrl);
       return generatedUrl;
     }
@@ -242,19 +280,22 @@ const r2Service = {
         }
       }
 
-      // Тест 3: Проверка DNS резолвинга
-      console.log('R2: Testing DNS resolution...');
-      try {
-        const response = await fetch(`https://${R2_PRIMARY_CONFIG.ACCOUNT_ID}.${R2_PRIMARY_CONFIG.ENDPOINT_SUFFIX}`, {
-          method: 'HEAD',
-          mode: 'no-cors'
-        });
-        console.log('R2: DNS resolution successful');
-      } catch (error) {
-        console.warn('R2: DNS resolution failed:', error.message);
-      }
+      // Тест 3: Проверка прокси
+      console.log('R2: Testing proxy health...');
+      const primaryProxyHealth = await checkProxyHealth('primary');
+      const secondaryProxyHealth = await checkProxyHealth('secondary');
+      
+      console.log('R2: Primary proxy health:', primaryProxyHealth);
+      console.log('R2: Secondary proxy health:', secondaryProxyHealth);
 
-      return { success: true, message: 'R2 connection test completed' };
+      return { 
+        success: true, 
+        message: 'R2 connection test completed',
+        proxyHealth: {
+          primary: primaryProxyHealth,
+          secondary: secondaryProxyHealth
+        }
+      };
       
     } catch (error) {
       console.error('R2: Connection test failed:', error);
@@ -281,7 +322,8 @@ const r2Service = {
         return { 
           success: true, 
           workingBucket: R2_PRIMARY_CONFIG.BUCKET,
-          message: 'R2 diagnostics completed successfully'
+          message: 'R2 diagnostics completed successfully',
+          proxyHealth: connectionTest.proxyHealth
         };
       } else {
         return { 
@@ -339,6 +381,30 @@ const r2Service = {
     
     // Используем обычную функцию загрузки
     return r2Service.uploadFile(file, onProgress, currentLanguage, originalFilename);
+  },
+
+  // Получение статуса здоровья прокси
+  getProxyHealth: () => {
+    return {
+      primary: { ...proxyHealthCache.primary },
+      secondary: { ...proxyHealthCache.secondary }
+    };
+  },
+
+  // Принудительная проверка здоровья прокси
+  forceProxyHealthCheck: async () => {
+    console.log('R2: Forcing proxy health check...');
+    proxyHealthCache.primary.lastCheck = 0;
+    proxyHealthCache.secondary.lastCheck = 0;
+    
+    const primaryHealth = await checkProxyHealth('primary');
+    const secondaryHealth = await checkProxyHealth('secondary');
+    
+    return {
+      primary: primaryHealth,
+      secondary: secondaryHealth,
+      timestamp: new Date().toISOString()
+    };
   }
 };
 
