@@ -33,6 +33,9 @@
     "api/test-episodes.js": {
       "maxDuration": 10
     },
+    "api/debug-audio-url.js": {
+      "maxDuration": 10
+    },
     "api/audio-proxy/health-test.js": {
       "maxDuration": 10
     },
@@ -129,6 +132,19 @@
     },
     {
       "source": "/api/test-episodes",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        }
+      ]
+    },
+    {
+      "source": "/api/debug-audio-url",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
