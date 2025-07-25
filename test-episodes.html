@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест эпизодов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+        .episode-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        .episode-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .episode-details {
+            font-size: 12px;
+            color: #ccc;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4CAF50;
+        }
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid #f44336;
+        }
+        .status.info {
+            background: rgba(33, 150, 243, 0.3);
+            border: 1px solid #2196F3;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .test-button {
+            background: #FF9800;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #F57C00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Тест эпизодов</h1>
+        
+        <div>
+            <button class="button" onclick="loadEpisodes()">Загрузить все эпизоды</button>
+            <button class="button" onclick="testAudioProxy()">Тест аудио прокси</button>
+        </div>
+
+        <div id="status" class="status info">
+            <p>Нажмите "Загрузить все эпизоды" для начала</p>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function loadEpisodes() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            statusDiv.innerHTML = '<div class="loading"></div> Загрузка эпизодов...';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/test-episodes');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayEpisodes(data);
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `✅ Загружено ${data.totalEpisodes} эпизодов`;
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Ошибка загрузки: ${error.message}`;
+                console.error('Error loading episodes:', error);
+            }
+        }
+
+        function displayEpisodes(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (data.episodes.length === 0) {
+                resultsDiv.innerHTML = '<p>Эпизоды не найдены</p>';
+                return;
+            }
+            
+            let html = `<h3>Эпизоды в базе данных (${data.totalEpisodes}):</h3>`;
+            
+            data.episodes.forEach(ep => {
+                html += `
+                    <div class="episode-item">
+                        <div class="episode-title">${ep.slug}</div>
+                        <div class="episode-details">
+                            <strong>Название:</strong> ${ep.title}<br>
+                            <strong>Язык:</strong> ${ep.lang}<br>
+                            <strong>Дата:</strong> ${ep.date}<br>
+                            <strong>R2 Key:</strong> ${ep.r2_object_key || 'НЕТ'}<br>
+                            <strong>Bucket:</strong> ${ep.r2_bucket_name || 'НЕТ'}<br>
+                            <strong>Audio URL:</strong> ${ep.audio_url || 'НЕТ'}
+                        </div>
+                        <button class="test-button" onclick="testEpisodeAudio('${ep.slug}', '${ep.r2_object_key || ''}')">Тест аудио</button>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        async function testEpisodeAudio(slug, r2Key) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `🔍 Тестирование аудио для ${slug}...`;
+            
+            try {
+                // Тест через прокси
+                const proxyUrl = `/api/audio-proxy/${r2Key || slug}`;
+                const proxyResponse = await fetch(proxyUrl, { method: 'HEAD' });
+                
+                let result = `📊 Результаты тестирования "${slug}":\n\n`;
+                result += `Прокси доступ: ${proxyResponse.ok ? '✅' : '❌'} (${proxyResponse.status})\n`;
+                result += `URL: ${proxyUrl}\n`;
+                
+                if (proxyResponse.ok) {
+                    result += `Content-Type: ${proxyResponse.headers.get('content-type')}\n`;
+                    result += `Content-Length: ${proxyResponse.headers.get('content-length')}\n`;
+                }
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `<pre>${result}</pre>`;
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Ошибка тестирования: ${error.message}`;
+            }
+        }
+
+        async function testAudioProxy() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '🔍 Тестирование аудио прокси...';
+            
+            try {
+                // Тест с несуществующим файлом
+                const testResponse = await fetch('/api/audio-proxy/test-nonexistent.mp3', { method: 'HEAD' });
+                
+                let result = `📊 Тест аудио прокси:\n\n`;
+                result += `Несуществующий файл: ${testResponse.status} (ожидалось 404)\n`;
+                
+                // Тест с существующим файлом (если есть)
+                const realResponse = await fetch('/api/audio-proxy/2025-01-29_RU.mp3', { method: 'HEAD' });
+                result += `Файл 2025-01-29_RU.mp3: ${realResponse.status}\n`;
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `<pre>${result}</pre>`;
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Ошибка тестирования: ${error.message}`;
+            }
+        }
+
+        // Автоматическая загрузка при открытии страницы
+        window.addEventListener('load', () => {
+            console.log('Страница тестирования эпизодов загружена');
+            loadEpisodes();
+        });
+    </script>
+</body>
+</html> 
