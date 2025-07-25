@@ -137,7 +137,11 @@
             resultsDiv.innerHTML = '';
             
             try {
-                const response = await fetch(`/api/check-episode?slug=${encodeURIComponent(slug)}`);
+                // В локальной среде используем JSON файл, в продакшене - API
+                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const url = isLocalhost ? '/api/check-episode.json' : `/api/check-episode?slug=${encodeURIComponent(slug)}`;
+                
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.error) {
@@ -238,7 +242,11 @@
             
             commonSlugs.forEach(async (slug, index) => {
                 try {
-                    const response = await fetch(`/api/check-episode?slug=${encodeURIComponent(slug)}`);
+                    // В локальной среде используем JSON файл, в продакшене - API
+                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    const url = isLocalhost ? '/api/check-episode.json' : `/api/check-episode?slug=${encodeURIComponent(slug)}`;
+                    
+                    const response = await fetch(url);
                     const data = await response.json();
                     
                     const itemDiv = document.createElement('div');

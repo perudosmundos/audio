@@ -122,7 +122,11 @@
             resultsDiv.innerHTML = '';
             
             try {
-                const response = await fetch('/api/test-episodes');
+                // В локальной среде используем JSON файл, в продакшене - API
+                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const url = isLocalhost ? '/api/test-episodes.json' : '/api/test-episodes';
+                
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.error) {
