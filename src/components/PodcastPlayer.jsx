@@ -149,7 +149,7 @@ const PodcastPlayer = ({
       // Устанавливаем состояние воспроизведения в true только если это новый эпизод
       // или если аудио еще не было загружено
       if (audioRef.current.src !== episodeData.audio_url || audioRef.current.readyState === 0) {
-        setIsPlayingState(true);
+      setIsPlayingState(true);
       }
     }
   }, [audioRef, episodeData, setIsPlayingState]);

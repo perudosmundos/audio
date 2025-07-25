@@ -36,7 +36,7 @@ const usePlayerInitialization = ({
     
     // Не сбрасываем состояние воспроизведения, если это просто пауза
     if (!isJustPause) {
-      setIsPlayingState(false);
+    setIsPlayingState(false);
     }
     
     // Не сбрасываем currentTime, если есть активный переход или это просто пауза

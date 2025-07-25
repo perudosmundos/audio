@@ -77,30 +77,15 @@ export default async function handler(req, res) {
     // Передаем статус код
     res.status(response.status);
     
-    // Используем более простой подход для стриминга
-    const reader = response.body?.getReader();
-    if (reader) {
-      console.log('Audio secondary proxy: Streaming with reader');
-      
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          res.write(value);
-        }
-        res.end();
-      } catch (error) {
-        console.error('Audio secondary proxy: Streaming error', error);
-        res.end();
-      }
-    } else {
-      // Fallback для случаев, когда reader недоступен
-      console.log('Audio secondary proxy: Using fallback method');
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
-      res.send(buffer);
-    }
+    // Используем простой подход - получаем данные и отправляем их
+    console.log('Audio secondary proxy: Fetching audio data');
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
+    
+    // Отправляем данные
+    res.send(buffer);
     
   } catch (error) {
     console.error('Audio secondary proxy error:', error);
