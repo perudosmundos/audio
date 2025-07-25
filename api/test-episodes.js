@@ -1,43 +1,49 @@
-// Простой тест для проверки эпизодов в базе данных
+// Простая версия для локального тестирования
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const supabaseUrl = 'https://bqjqjqjqjqjqjqjqjqj.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxanFqcWpxanFqcWpxanFqcWpxanFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU5NzI5NzQsImV4cCI6MjA1MTU0ODk3NH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8';
-
-    // Получаем все эпизоды
-    const response = await fetch(`${supabaseUrl}/rest/v1/episodes?select=*&order=created_at.desc&limit=20`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
+    // Возвращаем тестовые данные
+    const testEpisodes = [
+      {
+        slug: "2025-01-29_ru",
+        title: "Медитация 29 января",
+        lang: "ru",
+        date: "2025-01-29",
+        r2_object_key: "2025-01-29_ru.mp3",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_ru.mp3"
+      },
+      {
+        slug: "2025-01-29_es",
+        title: "Meditación 29 de enero",
+        lang: "es",
+        date: "2025-01-29",
+        r2_object_key: "2025-01-29_es.mp3",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_es.mp3"
+      },
+      {
+        slug: "2025-01-28_ru",
+        title: "Медитация 28 января",
+        lang: "ru",
+        date: "2025-01-28",
+        r2_object_key: "2025-01-28_ru.mp3",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-28_ru.mp3"
       }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Supabase error: ${response.status} ${response.statusText}`);
-    }
-
-    const episodes = await response.json();
+    ];
 
     res.status(200).json({
-      totalEpisodes: episodes.length,
-      episodes: episodes.map(ep => ({
-        slug: ep.slug,
-        title: ep.title,
-        lang: ep.lang,
-        date: ep.date,
-        r2_object_key: ep.r2_object_key,
-        r2_bucket_name: ep.r2_bucket_name,
-        audio_url: ep.audio_url
-      }))
+      totalEpisodes: testEpisodes.length,
+      episodes: testEpisodes,
+      note: "Это тестовые данные. В продакшене здесь будет реальный список из базы данных."
     });
 
   } catch (error) {
-    console.error('Error fetching episodes:', error);
+    console.error('Error in test-episodes:', error);
     res.status(500).json({ 
       error: 'Failed to fetch episodes',
       details: error.message

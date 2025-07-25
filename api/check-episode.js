@@ -1,4 +1,4 @@
-// Простая версия без импортов для совместимости с Vercel
+// Простая версия для локального тестирования
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -11,52 +11,58 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Используем fetch для запроса к Supabase
-    const supabaseUrl = 'https://bqjqjqjqjqjqjqjqjqj.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxanFqcWpxanFqcWpxanFqcWpxanFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU5NzI5NzQsImV4cCI6MjA1MTU0ODk3NH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8';
-
-    // Ищем эпизод по точному slug
-    const exactResponse = await fetch(`${supabaseUrl}/rest/v1/episodes?slug=eq.${encodeURIComponent(slug)}&select=*`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
+    // Тестовые данные
+    const testEpisodes = [
+      {
+        slug: "2025-01-29_ru",
+        title: "Медитация 29 января",
+        lang: "ru",
+        date: "2025-01-29",
+        r2_object_key: "2025-01-29_ru.mp3",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_ru.mp3"
+      },
+      {
+        slug: "2025-01-29_es",
+        title: "Meditación 29 de enero",
+        lang: "es",
+        date: "2025-01-29",
+        r2_object_key: "2025-01-29_es.mp3",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_es.mp3"
+      },
+      {
+        slug: "2025-01-28_ru",
+        title: "Медитация 28 января",
+        lang: "ru",
+        date: "2025-01-28",
+        r2_object_key: "2025-01-28_ru.mp3",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-28_ru.mp3"
       }
-    });
+    ];
 
-    const exactData = await exactResponse.json();
-    const exactEpisode = exactData.length > 0 ? exactData[0] : null;
-
-    // Если точного совпадения нет, ищем похожие
-    let similarEpisodes = [];
-    if (!exactEpisode) {
-      const similarResponse = await fetch(`${supabaseUrl}/rest/v1/episodes?slug=ilike.%25${encodeURIComponent(slug)}%25&select=*&limit=10`, {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      similarEpisodes = await similarResponse.json();
-    }
-
-    // Получаем все эпизоды с похожей датой
+    // Ищем точное совпадение
+    const exactEpisode = testEpisodes.find(ep => ep.slug === slug);
+    
+    // Ищем похожие эпизоды
+    const similarEpisodes = testEpisodes.filter(ep => 
+      ep.slug.toLowerCase().includes(slug.toLowerCase()) && ep.slug !== slug
+    );
+    
+    // Ищем эпизоды с той же датой
     const datePart = slug.split('_')[0];
-    const dateResponse = await fetch(`${supabaseUrl}/rest/v1/episodes?slug=ilike.${encodeURIComponent(datePart)}%25&select=*&limit=10`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    const dateEpisodes = await dateResponse.json();
+    const dateEpisodes = testEpisodes.filter(ep => 
+      ep.slug.startsWith(datePart) && ep.slug !== slug
+    );
 
     res.status(200).json({
       requestedSlug: slug,
       exactMatch: exactEpisode,
       similarEpisodes,
-      episodesWithSameDate: dateEpisodes || [],
-      allEpisodes: exactEpisode ? [exactEpisode] : similarEpisodes
+      episodesWithSameDate: dateEpisodes,
+      allEpisodes: exactEpisode ? [exactEpisode] : similarEpisodes,
+      note: "Это тестовые данные. В продакшене здесь будет реальный поиск в базе данных."
     });
 
   } catch (error) {
