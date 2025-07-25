@@ -12,27 +12,27 @@ export default async function handler(req, res) {
         title: "Медитация 29 января",
         lang: "ru",
         date: "2025-01-29",
-        r2_object_key: "2025-01-29_ru.mp3",
+        r2_object_key: "2025-01-29_ru",
         r2_bucket_name: "audio-files",
-        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_ru.mp3"
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_ru"
       },
       {
         slug: "2025-01-29_es",
         title: "Meditación 29 de enero",
         lang: "es",
         date: "2025-01-29",
-        r2_object_key: "2025-01-29_es.mp3",
+        r2_object_key: "2025-01-29_es",
         r2_bucket_name: "audio-files",
-        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_es.mp3"
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_es"
       },
       {
         slug: "2025-01-28_ru",
         title: "Медитация 28 января",
         lang: "ru",
         date: "2025-01-28",
-        r2_object_key: "2025-01-28_ru.mp3",
+        r2_object_key: "2025-01-28_ru",
         r2_bucket_name: "audio-files",
-        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-28_ru.mp3"
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-28_ru"
       }
     ];
 
