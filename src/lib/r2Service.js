@@ -110,7 +110,12 @@ const getOptimalProxyUrl = async (fileKey, bucketName) => {
 
 const r2Service = {
   checkFileExists: async (originalFilename) => {
-    const fileKey = originalFilename.replace(/\s+/g, '_');
+    let fileKey = originalFilename.replace(/\s+/g, '_');
+    
+    // Убираем расширение .mp3 если оно есть, так как в R2 файл может быть без расширения
+    if (fileKey.endsWith('.mp3')) {
+      fileKey = fileKey.slice(0, -4);
+    }
     
     const attemptCheck = async (client, config) => {
       try {
@@ -230,8 +235,14 @@ const r2Service = {
     
     // Если есть ключ, генерируем проксированный R2 URL
     if (r2ObjectKey) {
-      const generatedUrl = await getOptimalProxyUrl(r2ObjectKey, r2BucketName);
-      console.log('R2: Generated proxied URL from key:', generatedUrl);
+      // Убираем расширение .mp3 если оно есть, так как в R2 файл может быть без расширения
+      let cleanObjectKey = r2ObjectKey;
+      if (cleanObjectKey.endsWith('.mp3')) {
+        cleanObjectKey = cleanObjectKey.slice(0, -4);
+      }
+      
+      const generatedUrl = await getOptimalProxyUrl(cleanObjectKey, r2BucketName);
+      console.log('R2: Generated proxied URL from key (cleaned):', generatedUrl, 'Original key:', r2ObjectKey);
       return generatedUrl;
     }
     
