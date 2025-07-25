@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка эпизода</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+        .episode-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        .episode-item.exact {
+            border-left-color: #2196F3;
+        }
+        .episode-item.similar {
+            border-left-color: #FF9800;
+        }
+        .episode-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .episode-details {
+            font-size: 12px;
+            color: #ccc;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4CAF50;
+        }
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid #f44336;
+        }
+        .status.info {
+            background: rgba(33, 150, 243, 0.3);
+            border: 1px solid #2196F3;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Проверка эпизода</h1>
+        
+        <div class="input-group">
+            <input type="text" id="episodeSlug" placeholder="Введите slug эпизода (например: 2025-01-29_ru)" value="2025-01-29_ru">
+            <button class="button" onclick="checkEpisode()">Проверить</button>
+            <button class="button" onclick="checkCommonSlugs()">Проверить популярные</button>
+        </div>
+
+        <div id="status" class="status info">
+            <p>Введите slug эпизода для проверки</p>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function checkEpisode() {
+            const slug = document.getElementById('episodeSlug').value.trim();
+            if (!slug) {
+                alert('Введите slug эпизода');
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            statusDiv.innerHTML = '<div class="loading"></div> Проверка эпизода...';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch(`/api/check-episode?slug=${encodeURIComponent(slug)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayResults(data);
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `✅ Проверка завершена для "${slug}"`;
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Ошибка проверки: ${error.message}`;
+                console.error('Error checking episode:', error);
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `<h3>Результаты для "${data.requestedSlug}"</h3>`;
+            
+            if (data.exactMatch) {
+                html += `
+                    <div class="episode-item exact">
+                        <div class="episode-title">✅ Точное совпадение</div>
+                        <div class="episode-details">
+                            <strong>Slug:</strong> ${data.exactMatch.slug}<br>
+                            <strong>Название:</strong> ${data.exactMatch.title}<br>
+                            <strong>Язык:</strong> ${data.exactMatch.lang}<br>
+                            <strong>Дата:</strong> ${data.exactMatch.date}<br>
+                            <strong>R2 Key:</strong> ${data.exactMatch.r2_object_key}<br>
+                            <strong>Bucket:</strong> ${data.exactMatch.r2_bucket_name}<br>
+                            <strong>Длительность:</strong> ${data.exactMatch.duration} сек
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="episode-item"><div class="episode-title">❌ Точное совпадение не найдено</div></div>`;
+            }
+            
+            if (data.similarEpisodes && data.similarEpisodes.length > 0) {
+                html += `<h4>Похожие эпизоды:</h4>`;
+                data.similarEpisodes.forEach(ep => {
+                    html += `
+                        <div class="episode-item similar">
+                            <div class="episode-title">${ep.slug}</div>
+                            <div class="episode-details">
+                                <strong>Название:</strong> ${ep.title}<br>
+                                <strong>Язык:</strong> ${ep.lang}<br>
+                                <strong>Дата:</strong> ${ep.date}<br>
+                                <strong>R2 Key:</strong> ${ep.r2_object_key}<br>
+                                <strong>Bucket:</strong> ${ep.r2_bucket_name}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (data.episodesWithSameDate && data.episodesWithSameDate.length > 0) {
+                html += `<h4>Эпизоды с той же датой:</h4>`;
+                data.episodesWithSameDate.forEach(ep => {
+                    html += `
+                        <div class="episode-item">
+                            <div class="episode-title">${ep.slug}</div>
+                            <div class="episode-details">
+                                <strong>Название:</strong> ${ep.title}<br>
+                                <strong>Язык:</strong> ${ep.lang}<br>
+                                <strong>Дата:</strong> ${ep.date}<br>
+                                <strong>R2 Key:</strong> ${ep.r2_object_key}<br>
+                                <strong>Bucket:</strong> ${ep.r2_bucket_name}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        function checkCommonSlugs() {
+            const commonSlugs = [
+                '2025-01-29_ru',
+                '2025-01-29_RU',
+                '2025-01-29_ru.mp3',
+                '2025-01-29_RU.mp3',
+                '2025-01-29_es',
+                '2025-01-29_ES',
+                '2025-01-29'
+            ];
+            
+            const resultsDiv = document.getElementById('results');
+            const statusDiv = document.getElementById('status');
+            
+            statusDiv.innerHTML = '<div class="loading"></div> Проверка популярных slug...';
+            resultsDiv.innerHTML = '<h3>Проверка популярных slug:</h3>';
+            
+            commonSlugs.forEach(async (slug, index) => {
+                try {
+                    const response = await fetch(`/api/check-episode?slug=${encodeURIComponent(slug)}`);
+                    const data = await response.json();
+                    
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'episode-item';
+                    itemDiv.innerHTML = `
+                        <div class="episode-title">${slug}</div>
+                        <div class="episode-details">
+                            ${data.exactMatch ? '✅ Найден' : '❌ Не найден'}
+                            ${data.exactMatch ? `<br><strong>R2 Key:</strong> ${data.exactMatch.r2_object_key}` : ''}
+                        </div>
+                    `;
+                    
+                    resultsDiv.appendChild(itemDiv);
+                    
+                    if (index === commonSlugs.length - 1) {
+                        statusDiv.className = 'status success';
+                        statusDiv.innerHTML = '✅ Проверка популярных slug завершена';
+                    }
+                    
+                } catch (error) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'episode-item';
+                    itemDiv.innerHTML = `
+                        <div class="episode-title">${slug}</div>
+                        <div class="episode-details">❌ Ошибка: ${error.message}</div>
+                    `;
+                    resultsDiv.appendChild(itemDiv);
+                }
+            });
+        }
+
+        // Автоматическая проверка при загрузке страницы
+        window.addEventListener('load', () => {
+            console.log('Страница проверки эпизода загружена');
+        });
+    </script>
+</body>
+</html> 
