@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 const localEpisodesData = [
   {
     slug: "2025-01-29_ru",
-    title: "Медитация 29 января",
+    title: "", // Пустой title, будет сгенерирован из date
     lang: "ru",
     date: "2025-01-29",
     r2_object_key: "2025-01-29_ru",
@@ -16,7 +16,7 @@ const localEpisodesData = [
   },
   {
     slug: "2025-01-29_es",
-    title: "Meditación 29 de enero",
+    title: "", // Пустой title, будет сгенерирован из date
     lang: "es",
     date: "2025-01-29",
     r2_object_key: "2025-01-29_es",
@@ -28,7 +28,7 @@ const localEpisodesData = [
   },
   {
     slug: "2025-01-28_ru",
-    title: "Медитация 28 января",
+    title: "", // Пустой title, будет сгенерирован из date
     lang: "ru",
     date: "2025-01-28",
     r2_object_key: "2025-01-28_ru",
@@ -44,34 +44,65 @@ const localQuestionsData = [
   {
     id: 1,
     episode_slug: "2025-01-29_ru",
-    title: "Введение",
+    title: "Введение в медитацию",
     lang: "ru",
     time: 0,
-    is_intro: true
+    is_intro: true,
+    created_at: "2025-01-29T10:00:00Z"
   },
   {
     id: 2,
     episode_slug: "2025-01-29_ru",
-    title: "Основная медитация",
+    title: "Основные принципы осознанности",
     lang: "ru",
-    time: 60,
-    is_intro: false
+    time: 120,
+    is_intro: false,
+    created_at: "2025-01-29T10:05:00Z"
   },
   {
     id: 3,
-    episode_slug: "2025-01-29_es",
-    title: "Introducción",
-    lang: "es",
-    time: 0,
-    is_intro: true
+    episode_slug: "2025-01-29_ru",
+    title: "Техника дыхания",
+    lang: "ru",
+    time: 300,
+    is_intro: false,
+    created_at: "2025-01-29T10:10:00Z"
   },
   {
     id: 4,
     episode_slug: "2025-01-29_es",
-    title: "Meditación principal",
+    title: "Introducción a la meditación",
     lang: "es",
-    time: 60,
-    is_intro: false
+    time: 0,
+    is_intro: true,
+    created_at: "2025-01-29T10:00:00Z"
+  },
+  {
+    id: 5,
+    episode_slug: "2025-01-29_es",
+    title: "Principios básicos de la atención plena",
+    lang: "es",
+    time: 120,
+    is_intro: false,
+    created_at: "2025-01-29T10:05:00Z"
+  },
+  {
+    id: 6,
+    episode_slug: "2025-01-28_ru",
+    title: "Введение в практику",
+    lang: "ru",
+    time: 0,
+    is_intro: true,
+    created_at: "2025-01-28T10:00:00Z"
+  },
+  {
+    id: 7,
+    episode_slug: "2025-01-28_ru",
+    title: "Работа с мыслями",
+    lang: "ru",
+    time: 180,
+    is_intro: false,
+    created_at: "2025-01-28T10:03:00Z"
   }
 ];
 
