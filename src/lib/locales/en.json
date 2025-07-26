@@ -47,7 +47,6 @@
   "invalidAudioUrl": "Invalid audio URL",
   "noAudioSource": "Audio source not found",
   "audioNotSupported": "Audio format not supported by browser",
-  "corsError": "Problem accessing audio file (CORS)",
   "navigationNoQuestions": "There are no questions in this meditation to navigate.",
   "navigationToastTitle": "Navigation",
   "previousQuestion": "Previous question",

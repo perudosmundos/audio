@@ -46,7 +46,6 @@
   "invalidAudioUrl": "Неверный URL аудио",
   "noAudioSource": "Источник аудио не найден",
   "audioNotSupported": "Формат аудио не поддерживается браузером",
-  "corsError": "Проблема с доступом к аудио файлу (CORS)",
   "navigationNoQuestions": "В этой медитации нет вопросов для навигации.",
   "navigationToastTitle": "Навигация",
   "previousQuestion": "Предыдущий вопрос",

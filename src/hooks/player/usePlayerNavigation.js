@@ -146,15 +146,6 @@ const usePlayerNavigation = ({
                 description: getLocaleString('audioNotSupported', currentLanguage) || 'Формат аудио не поддерживается браузером', 
                 variant: 'destructive' 
               });
-            } else if (error.message && error.message.includes('CORS')) {
-              console.log('usePlayerNavigation: CORS error detected');
-              setIsPlayingState(false);
-              onPlayerStateChange?.({isPlaying: false});
-              toast({ 
-                title: getLocaleString('audioErrorTitle', currentLanguage) || 'Ошибка аудио', 
-                description: getLocaleString('corsError', currentLanguage) || 'Проблема с доступом к аудио файлу (CORS)', 
-                variant: 'destructive' 
-              });
             } else {
               // Для других ошибок сбрасываем состояние
               setIsPlayingState(false);

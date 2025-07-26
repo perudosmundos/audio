@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import { getDirectAudioUrl } from '@/lib/utils'; // Используем прямой доступ
+import { getDirectAudioUrl } from '@/lib/utils'; // Используем прямые URL
 import r2Service from '@/lib/r2Service';
 
 // Utility function to check if a file exists on Archive.org

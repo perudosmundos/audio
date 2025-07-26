@@ -5,31 +5,11 @@
   "functions": {
     "api/test.js": {
       "maxDuration": 30
-    },
-    "api/test-audio.js": {
-      "maxDuration": 30
     }
   },
   "headers": [
     {
       "source": "/api/test",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Range, Accept-Ranges"
-        }
-      ]
-    },
-    {
-      "source": "/api/test-audio",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",

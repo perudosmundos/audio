@@ -67,7 +67,7 @@ export const formatShortDate = (dateString, language = 'ru') => {
 export const getDirectAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Просто возвращаем оригинальный URL без изменений
+  // Просто возвращаем оригинальный URL без прокси
   console.log('Using direct audio URL:', originalUrl);
   return originalUrl;
 };
