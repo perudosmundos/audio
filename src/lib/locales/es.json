@@ -46,6 +46,7 @@
   "invalidAudioUrl": "URL de audio inválida",
   "noAudioSource": "Fuente de audio no encontrada",
   "audioNotSupported": "Formato de audio no soportado por el navegador",
+  "corsError": "Problema al acceder al archivo de audio (CORS)",
   "navigationNoQuestions": "No hay preguntas en esta meditación para navegar.",
   "navigationToastTitle": "Navegación",
   "previousQuestion": "Pregunta anterior",

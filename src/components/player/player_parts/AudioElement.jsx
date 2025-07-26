@@ -111,12 +111,12 @@ const AudioElement = React.memo(({
   };
 
   return (
-    <audio 
+    <audio
       ref={audioRef}
       onTimeUpdate={onTimeUpdate}
       onLoadedMetadata={onLoadedMetadata}
       onEnded={onEnded}
-      onDurationChange={onDurationChange} 
+      onDurationChange={onDurationChange}
       onError={handleError}
       onCanPlay={handleCanPlay}
       onLoadStart={handleLoadStart}
@@ -125,9 +125,8 @@ const AudioElement = React.memo(({
       onStalled={handleStalled}
       onSuspend={handleSuspend}
       onWaiting={handleWaiting}
-      preload="metadata"
       crossOrigin="anonymous"
-      // Добавляем атрибуты для лучшей поддержки Range запросов
+      preload="metadata"
       controlsList="nodownload"
     />
   );
