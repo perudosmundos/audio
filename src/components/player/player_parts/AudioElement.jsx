@@ -25,10 +25,33 @@ const AudioElement = React.memo(({
         // Сбрасываем ошибки перед установкой нового src
         audioRef.current.removeAttribute('data-error');
         
+        // Добавляем дополнительную диагностику
+        console.log('AudioElement: Audio element state before setting src:', {
+          readyState: audioRef.current.readyState,
+          networkState: audioRef.current.networkState,
+          paused: audioRef.current.paused,
+          currentTime: audioRef.current.currentTime,
+          duration: audioRef.current.duration
+        });
+        
         audioRef.current.src = episodeAudioUrl;
         audioRef.current.load();
         
         console.log('AudioElement: Audio src set and load() called');
+        
+        // Проверяем состояние после загрузки
+        setTimeout(() => {
+          if (audioRef.current) {
+            console.log('AudioElement: Audio element state after load:', {
+              readyState: audioRef.current.readyState,
+              networkState: audioRef.current.networkState,
+              paused: audioRef.current.paused,
+              currentTime: audioRef.current.currentTime,
+              duration: audioRef.current.duration,
+              src: audioRef.current.src
+            });
+          }
+        }, 1000);
       }
     }
   }, [episodeAudioUrl, audioRef]);
@@ -62,6 +85,20 @@ const AudioElement = React.memo(({
     
     if (onError) {
       onError(e);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    console.log('AudioElement: loadedmetadata event fired');
+    const audio = audioRef.current;
+    if (audio) {
+      console.log('AudioElement: Metadata loaded successfully', {
+        duration: audio.duration,
+        currentTime: audio.currentTime,
+        networkState: audio.networkState,
+        readyState: audio.readyState,
+        src: audio.src
+      });
     }
   };
 
@@ -114,7 +151,7 @@ const AudioElement = React.memo(({
     <audio 
       ref={audioRef}
       onTimeUpdate={onTimeUpdate}
-      onLoadedMetadata={onLoadedMetadata}
+      onLoadedMetadata={handleLoadedMetadata}
       onEnded={onEnded}
       onDurationChange={onDurationChange} 
       onError={handleError}
@@ -127,8 +164,11 @@ const AudioElement = React.memo(({
       onWaiting={handleWaiting}
       preload="metadata"
       crossOrigin="anonymous"
-      // Добавляем атрибуты для лучшей поддержки Range запросов
       controlsList="nodownload"
+      // Добавляем атрибуты для лучшей поддержки аудио
+      playsInline
+      webkit-playsinline="true"
+      x-webkit-airplay="allow"
     />
   );
 });
