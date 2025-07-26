@@ -205,3 +205,65 @@ export const diagnoseAudioUrl = async (url) => {
     return results;
   }
 };
+
+// Новая функция для получения рабочего URL с множественными попытками
+export const getWorkingAudioUrl = async (originalUrl) => {
+  if (!originalUrl) return originalUrl;
+  
+  console.log('Getting working audio URL for:', originalUrl);
+  
+  // Если это Cloudflare Worker URL
+  if (originalUrl.includes('alexbrin102.workers.dev')) {
+    const url = new URL(originalUrl);
+    const filePath = url.pathname.substring(1);
+    const isSecondary = originalUrl.includes('audio-secondary.alexbrin102.workers.dev');
+    
+    // Список возможных URL для тестирования
+    const testUrls = [
+      // Прямой URL
+      originalUrl,
+      // Основной прокси
+      `${window.location.origin}/api/audio-proxy/${filePath}`,
+      // Вторичный прокси (если это вторичный worker)
+      isSecondary ? `${window.location.origin}/api/audio-secondary-proxy/${filePath}` : null,
+      // Альтернативные прокси
+      `https://corsproxy.io/?${originalUrl}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`
+    ].filter(Boolean);
+    
+    console.log('Testing URLs:', testUrls);
+    
+    for (const testUrl of testUrls) {
+      try {
+        console.log('Testing URL:', testUrl);
+        
+        const response = await fetch(testUrl, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'audio/*, */*'
+          }
+        });
+        
+        const contentType = response.headers.get('content-type');
+        
+        if ((response.ok || response.status === 206) && 
+            contentType && 
+            (contentType.includes('audio/') || contentType.includes('application/octet-stream'))) {
+          console.log('Found working URL:', testUrl);
+          return testUrl;
+        } else {
+          console.warn('URL test failed:', { url: testUrl, status: response.status, contentType });
+        }
+      } catch (error) {
+        console.warn('URL test error:', { url: testUrl, error: error.message });
+      }
+    }
+    
+    // Если ничего не работает, возвращаем оригинальный проксированный URL
+    console.warn('No working URL found, using fallback');
+    return getProxiedAudioUrl(originalUrl);
+  }
+  
+  return originalUrl;
+};

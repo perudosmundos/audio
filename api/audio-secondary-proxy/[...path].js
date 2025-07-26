@@ -55,13 +55,30 @@ export default async function handler(req, res) {
       });
     }
 
+    // Проверяем Content-Type
+    const contentType = response.headers.get('content-type');
+    console.log('Audio secondary proxy: Content-Type', contentType);
+    
+    // Проверяем, что это действительно аудио файл
+    if (contentType && !contentType.includes('audio/') && !contentType.includes('application/octet-stream')) {
+      console.warn('Audio secondary proxy: Invalid Content-Type', contentType);
+      
+      // Если это HTML (ошибка), возвращаем ошибку
+      if (contentType.includes('text/html')) {
+        console.error('Audio secondary proxy: Got HTML response instead of audio');
+        return res.status(500).json({ 
+          error: 'Invalid response type',
+          details: 'Received HTML instead of audio file'
+        });
+      }
+    }
+
     // Устанавливаем CORS заголовки
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
     
     // Передаем важные заголовки от Cloudflare Worker
-    const contentType = response.headers.get('content-type');
     if (contentType) {
       res.setHeader('Content-Type', contentType);
     }
@@ -121,6 +138,26 @@ export default async function handler(req, res) {
       const buffer = Buffer.from(arrayBuffer);
       
       console.log('Audio secondary proxy: Sending buffer of size', buffer.length);
+      
+      // Проверяем, что буфер не пустой и не содержит HTML
+      if (buffer.length === 0) {
+        console.error('Audio secondary proxy: Empty buffer received');
+        return res.status(500).json({ 
+          error: 'Empty audio file',
+          details: 'Received empty buffer from source'
+        });
+      }
+      
+      // Проверяем первые байты на HTML
+      const firstBytes = buffer.slice(0, 100).toString('utf8').toLowerCase();
+      if (firstBytes.includes('<!doctype') || firstBytes.includes('<html')) {
+        console.error('Audio secondary proxy: HTML content detected in response');
+        return res.status(500).json({ 
+          error: 'Invalid response type',
+          details: 'Received HTML content instead of audio file'
+        });
+      }
+      
       res.send(buffer);
     }
     

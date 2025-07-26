@@ -56,8 +56,24 @@ export default async function handler(req, res) {
       });
 
       console.log(`Audio proxy: Response status for attempt ${i + 1}:`, response.status);
+      console.log(`Audio proxy: Response headers for attempt ${i + 1}:`, Object.fromEntries(response.headers.entries()));
 
       if (response.ok || response.status === 206) {
+        // Проверяем Content-Type
+        const contentType = response.headers.get('content-type');
+        console.log(`Audio proxy: Content-Type for attempt ${i + 1}:`, contentType);
+        
+        // Проверяем, что это действительно аудио файл
+        if (contentType && !contentType.includes('audio/') && !contentType.includes('application/octet-stream')) {
+          console.warn(`Audio proxy: Invalid Content-Type for attempt ${i + 1}:`, contentType);
+          
+          // Если это HTML (ошибка), попробуем следующий прокси
+          if (contentType.includes('text/html')) {
+            console.warn(`Audio proxy: Got HTML response, trying next proxy`);
+            continue;
+          }
+        }
+        
         console.log(`Audio proxy: Success with attempt ${i + 1}`);
         
         // Устанавливаем CORS заголовки
@@ -66,7 +82,6 @@ export default async function handler(req, res) {
         res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
         
         // Передаем важные заголовки от Cloudflare Worker
-        const contentType = response.headers.get('content-type');
         if (contentType) {
           res.setHeader('Content-Type', contentType);
         }
@@ -126,6 +141,20 @@ export default async function handler(req, res) {
           const buffer = Buffer.from(arrayBuffer);
           
           console.log('Audio proxy: Sending buffer of size', buffer.length);
+          
+          // Проверяем, что буфер не пустой и не содержит HTML
+          if (buffer.length === 0) {
+            console.warn('Audio proxy: Empty buffer received');
+            continue;
+          }
+          
+          // Проверяем первые байты на HTML
+          const firstBytes = buffer.slice(0, 100).toString('utf8').toLowerCase();
+          if (firstBytes.includes('<!doctype') || firstBytes.includes('<html')) {
+            console.warn('Audio proxy: HTML content detected in response');
+            continue;
+          }
+          
           res.send(buffer);
           return;
         }
