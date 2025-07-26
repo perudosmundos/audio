@@ -83,6 +83,7 @@ export const useLocalEpisodes = (currentLanguage) => {
   const [episodeQuestionsCount, setEpisodeQuestionsCount] = useState({});
 
   const fetchEpisodesAndData = useCallback(async () => {
+    console.log('useLocalEpisodes: Starting fetch for language:', currentLanguage);
     setLoading(true);
     setError(null);
     
@@ -95,10 +96,14 @@ export const useLocalEpisodes = (currentLanguage) => {
         ep.lang === currentLanguage || ep.lang === 'all'
       );
       
+      console.log('useLocalEpisodes: Filtered episodes:', langFilteredEpisodes.length);
+      
       // Фильтруем вопросы по языку
       const langFilteredQuestions = localQuestionsData.filter(q => 
         q.lang === currentLanguage || q.lang === 'all'
       );
+      
+      console.log('useLocalEpisodes: Filtered questions:', langFilteredQuestions.length);
       
       setAllQuestions(langFilteredQuestions);
       
@@ -121,7 +126,12 @@ export const useLocalEpisodes = (currentLanguage) => {
       setEpisodeQuestionsCount(counts);
       setEpisodes(langFilteredEpisodes);
       
+      console.log('useLocalEpisodes: Data loaded successfully');
+      console.log('useLocalEpisodes: Episodes:', langFilteredEpisodes);
+      console.log('useLocalEpisodes: Questions:', langFilteredQuestions);
+      
     } catch (err) {
+      console.error('useLocalEpisodes: Error:', err);
       setError(`Ошибка загрузки локальных данных: ${err.message}`);
     } finally {
       setLoading(false);
