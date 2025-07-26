@@ -120,16 +120,41 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       
       // Если есть R2 данные, используем их для генерации URL
       if (episode.r2_object_key) {
-        finalAudioUrl = r2Service.getCompatibleUrl(
+        const generatedUrl = r2Service.getCompatibleUrl(
           episode.audio_url, 
           episode.r2_object_key, 
           episode.r2_bucket_name
         );
+        
+        if (generatedUrl) {
+          finalAudioUrl = generatedUrl;
+          console.log('useEpisodeData: Using generated R2 URL:', finalAudioUrl);
+        } else {
+          console.warn('useEpisodeData: Failed to generate R2 URL, using original:', episode.audio_url);
+        }
       }
       
       // Применяем прямую ссылку без прокси
       finalAudioUrl = getDirectAudioUrl(finalAudioUrl);
-      console.log('useEpisodeData: Final direct audio URL', finalAudioUrl);
+      
+      // Проверяем, что у нас есть валидный URL
+      if (!finalAudioUrl) {
+        console.error('useEpisodeData: No valid audio URL available');
+        setError(getLocaleString('audioNotAvailable', currentLanguage) || 'Аудио недоступно');
+        setLoading(false);
+        return;
+      }
+      
+      // Проверяем, что URL валидный
+      try {
+        new URL(finalAudioUrl);
+        console.log('useEpisodeData: Final direct audio URL (valid):', finalAudioUrl);
+      } catch (urlError) {
+        console.error('useEpisodeData: Invalid audio URL:', finalAudioUrl, urlError);
+        setError(getLocaleString('invalidAudioUrl', currentLanguage) || 'Неверный URL аудио');
+        setLoading(false);
+        return;
+      }
       
       setEpisodeData({...episode, audio_url: finalAudioUrl});
       

@@ -137,6 +137,15 @@ const usePlayerNavigation = ({
                 description: getLocaleString('playbackErrorDescription', currentLanguage) || 'Нажмите кнопку воспроизведения еще раз', 
                 variant: 'destructive' 
               });
+            } else if (error.name === 'NotSupportedError') {
+              console.log('usePlayerNavigation: NotSupportedError - audio format not supported');
+              setIsPlayingState(false);
+              onPlayerStateChange?.({isPlaying: false});
+              toast({ 
+                title: getLocaleString('audioErrorTitle', currentLanguage) || 'Ошибка аудио', 
+                description: getLocaleString('audioNotSupported', currentLanguage) || 'Формат аудио не поддерживается браузером', 
+                variant: 'destructive' 
+              });
             } else {
               // Для других ошибок сбрасываем состояние
               setIsPlayingState(false);
