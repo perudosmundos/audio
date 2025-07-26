@@ -4,7 +4,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 # === НАСТРОЙКИ ===
 $repoUrl = "https://github.com/perudosmundos/audio.git"
-$commitMsg = "Fix: Improved audio proxy for Russia - added streaming, Range request support and fallback mechanisms"
+$commitMsg = "Fix: Added direct audio access and improved proxy fallback - removed problematic CORS proxies and added direct API route"
 # ==================
 
 Write-Host "Starting project update process..." -ForegroundColor Green

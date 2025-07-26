@@ -208,6 +208,27 @@ export default defineConfig({
 		},
 		allowedHosts: true,
 		proxy: {
+			'/api': {
+				target: 'http://localhost:3000',
+				changeOrigin: true,
+				configure: (proxy, options) => {
+					proxy.on('proxyReq', (proxyReq, req, res) => {
+						// Добавляем CORS заголовки для API
+						proxyReq.setHeader('Origin', 'http://localhost:5173');
+						
+						// Передаем Range заголовки для поддержки перемотки
+						if (req.headers.range) {
+							proxyReq.setHeader('Range', req.headers.range);
+						}
+					});
+					proxy.on('proxyRes', (proxyRes, req, res) => {
+						// Добавляем CORS заголовки в ответ
+						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
+						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
+					});
+				}
+			},
 			'/audio-proxy': {
 				target: 'https://audio.alexbrin102.workers.dev',
 				changeOrigin: true,
