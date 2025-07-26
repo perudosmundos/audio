@@ -1,5 +1,4 @@
 import React from 'react';
-import { diagnoseAudioUrl } from '@/lib/utils';
 
 const AudioElement = React.memo(({ 
   audioRef, 
@@ -20,22 +19,6 @@ const AudioElement = React.memo(({
   React.useEffect(() => {
     if (audioRef.current && episodeAudioUrl) {
       console.log('AudioElement: Setting src to', episodeAudioUrl);
-      
-      // Простая диагностика URL перед установкой
-      const runDiagnostics = async () => {
-        try {
-          const diagnosis = await diagnoseAudioUrl(episodeAudioUrl);
-          console.log('AudioElement: URL diagnosis:', diagnosis);
-          
-          if (diagnosis.error) {
-            console.warn('AudioElement: URL diagnosis failed:', diagnosis.error);
-          }
-        } catch (error) {
-          console.warn('AudioElement: Failed to run diagnostics:', error);
-        }
-      };
-      
-      runDiagnostics();
       
       // Устанавливаем src только если он изменился
       if (audioRef.current.src !== episodeAudioUrl) {
