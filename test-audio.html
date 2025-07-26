@@ -68,14 +68,20 @@
         </div>
 
         <div class="test-section">
-            <h3>Тест 2: Тест конкретного URL</h3>
+            <h3>Тест 2: Проверка прямого доступа</h3>
+            <button onclick="testDirectAccess()">Проверить прямой доступ</button>
+            <div id="direct-test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Тест 3: Тест конкретного URL</h3>
             <input type="text" id="test-url" placeholder="Введите URL для тестирования" value="https://audio.alexbrin102.workers.dev/test.mp3">
             <button onclick="testSpecificUrl()">Тестировать URL</button>
             <div id="url-test-result"></div>
         </div>
 
         <div class="test-section">
-            <h3>Тест 3: Воспроизведение аудио</h3>
+            <h3>Тест 4: Воспроизведение аудио</h3>
             <input type="text" id="audio-url" placeholder="Введите URL аудио файла" value="https://audio.alexbrin102.workers.dev/test.mp3">
             <button onclick="testAudioPlayback()">Тестировать воспроизведение</button>
             <div id="audio-test-result"></div>
@@ -83,7 +89,7 @@
         </div>
 
         <div class="test-section">
-            <h3>Тест 4: Тест через API</h3>
+            <h3>Тест 5: Тест через API</h3>
             <input type="text" id="api-test-url" placeholder="Введите URL для API теста" value="https://audio.alexbrin102.workers.dev/test.mp3">
             <button onclick="testViaAPI()">Тестировать через API</button>
             <div id="api-test-result"></div>
@@ -110,6 +116,20 @@
                 }
             } catch (error) {
                 showResult('proxy-test-result', `❌ Ошибка тестирования: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDirectAccess() {
+            showResult('direct-test-result', 'Проверяем прямой доступ...', 'info');
+            try {
+                const response = await fetch('https://audio.alexbrin102.workers.dev/test.mp3');
+                if (response.ok) {
+                    showResult('direct-test-result', `✅ Прямой доступ к аудио работает! Статус: ${response.status}`, 'success');
+                } else {
+                    showResult('direct-test-result', `❌ Прямой доступ к аудио недоступен. Статус: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showResult('direct-test-result', `❌ Ошибка прямого доступа: ${error.message}`, 'error');
             }
         }
 
@@ -191,6 +211,7 @@
         // Автоматический тест при загрузке страницы
         window.onload = function() {
             testProxyAvailability();
+            testDirectAccess(); // Добавляем автоматический тест прямого доступа
         };
     </script>
 </body>

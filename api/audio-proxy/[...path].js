@@ -18,8 +18,9 @@ export default async function handler(req, res) {
   // Попробуем несколько разных прокси-серверов
   const proxyUrls = [
     `https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://cors-anywhere.herokuapp.com/https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://api.allorigins.win/raw?url=https://audio.alexbrin102.workers.dev/${filePath}`
+    `https://api.allorigins.win/raw?url=https://audio.alexbrin102.workers.dev/${filePath}`,
+    `https://corsproxy.io/?https://audio.alexbrin102.workers.dev/${filePath}`,
+    `https://api.codetabs.com/v1/proxy?quest=https://audio.alexbrin102.workers.dev/${filePath}`
   ];
 
   console.log('Audio proxy: Trying to fetch', filePath);

@@ -168,32 +168,26 @@ const r2Service = {
       if (audioUrl.includes('alexbrin102.workers.dev')) {
         const url = new URL(audioUrl);
         const filePath = url.pathname.substring(1);
-        const proxyPath = audioUrl.includes('audio-secondary.alexbrin102.workers.dev') 
-          ? 'audio-secondary-proxy' 
-          : 'audio-proxy';
         
-        const proxiedUrl = import.meta.env.PROD 
-          ? `${window.location.origin}/api/${proxyPath}/${filePath}`
-          : `/api/${proxyPath}/${filePath}`;
+        // Сначала пробуем прямой доступ
+        const directUrl = import.meta.env.PROD 
+          ? `${window.location.origin}/api/direct-audio/${filePath}`
+          : `/api/direct-audio/${filePath}`;
         
-        console.log('R2: Using proxied URL:', proxiedUrl);
-        return proxiedUrl;
+        console.log('R2: Using direct access URL:', directUrl);
+        return directUrl;
       }
       console.log('R2: Using direct URL:', audioUrl);
       return audioUrl;
     }
     
-    // Если есть ключ, генерируем проксированный R2 URL
+    // Если есть ключ, генерируем прямой R2 URL
     if (r2ObjectKey) {
-      const proxyPath = r2BucketName === R2_SECONDARY_CONFIG.BUCKET 
-        ? 'audio-secondary-proxy' 
-        : 'audio-proxy';
-      
       const generatedUrl = import.meta.env.PROD 
-        ? `${window.location.origin}/api/${proxyPath}/${r2ObjectKey}`
-        : `/api/${proxyPath}/${r2ObjectKey}`;
+        ? `${window.location.origin}/api/direct-audio/${r2ObjectKey}`
+        : `/api/direct-audio/${r2ObjectKey}`;
       
-      console.log('R2: Generated proxied URL from key:', generatedUrl);
+      console.log('R2: Generated direct URL from key:', generatedUrl);
       return generatedUrl;
     }
     
@@ -234,7 +228,7 @@ const r2Service = {
   getWorkingAudioUrl: async (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getWorkingAudioUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
     
-    // Генерируем основной URL
+    // Генерируем основной URL (прямой доступ)
     const primaryUrl = r2Service.getCompatibleUrl(audioUrl, r2ObjectKey, r2BucketName);
     if (!primaryUrl) {
       return { url: null, error: 'No URL could be generated' };
@@ -243,33 +237,52 @@ const r2Service = {
     // Тестируем основной URL
     const primaryTest = await r2Service.testAudioAvailability(primaryUrl);
     if (primaryTest.available) {
-      console.log('R2: Primary URL is working:', primaryUrl);
-      return { url: primaryUrl, source: 'primary' };
+      console.log('R2: Primary URL (direct) is working:', primaryUrl);
+      return { url: primaryUrl, source: 'direct' };
     }
     
-    // Если основной URL не работает, пробуем альтернативные прокси
-    console.log('R2: Primary URL failed, trying alternatives');
+    // Если прямой доступ не работает, пробуем прокси
+    console.log('R2: Direct access failed, trying proxy');
     
-    const alternativeUrls = [];
+    const proxyUrls = [];
     
-    // Если это Cloudflare Worker URL, пробуем разные прокси
+    // Если это Cloudflare Worker URL, пробуем прокси
     if (audioUrl && audioUrl.includes('alexbrin102.workers.dev')) {
       const url = new URL(audioUrl);
       const filePath = url.pathname.substring(1);
+      const proxyPath = audioUrl.includes('audio-secondary.alexbrin102.workers.dev') 
+        ? 'audio-secondary-proxy' 
+        : 'audio-proxy';
       
-      alternativeUrls.push(
-        `https://cors-anywhere.herokuapp.com/${audioUrl}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(audioUrl)}`,
-        `https://thingproxy.freeboard.io/fetch/${audioUrl}`
+      proxyUrls.push(
+        import.meta.env.PROD 
+          ? `${window.location.origin}/api/${proxyPath}/${filePath}`
+          : `/api/${proxyPath}/${filePath}`
       );
     }
     
-    // Тестируем альтернативные URL
-    for (const altUrl of alternativeUrls) {
-      const test = await r2Service.testAudioAvailability(altUrl);
+    // Если есть ключ, пробуем прокси для R2
+    if (r2ObjectKey) {
+      const proxyPath = r2BucketName === R2_SECONDARY_CONFIG.BUCKET 
+        ? 'audio-secondary-proxy' 
+        : 'audio-proxy';
+      
+      proxyUrls.push(
+        import.meta.env.PROD 
+          ? `${window.location.origin}/api/${proxyPath}/${r2ObjectKey}`
+          : `/api/${proxyPath}/${r2ObjectKey}`
+      );
+    }
+    
+    // Тестируем прокси URL
+    for (const proxyUrl of proxyUrls) {
+      console.log('R2: Testing proxy URL:', proxyUrl);
+      const test = await r2Service.testAudioAvailability(proxyUrl);
       if (test.available) {
-        console.log('R2: Alternative URL is working:', altUrl);
-        return { url: altUrl, source: 'alternative' };
+        console.log('R2: Proxy URL is working:', proxyUrl);
+        return { url: proxyUrl, source: 'proxy' };
+      } else {
+        console.log('R2: Proxy URL failed:', proxyUrl, 'Status:', test.status);
       }
     }
     
