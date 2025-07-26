@@ -145,14 +145,15 @@ const PodcastPlayer = ({
 
   useEffect(() => {
     if (audioRef.current && episodeData && episodeData.audio_url) {
-      console.log('PodcastPlayer: Setting isPlaying to true for episode:', episodeData.audio_url);
-      // Устанавливаем состояние воспроизведения в true только если это новый эпизод
-      // или если аудио еще не было загружено
+      console.log('PodcastPlayer: Episode loaded:', episodeData.audio_url);
+      // Убираем автоматическое установление isPlaying в true
+      // Пользователь должен сам нажать кнопку воспроизведения
       if (audioRef.current.src !== episodeData.audio_url || audioRef.current.readyState === 0) {
-      setIsPlayingState(true);
+        // Не устанавливаем isPlaying автоматически
+        console.log('PodcastPlayer: Audio source updated, waiting for user interaction');
       }
     }
-  }, [audioRef, episodeData, setIsPlayingState]);
+  }, [audioRef, episodeData]);
 
   const handleDownloadAudio = () => {
     if (episodeAudioUrl) {
