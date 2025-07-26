@@ -63,20 +63,11 @@ export const formatShortDate = (dateString, language = 'ru') => {
   return date.toLocaleDateString(options.locale, options);
 };
 
-// Функция для получения проксированного аудио URL
-export const getProxiedAudioUrl = (originalUrl) => {
+// Функция для прямого воспроизведения аудио
+export const getDirectAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Если это Cloudflare Worker URL, используем прокси
-  if (originalUrl.includes('alexbrin102.workers.dev')) {
-    const urlObj = new URL(originalUrl);
-    const filename = urlObj.pathname.substring(1); // Убираем начальный слеш
-    const proxiedUrl = `/api/audio-proxy/${filename}`;
-    console.log('Using proxied audio URL:', proxiedUrl);
-    return proxiedUrl;
-  }
-  
-  // Для других URL используем прямой доступ
+  // Просто возвращаем оригинальный URL без изменений
   console.log('Using direct audio URL:', originalUrl);
   return originalUrl;
 };
@@ -85,18 +76,19 @@ export const getProxiedAudioUrl = (originalUrl) => {
 export const getAudioUrlWithFallback = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Всегда используем прокси для Cloudflare Worker
-  return getProxiedAudioUrl(originalUrl);
+  // Просто возвращаем оригинальный URL
+  console.log('Using direct audio URL (fallback):', originalUrl);
+  return originalUrl;
 };
 
 // Функция для получения рабочего URL
 export const getWorkingAudioUrl = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  console.log('Getting working audio URL for:', originalUrl);
+  console.log('Getting direct working audio URL for:', originalUrl);
   
-  // Всегда используем прокси для Cloudflare Worker
-  return getProxiedAudioUrl(originalUrl);
+  // Просто возвращаем оригинальный URL
+  return originalUrl;
 };
 
 // Упрощенная функция для диагностики аудио URL
