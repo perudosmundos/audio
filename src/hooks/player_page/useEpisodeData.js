@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import { getProxiedAudioUrl, getAudioUrlWithFallback, getWorkingAudioUrl } from '@/lib/utils';
+import { getDirectAudioUrl } from '@/lib/utils';
 import r2Service from '@/lib/r2Service';
 
 // Utility function to check if a file exists on Archive.org
@@ -115,31 +115,22 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         r2_bucket_name: episode.r2_bucket_name
       });
       
-      let finalAudioUrl = r2Service.getCompatibleUrl(
-        episode.audio_url, 
-        episode.r2_object_key, 
-        episode.r2_bucket_name
-      );
-      console.log('useEpisodeData: Generated compatible URL', finalAudioUrl);
+      // Используем прямой URL без прокси
+      let finalAudioUrl = episode.audio_url;
       
-      // Используем новую функцию для получения рабочего URL
-      try {
-        finalAudioUrl = await getWorkingAudioUrl(finalAudioUrl);
-        console.log('useEpisodeData: Final working audio URL', finalAudioUrl);
-      } catch (error) {
-        console.warn('useEpisodeData: getWorkingAudioUrl failed, using fallback', error);
-        // Fallback к старому методу
-        try {
-          finalAudioUrl = await getAudioUrlWithFallback(finalAudioUrl);
-          console.log('useEpisodeData: Fallback audio URL', finalAudioUrl);
-        } catch (fallbackError) {
-          console.warn('useEpisodeData: Fallback also failed, using original URL', fallbackError);
-          finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
-        }
+      // Если есть R2 данные, используем их для генерации URL
+      if (episode.r2_object_key) {
+        finalAudioUrl = r2Service.getCompatibleUrl(
+          episode.audio_url, 
+          episode.r2_object_key, 
+          episode.r2_bucket_name
+        );
       }
       
-      console.log('useEpisodeData: Proxy setting in localStorage:', localStorage.getItem('useAudioProxy'));
-      console.log('useEpisodeData: Is development mode:', import.meta.env.DEV);
+      // Применяем прямую ссылку без прокси
+      finalAudioUrl = getDirectAudioUrl(finalAudioUrl);
+      console.log('useEpisodeData: Final direct audio URL', finalAudioUrl);
+      
       setEpisodeData({...episode, audio_url: finalAudioUrl});
       
       const langForContent = episode.lang === 'all' ? currentLanguage : episode.lang;

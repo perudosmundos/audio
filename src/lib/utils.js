@@ -63,105 +63,35 @@ export const formatShortDate = (dateString, language = 'ru') => {
   return date.toLocaleDateString(options.locale, options);
 };
 
-// Функция для преобразования аудио URL через прокси (для обхода CORS)
-export const getProxiedAudioUrl = (originalUrl) => {
+// Упрощенная функция для прямого воспроизведения без прокси
+export const getDirectAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Проверяем, является ли URL Cloudflare Worker
-  if (originalUrl.includes('alexbrin102.workers.dev')) {
-    // Извлекаем путь файла из URL
-    const url = new URL(originalUrl);
-    const filePath = url.pathname.substring(1); // Убираем начальный слеш
-    
-    // Определяем какой прокси использовать
-    const isSecondary = originalUrl.includes('audio-secondary.alexbrin102.workers.dev');
-    const proxyPath = isSecondary ? 'audio-secondary-proxy' : 'audio-proxy';
-    
-    // В продакшене используем API роут, в разработке - Vite прокси
-    if (import.meta.env.PROD) {
-      return `${window.location.origin}/api/${proxyPath}/${filePath}`;
-    } else {
-      return `/api/${proxyPath}/${filePath}`;
-    }
-  }
-  
+  // Просто возвращаем оригинальный URL без прокси
+  console.log('Using direct audio URL:', originalUrl);
   return originalUrl;
 };
 
-// Функция для проверки доступности прокси с улучшенной логикой
-export const testProxyAvailability = async (proxyUrl) => {
-  try {
-    console.log('Testing proxy availability:', proxyUrl);
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
-    
-    const response = await fetch(proxyUrl, { 
-      method: 'HEAD',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    const isAvailable = response.ok || response.status === 206;
-    console.log('Proxy test result:', { url: proxyUrl, status: response.status, available: isAvailable });
-    
-    return isAvailable;
-  } catch (error) {
-    console.warn('Proxy test failed:', { url: proxyUrl, error: error.message });
-    return false;
-  }
-};
-
-// Функция для получения URL с улучшенным fallback
+// Упрощенная функция для получения URL (без прокси)
 export const getAudioUrlWithFallback = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // Проверяем, является ли URL Cloudflare Worker
-  if (originalUrl.includes('alexbrin102.workers.dev')) {
-    const proxiedUrl = getProxiedAudioUrl(originalUrl);
-    
-    // Тестируем доступность прокси
-    const isProxyAvailable = await testProxyAvailability(proxiedUrl);
-    
-    if (isProxyAvailable) {
-      console.log('Using proxied URL:', proxiedUrl);
-      return proxiedUrl;
-    } else {
-      console.warn('Proxy not available, trying direct URL with additional headers');
-      
-      // Попробуем прямой URL с дополнительными заголовками
-      try {
-        const testResponse = await fetch(originalUrl, {
-          method: 'HEAD',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'audio/*, */*',
-            'Accept-Language': 'en-US,en;q=0.9'
-          }
-        });
-        
-        if (testResponse.ok || testResponse.status === 206) {
-          console.log('Direct URL is accessible, using it');
-          return originalUrl;
-        }
-      } catch (error) {
-        console.warn('Direct URL test failed:', error.message);
-      }
-      
-      // Если ничего не работает, возвращаем проксированный URL в надежде, что он заработает
-      console.warn('All tests failed, using proxied URL as fallback');
-      return proxiedUrl;
-    }
-  }
-  
+  // Просто возвращаем оригинальный URL
+  console.log('Using direct audio URL (fallback):', originalUrl);
   return originalUrl;
 };
 
-// Новая функция для диагностики аудио URL
+// Упрощенная функция для получения рабочего URL
+export const getWorkingAudioUrl = async (originalUrl) => {
+  if (!originalUrl) return originalUrl;
+  
+  console.log('Getting direct working audio URL for:', originalUrl);
+  
+  // Просто возвращаем оригинальный URL
+  return originalUrl;
+};
+
+// Упрощенная функция для диагностики аудио URL
 export const diagnoseAudioUrl = async (url) => {
   if (!url) return { error: 'No URL provided' };
   
@@ -187,83 +117,9 @@ export const diagnoseAudioUrl = async (url) => {
       headers: Object.fromEntries(directTest.headers.entries())
     };
     
-    // Тест 2: Прокси доступ (если это Cloudflare Worker)
-    if (url.includes('alexbrin102.workers.dev')) {
-      const proxiedUrl = getProxiedAudioUrl(url);
-      console.log('Testing proxy access to:', proxiedUrl);
-      
-      const proxyTest = await testProxyAvailability(proxiedUrl);
-      results.tests.proxy = {
-        accessible: proxyTest,
-        proxiedUrl: proxiedUrl
-      };
-    }
-    
     return results;
   } catch (error) {
     results.error = error.message;
     return results;
   }
-};
-
-// Новая функция для получения рабочего URL с множественными попытками
-export const getWorkingAudioUrl = async (originalUrl) => {
-  if (!originalUrl) return originalUrl;
-  
-  console.log('Getting working audio URL for:', originalUrl);
-  
-  // Если это Cloudflare Worker URL
-  if (originalUrl.includes('alexbrin102.workers.dev')) {
-    const url = new URL(originalUrl);
-    const filePath = url.pathname.substring(1);
-    const isSecondary = originalUrl.includes('audio-secondary.alexbrin102.workers.dev');
-    
-    // Список возможных URL для тестирования
-    const testUrls = [
-      // Прямой URL
-      originalUrl,
-      // Основной прокси
-      `${window.location.origin}/api/audio-proxy/${filePath}`,
-      // Вторичный прокси (если это вторичный worker)
-      isSecondary ? `${window.location.origin}/api/audio-secondary-proxy/${filePath}` : null,
-      // Альтернативные прокси
-      `https://corsproxy.io/?${originalUrl}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`
-    ].filter(Boolean);
-    
-    console.log('Testing URLs:', testUrls);
-    
-    for (const testUrl of testUrls) {
-      try {
-        console.log('Testing URL:', testUrl);
-        
-        const response = await fetch(testUrl, {
-          method: 'HEAD',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'audio/*, */*'
-          }
-        });
-        
-        const contentType = response.headers.get('content-type');
-        
-        if ((response.ok || response.status === 206) && 
-            contentType && 
-            (contentType.includes('audio/') || contentType.includes('application/octet-stream'))) {
-          console.log('Found working URL:', testUrl);
-          return testUrl;
-        } else {
-          console.warn('URL test failed:', { url: testUrl, status: response.status, contentType });
-        }
-      } catch (error) {
-        console.warn('URL test error:', { url: testUrl, error: error.message });
-      }
-    }
-    
-    // Если ничего не работает, возвращаем оригинальный проксированный URL
-    console.warn('No working URL found, using fallback');
-    return getProxiedAudioUrl(originalUrl);
-  }
-  
-  return originalUrl;
 };

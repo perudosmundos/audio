@@ -21,7 +21,7 @@ const AudioElement = React.memo(({
     if (audioRef.current && episodeAudioUrl) {
       console.log('AudioElement: Setting src to', episodeAudioUrl);
       
-      // Диагностика URL перед установкой
+      // Простая диагностика URL перед установкой
       const runDiagnostics = async () => {
         try {
           const diagnosis = await diagnoseAudioUrl(episodeAudioUrl);
@@ -29,21 +29,6 @@ const AudioElement = React.memo(({
           
           if (diagnosis.error) {
             console.warn('AudioElement: URL diagnosis failed:', diagnosis.error);
-          }
-          
-          // Дополнительная проверка прокси
-          if (episodeAudioUrl.includes('/api/audio-proxy/') || episodeAudioUrl.includes('/api/audio-secondary-proxy/')) {
-            console.log('AudioElement: Testing proxy response...');
-            try {
-              const testResponse = await fetch(episodeAudioUrl, { method: 'HEAD' });
-              console.log('AudioElement: Proxy test response:', {
-                status: testResponse.status,
-                contentType: testResponse.headers.get('content-type'),
-                contentLength: testResponse.headers.get('content-length')
-              });
-            } catch (error) {
-              console.warn('AudioElement: Proxy test failed:', error);
-            }
           }
         } catch (error) {
           console.warn('AudioElement: Failed to run diagnostics:', error);
@@ -91,35 +76,6 @@ const AudioElement = React.memo(({
     };
     
     console.error('AudioElement: Detailed error info:', errorDetails);
-    
-    // Попытка получить дополнительную информацию об ошибке
-    if (error?.code === 4) {
-      console.error('AudioElement: DEMUXER_ERROR - This usually means the audio file is corrupted or has an unsupported format');
-      
-      // Попробуем проверить файл напрямую
-      const checkFile = async () => {
-        try {
-          const response = await fetch(audio.src, { method: 'GET' });
-          const contentType = response.headers.get('content-type');
-          const contentLength = response.headers.get('content-length');
-          
-          console.log('AudioElement: Direct file check:', {
-            status: response.status,
-            contentType,
-            contentLength,
-            url: audio.src
-          });
-          
-          if (contentType && contentType.includes('text/html')) {
-            console.error('AudioElement: File check revealed HTML response - proxy error!');
-          }
-        } catch (checkError) {
-          console.warn('AudioElement: File check failed:', checkError);
-        }
-      };
-      
-      checkFile();
-    }
     
     if (onError) {
       onError(e);
