@@ -3,11 +3,35 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
+    "api/audio-proxy/[...path].js": {
+      "maxDuration": 60
+    },
     "api/test.js": {
       "maxDuration": 30
     }
   },
   "headers": [
+    {
+      "source": "/api/audio-proxy/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, HEAD, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Range, Accept-Ranges, Content-Range, Content-Type"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Length, Content-Range, Accept-Ranges"
+        }
+      ]
+    },
     {
       "source": "/api/test",
       "headers": [

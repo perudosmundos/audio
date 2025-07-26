@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import { getDirectAudioUrl } from '@/lib/utils'; // Используем прямые URL
+import { getProxiedAudioUrl } from '@/lib/utils'; // Используем прокси для России
 import r2Service from '@/lib/r2Service';
 
 // Utility function to check if a file exists on Archive.org
@@ -135,7 +135,7 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       }
       
       // Применяем прямую ссылку без прокси
-      finalAudioUrl = getDirectAudioUrl(finalAudioUrl);
+      finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
       
       // Проверяем, что у нас есть валидный URL
       if (!finalAudioUrl) {
