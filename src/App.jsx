@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } f
 import { Toaster } from '@/components/ui/toaster';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
-import ProxyStatusIndicator from '@/components/ProxyStatusIndicator';
 import { TelegramProvider } from '@/contexts/TelegramContext';
 import { getLocaleString } from '@/lib/locales';
 import EpisodesPage from '@/pages/EpisodesPage';
@@ -76,7 +75,6 @@ const FooterContent = ({ currentLanguage, onLanguageSelect }) => {
     <footer className="py-3 sm:py-4 text-center text-xs sm:text-sm text-white/60 flex flex-col items-center gap-2">
       <div className="flex gap-2 items-center">
         {currentLanguage && <LanguageSwitcher currentLanguage={currentLanguage} onLanguageChange={handleLanguageSwitchInPlayer} />}
-        <ProxyStatusIndicator currentLanguage={currentLanguage} />
       </div>
     </footer>
   );

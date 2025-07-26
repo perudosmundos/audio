@@ -201,7 +201,7 @@ export default defineConfig({
 			origin: true,
 			credentials: true,
 			methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-			allowedHeaders: ['Content-Type', 'Authorization', 'Range', 'Accept-Ranges', 'Content-Range', 'If-Range', 'If-None-Match']
+			allowedHeaders: ['Content-Type', 'Authorization', 'Range', 'Accept-Ranges', 'Content-Range']
 		},
 		headers: {
 			'Cross-Origin-Embedder-Policy': 'credentialless',
@@ -214,31 +214,19 @@ export default defineConfig({
 				rewrite: (path) => path.replace(/^\/audio-proxy/, ''),
 				configure: (proxy, options) => {
 					proxy.on('proxyReq', (proxyReq, req, res) => {
-						// Улучшенные заголовки для прокси
+						// Добавляем CORS заголовки для прокси
 						proxyReq.setHeader('Origin', 'https://audio.alexbrin102.workers.dev');
-						proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-						proxyReq.setHeader('Accept', 'audio/*, */*');
-						proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.9,ru;q=0.8');
-						proxyReq.setHeader('Accept-Encoding', 'identity');
-						proxyReq.setHeader('Connection', 'keep-alive');
-						proxyReq.setHeader('Cache-Control', 'no-cache');
 						
 						// Передаем Range заголовки для поддержки перемотки
 						if (req.headers.range) {
 							proxyReq.setHeader('Range', req.headers.range);
-						}
-						if (req.headers['if-range']) {
-							proxyReq.setHeader('If-Range', req.headers['if-range']);
-						}
-						if (req.headers['if-none-match']) {
-							proxyReq.setHeader('If-None-Match', req.headers['if-none-match']);
 						}
 					});
 					proxy.on('proxyRes', (proxyRes, req, res) => {
 						// Добавляем CORS заголовки в ответ
 						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
 						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
-						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range, If-Range, If-None-Match';
+						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
 						
 						// Передаем заголовки для поддержки Range запросов
 						if (proxyRes.headers['accept-ranges']) {
@@ -250,27 +238,8 @@ export default defineConfig({
 						if (proxyRes.headers['content-length']) {
 							res.setHeader('Content-Length', proxyRes.headers['content-length']);
 						}
-						if (proxyRes.headers['last-modified']) {
-							res.setHeader('Last-Modified', proxyRes.headers['last-modified']);
-						}
-						if (proxyRes.headers['etag']) {
-							res.setHeader('ETag', proxyRes.headers['etag']);
-						}
 					});
-					proxy.on('error', (err, req, res) => {
-						console.error('Proxy error for audio-proxy:', err.message);
-						res.writeHead(500, {
-							'Content-Type': 'application/json',
-							'Access-Control-Allow-Origin': '*'
-						});
-						res.end(JSON.stringify({ 
-							error: 'Proxy error', 
-							details: err.message,
-							suggestions: ['Try refreshing the page', 'Check your internet connection']
-						}));
-					});
-				},
-				timeout: 15000
+				}
 			},
 			'/audio-secondary-proxy': {
 				target: 'https://audio-secondary.alexbrin102.workers.dev',
@@ -278,31 +247,19 @@ export default defineConfig({
 				rewrite: (path) => path.replace(/^\/audio-secondary-proxy/, ''),
 				configure: (proxy, options) => {
 					proxy.on('proxyReq', (proxyReq, req, res) => {
-						// Улучшенные заголовки для прокси
+						// Добавляем CORS заголовки для прокси
 						proxyReq.setHeader('Origin', 'https://audio-secondary.alexbrin102.workers.dev');
-						proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-						proxyReq.setHeader('Accept', 'audio/*, */*');
-						proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.9,ru;q=0.8');
-						proxyReq.setHeader('Accept-Encoding', 'identity');
-						proxyReq.setHeader('Connection', 'keep-alive');
-						proxyReq.setHeader('Cache-Control', 'no-cache');
 						
 						// Передаем Range заголовки для поддержки перемотки
 						if (req.headers.range) {
 							proxyReq.setHeader('Range', req.headers.range);
-						}
-						if (req.headers['if-range']) {
-							proxyReq.setHeader('If-Range', req.headers['if-range']);
-						}
-						if (req.headers['if-none-match']) {
-							proxyReq.setHeader('If-None-Match', req.headers['if-none-match']);
 						}
 					});
 					proxy.on('proxyRes', (proxyRes, req, res) => {
 						// Добавляем CORS заголовки в ответ
 						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
 						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
-						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range, If-Range, If-None-Match';
+						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
 						
 						// Передаем заголовки для поддержки Range запросов
 						if (proxyRes.headers['accept-ranges']) {
@@ -314,27 +271,8 @@ export default defineConfig({
 						if (proxyRes.headers['content-length']) {
 							res.setHeader('Content-Length', proxyRes.headers['content-length']);
 						}
-						if (proxyRes.headers['last-modified']) {
-							res.setHeader('Last-Modified', proxyRes.headers['last-modified']);
-						}
-						if (proxyRes.headers['etag']) {
-							res.setHeader('ETag', proxyRes.headers['etag']);
-						}
 					});
-					proxy.on('error', (err, req, res) => {
-						console.error('Proxy error for audio-secondary-proxy:', err.message);
-						res.writeHead(500, {
-							'Content-Type': 'application/json',
-							'Access-Control-Allow-Origin': '*'
-						});
-						res.end(JSON.stringify({ 
-							error: 'Proxy error', 
-							details: err.message,
-							suggestions: ['Try refreshing the page', 'Check your internet connection']
-						}));
-					});
-				},
-				timeout: 15000
+				}
 			}
 		}
 	},

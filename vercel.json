@@ -13,16 +13,13 @@
   ],
   "functions": {
     "api/audio-proxy/[...path].js": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/audio-secondary-proxy/[...path].js": {
+      "maxDuration": 60
+    },
+    "api/test.js": {
       "maxDuration": 30
-    },
-    "api/test-proxy.js": {
-      "maxDuration": 10
-    },
-    "api/test-audio.js": {
-      "maxDuration": 10
     }
   },
   "headers": [
@@ -39,7 +36,11 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Range, Content-Length, Accept-Ranges"
         }
       ]
     },
@@ -56,12 +57,16 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Range, Content-Length, Accept-Ranges"
         }
       ]
     },
     {
-      "source": "/api/test-proxy",
+      "source": "/api/test",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
@@ -70,27 +75,6 @@
         {
           "key": "Access-Control-Allow-Methods",
           "value": "GET, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type"
-        }
-      ]
-    },
-    {
-      "source": "/api/test-audio",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type"
         }
       ]
     }

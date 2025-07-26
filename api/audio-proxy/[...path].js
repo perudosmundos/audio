@@ -3,8 +3,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept');
-    res.setHeader('Access-Control-Max-Age', '86400');
+    res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
     res.status(200).end();
     return;
   }
@@ -16,22 +15,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'File path is required' });
   }
 
-  // Расширенный список прокси-серверов с приоритетами
+  // Улучшенный список прокси-серверов с приоритетом
   const proxyUrls = [
-    // Прямой доступ к Cloudflare Worker (может работать в некоторых регионах)
     `https://audio.alexbrin102.workers.dev/${filePath}`,
-    
-    // Надежные CORS прокси
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
-    `https://corsproxy.io/?${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
-    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
-    
-    // Альтернативные прокси
-    `https://cors-anywhere.herokuapp.com/https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
-    
-    // DNS обход через альтернативные домены (если доступны)
-    `https://audio-backup.alexbrin102.workers.dev/${filePath}`,
+    `https://corsproxy.io/?https://audio.alexbrin102.workers.dev/${filePath}`,
+    `https://api.allorigins.win/raw?url=https://audio.alexbrin102.workers.dev/${filePath}`,
+    `https://cors-anywhere.herokuapp.com/https://audio.alexbrin102.workers.dev/${filePath}`
   ];
 
   console.log('Audio proxy: Trying to fetch', filePath);
@@ -41,18 +30,14 @@ export default async function handler(req, res) {
     console.log(`Audio proxy: Attempt ${i + 1} - Fetching from`, targetUrl);
     
     try {
-      // Улучшенные заголовки для разных прокси
+      // Улучшенные заголовки для Range запросов
       const headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'audio/*, */*',
-        'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
-        'Accept-Encoding': 'identity',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache',
-        'Origin': 'https://audio.alexbrin102.workers.dev'
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache'
       };
       
-      // Добавляем Range заголовки для поддержки перемотки
       if (req.headers.range) {
         headers['Range'] = req.headers.range;
         console.log('Audio proxy: Range header', req.headers.range);
@@ -67,20 +52,18 @@ export default async function handler(req, res) {
       const response = await fetch(targetUrl, {
         method: req.method,
         headers,
-        timeout: 15000, // Увеличиваем таймаут до 15 секунд
-        signal: AbortSignal.timeout(15000) // Дополнительный таймаут
+        timeout: 15000 // Увеличиваем таймаут до 15 секунд
       });
 
       console.log(`Audio proxy: Response status for attempt ${i + 1}:`, response.status);
 
-      if (response.ok || response.status === 206) { // 206 для частичного контента
+      if (response.ok || response.status === 206) {
         console.log(`Audio proxy: Success with attempt ${i + 1}`);
         
         // Устанавливаем CORS заголовки
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept');
-        res.setHeader('Access-Control-Max-Age', '86400');
+        res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
         
         // Передаем важные заголовки от Cloudflare Worker
         const contentType = response.headers.get('content-type');
@@ -103,33 +86,42 @@ export default async function handler(req, res) {
           res.setHeader('Content-Range', contentRange);
         }
         
-        const lastModified = response.headers.get('last-modified');
-        if (lastModified) {
-          res.setHeader('Last-Modified', lastModified);
-        }
-        
         const etag = response.headers.get('etag');
         if (etag) {
           res.setHeader('ETag', etag);
         }
         
+        const lastModified = response.headers.get('last-modified');
+        if (lastModified) {
+          res.setHeader('Last-Modified', lastModified);
+        }
+        
         // Передаем статус код
         res.status(response.status);
         
-        // Для HEAD запросов не отправляем тело
-        if (req.method === 'HEAD') {
-          res.end();
-          return;
-        }
-        
-        // Используем потоковую передачу для больших файлов
-        if (response.body) {
-          console.log('Audio proxy: Streaming response');
-          response.body.pipe(res);
+        // Улучшенная обработка Range запросов
+        if (req.headers.range && response.status === 206) {
+          console.log('Audio proxy: Handling Range request');
+          // Для Range запросов используем потоковую передачу
+          const reader = response.body.getReader();
+          const pump = async () => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                res.write(value);
+              }
+              res.end();
+            } catch (error) {
+              console.error('Audio proxy: Stream error:', error);
+              res.end();
+            }
+          };
+          pump();
           return;
         } else {
-          // Fallback для старых окружений
-          console.log('Audio proxy: Fetching audio data as buffer');
+          // Для обычных запросов используем буферизацию
+          console.log('Audio proxy: Fetching audio data');
           const arrayBuffer = await response.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
           
@@ -150,11 +142,11 @@ export default async function handler(req, res) {
   console.error('Audio proxy: All attempts failed');
   res.status(500).json({ 
     error: 'Failed to fetch audio from all proxy sources',
-    details: 'All proxy attempts failed. This might be due to network blocking or proxy unavailability.',
+    details: 'All proxy attempts failed. This might be due to network blocking.',
     suggestions: [
       'Try refreshing the page',
       'Check your internet connection',
-      'Try using a VPN if available'
+      'The audio file might be temporarily unavailable'
     ]
   });
 }
@@ -162,6 +154,6 @@ export default async function handler(req, res) {
 export const config = {
   api: {
     responseLimit: false,
-    bodyParser: false, // Отключаем парсинг тела для потоковой передачи
+    bodyParser: false,
   },
 }; 

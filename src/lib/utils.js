@@ -74,9 +74,8 @@ export const getProxiedAudioUrl = (originalUrl) => {
     const filePath = url.pathname.substring(1); // Убираем начальный слеш
     
     // Определяем какой прокси использовать
-    const proxyPath = originalUrl.includes('audio-secondary.alexbrin102.workers.dev') 
-      ? 'audio-secondary-proxy' 
-      : 'audio-proxy';
+    const isSecondary = originalUrl.includes('audio-secondary.alexbrin102.workers.dev');
+    const proxyPath = isSecondary ? 'audio-secondary-proxy' : 'audio-proxy';
     
     // В продакшене используем API роут, в разработке - Vite прокси
     if (import.meta.env.PROD) {
@@ -89,22 +88,30 @@ export const getProxiedAudioUrl = (originalUrl) => {
   return originalUrl;
 };
 
-// Функция для проверки доступности прокси с таймаутом
-export const testProxyAvailability = async (proxyUrl, timeout = 5000) => {
+// Функция для проверки доступности прокси с улучшенной логикой
+export const testProxyAvailability = async (proxyUrl) => {
   try {
+    console.log('Testing proxy availability:', proxyUrl);
+    
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
     
     const response = await fetch(proxyUrl, { 
       method: 'HEAD',
       signal: controller.signal,
-      mode: 'cors'
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
     });
     
     clearTimeout(timeoutId);
-    return response.ok || response.status === 206; // 206 для частичного контента
+    
+    const isAvailable = response.ok || response.status === 206;
+    console.log('Proxy test result:', { url: proxyUrl, status: response.status, available: isAvailable });
+    
+    return isAvailable;
   } catch (error) {
-    console.warn('Proxy test failed:', error.message);
+    console.warn('Proxy test failed:', { url: proxyUrl, error: error.message });
     return false;
   }
 };
@@ -117,40 +124,84 @@ export const getAudioUrlWithFallback = async (originalUrl) => {
   if (originalUrl.includes('alexbrin102.workers.dev')) {
     const proxiedUrl = getProxiedAudioUrl(originalUrl);
     
-    console.log('Testing proxy availability for:', proxiedUrl);
-    
-    // Тестируем доступность прокси с коротким таймаутом
-    const isProxyAvailable = await testProxyAvailability(proxiedUrl, 3000);
+    // Тестируем доступность прокси
+    const isProxyAvailable = await testProxyAvailability(proxiedUrl);
     
     if (isProxyAvailable) {
       console.log('Using proxied URL:', proxiedUrl);
       return proxiedUrl;
     } else {
-      console.warn('Proxy not available, trying alternative approaches');
+      console.warn('Proxy not available, trying direct URL with additional headers');
       
-      // Попробуем альтернативные прокси напрямую
-      const alternativeProxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`,
-        `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`,
-        `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`
-      ];
-      
-      for (const altProxy of alternativeProxies) {
-        try {
-          const isAltAvailable = await testProxyAvailability(altProxy, 2000);
-          if (isAltAvailable) {
-            console.log('Using alternative proxy:', altProxy);
-            return altProxy;
+      // Попробуем прямой URL с дополнительными заголовками
+      try {
+        const testResponse = await fetch(originalUrl, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'audio/*, */*',
+            'Accept-Language': 'en-US,en;q=0.9'
           }
-        } catch (error) {
-          console.warn('Alternative proxy test failed:', error.message);
+        });
+        
+        if (testResponse.ok || testResponse.status === 206) {
+          console.log('Direct URL is accessible, using it');
+          return originalUrl;
         }
+      } catch (error) {
+        console.warn('Direct URL test failed:', error.message);
       }
       
-      console.warn('All proxies failed, using direct URL (may not work in Russia)');
-      return originalUrl;
+      // Если ничего не работает, возвращаем проксированный URL в надежде, что он заработает
+      console.warn('All tests failed, using proxied URL as fallback');
+      return proxiedUrl;
     }
   }
   
   return originalUrl;
+};
+
+// Новая функция для диагностики аудио URL
+export const diagnoseAudioUrl = async (url) => {
+  if (!url) return { error: 'No URL provided' };
+  
+  const results = {
+    originalUrl: url,
+    tests: {}
+  };
+  
+  try {
+    // Тест 1: Прямой доступ
+    console.log('Testing direct access to:', url);
+    const directTest = await fetch(url, {
+      method: 'HEAD',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    
+    results.tests.direct = {
+      accessible: directTest.ok || directTest.status === 206,
+      status: directTest.status,
+      statusText: directTest.statusText,
+      headers: Object.fromEntries(directTest.headers.entries())
+    };
+    
+    // Тест 2: Прокси доступ (если это Cloudflare Worker)
+    if (url.includes('alexbrin102.workers.dev')) {
+      const proxiedUrl = getProxiedAudioUrl(url);
+      console.log('Testing proxy access to:', proxiedUrl);
+      
+      const proxyTest = await testProxyAvailability(proxiedUrl);
+      results.tests.proxy = {
+        accessible: proxyTest,
+        proxiedUrl: proxiedUrl
+      };
+    }
+    
+    return results;
+  } catch (error) {
+    results.error = error.message;
+    return results;
+  }
 };
