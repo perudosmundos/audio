@@ -67,10 +67,6 @@ export const formatShortDate = (dateString, language = 'ru') => {
 export const getProxiedAudioUrl = (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
-  // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОКСИ ДЛЯ ТЕСТИРОВАНИЯ ЧЕРЕЗ VPN
-  console.log('Proxy temporarily disabled for VPN testing');
-  return originalUrl;
-  
   // Проверяем, является ли URL Cloudflare Worker
   if (originalUrl.includes('alexbrin102.workers.dev')) {
     // Извлекаем путь файла из URL
@@ -116,10 +112,6 @@ export const testProxyAvailability = async (proxyUrl, timeout = 5000) => {
 // Функция для получения URL с улучшенным fallback
 export const getAudioUrlWithFallback = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
-  
-  // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОКСИ ДЛЯ ТЕСТИРОВАНИЯ ЧЕРЕЗ VPN
-  console.log('Proxy fallback temporarily disabled for VPN testing');
-  return originalUrl;
   
   // Проверяем, является ли URL Cloudflare Worker
   if (originalUrl.includes('alexbrin102.workers.dev')) {

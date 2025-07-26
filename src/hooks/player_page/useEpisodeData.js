@@ -122,16 +122,14 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       );
       console.log('useEpisodeData: Generated compatible URL', finalAudioUrl);
       
-      // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОКСИ ДЛЯ ТЕСТИРОВАНИЯ ЧЕРЕЗ VPN
-      console.log('useEpisodeData: Proxy temporarily disabled for VPN testing');
       // Применяем прокси для обхода CORS с fallback
-      // try {
-      //   finalAudioUrl = await getAudioUrlWithFallback(finalAudioUrl);
-      //   console.log('useEpisodeData: Final audio URL (with fallback)', finalAudioUrl);
-      // } catch (error) {
-      //   console.warn('useEpisodeData: Fallback failed, using original URL', error);
-      //   finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
-      // }
+      try {
+        finalAudioUrl = await getAudioUrlWithFallback(finalAudioUrl);
+        console.log('useEpisodeData: Final audio URL (with fallback)', finalAudioUrl);
+      } catch (error) {
+        console.warn('useEpisodeData: Fallback failed, using original URL', error);
+        finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
+      }
       
       console.log('useEpisodeData: Proxy setting in localStorage:', localStorage.getItem('useAudioProxy'));
       console.log('useEpisodeData: Is development mode:', import.meta.env.DEV);

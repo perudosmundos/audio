@@ -3,7 +3,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
+    res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept');
+    res.setHeader('Access-Control-Max-Age', '86400');
     res.status(200).end();
     return;
   }
@@ -44,7 +45,8 @@ export default async function handler(req, res) {
         'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
         'Accept-Encoding': 'identity',
         'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'Origin': 'https://audio-secondary.alexbrin102.workers.dev'
       };
       
       // Добавляем Range заголовки для поддержки перемотки
@@ -74,7 +76,8 @@ export default async function handler(req, res) {
         // Устанавливаем CORS заголовки
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
+        res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept');
+        res.setHeader('Access-Control-Max-Age', '86400');
         
         // Передаем важные заголовки от Cloudflare Worker
         const contentType = response.headers.get('content-type');

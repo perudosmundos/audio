@@ -163,17 +163,6 @@ const r2Service = {
   getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
     
-    // ВРЕМЕННО ОТКЛЮЧАЕМ ПРОКСИ ДЛЯ ТЕСТИРОВАНИЯ ЧЕРЕЗ VPN
-    console.log('R2: Proxy temporarily disabled for VPN testing');
-    if (audioUrl) {
-      return audioUrl;
-    }
-    if (r2ObjectKey) {
-      const config = r2BucketName === R2_SECONDARY_CONFIG.BUCKET ? R2_SECONDARY_CONFIG : R2_PRIMARY_CONFIG;
-      return `${config.WORKER_PUBLIC_URL}/${r2ObjectKey}`;
-    }
-    return null;
-    
     // Если есть прямой URL, используем его (но применяем прокси если это Cloudflare Worker)
     if (audioUrl) {
       if (audioUrl.includes('alexbrin102.workers.dev')) {
