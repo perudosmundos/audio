@@ -47,7 +47,6 @@ const EpisodesPage = ({ currentLanguage }) => {
   const fetchEpisodesAndData = useCallback(async () => {
     // В локальной среде используем локальные данные
     if (isLocalhost) {
-      console.log('EpisodesPage: Using local data');
       setEpisodes(localEpisodes);
       setAllQuestions(localAllQuestions);
       setEpisodeQuestionsCount(localEpisodeQuestionsCount);
@@ -66,7 +65,6 @@ const EpisodesPage = ({ currentLanguage }) => {
     }
 
     // В продакшене используем Supabase
-    console.log('EpisodesPage: Using Supabase data');
     setLoading(true);
     setError(null);
     try {
