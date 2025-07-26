@@ -10,21 +10,8 @@ import EmptyState from '@/components/episodes/EmptyState';
 import FilterAndSearchControls from '@/components/episodes/FilterAndSearchControls';
 import { getLocaleString } from '@/lib/locales';
 import useEpisodeData from '@/hooks/player_page/useEpisodeData';
-import { useLocalEpisodes } from '@/hooks/useLocalEpisodes';
 
 const EpisodesPage = ({ currentLanguage }) => {
-  // Определяем, находимся ли мы в локальной среде
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  
-  // Используем локальные данные в режиме разработки
-  const {
-    episodes: localEpisodes,
-    allQuestions: localAllQuestions,
-    loading: localLoading,
-    error: localError,
-    episodeQuestionsCount: localEpisodeQuestionsCount
-  } = useLocalEpisodes(currentLanguage);
-
   const [episodes, setEpisodes] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,26 +32,6 @@ const EpisodesPage = ({ currentLanguage }) => {
 
 
   const fetchEpisodesAndData = useCallback(async () => {
-    // В локальной среде используем локальные данные
-    if (isLocalhost) {
-      setEpisodes(localEpisodes);
-      setAllQuestions(localAllQuestions);
-      setEpisodeQuestionsCount(localEpisodeQuestionsCount);
-      setLoading(localLoading);
-      setError(localError);
-      
-      // Вычисляем годы из локальных данных
-      const years = new Set();
-      localEpisodes.forEach(ep => {
-        if (ep.date) {
-          years.add(new Date(ep.date).getFullYear().toString());
-        }
-      });
-      setAvailableYears(Array.from(years).sort((a,b) => Number(b) - Number(a)));
-      return;
-    }
-
-    // В продакшене используем Supabase
     setLoading(true);
     setError(null);
     try {
@@ -107,24 +74,21 @@ const EpisodesPage = ({ currentLanguage }) => {
     } finally {
       setLoading(false);
     }
-  }, [currentLanguage, isLocalhost, localEpisodes, localAllQuestions, localEpisodeQuestionsCount, localLoading, localError]);
+  }, [currentLanguage]);
 
   useEffect(() => {
     fetchEpisodesAndData();
-    
-    // Подписываемся на изменения только в продакшене
-    if (!isLocalhost) {
-      const channel = supabase
-        .channel('episodes-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, fetchEpisodesAndData)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, fetchEpisodesAndData)
-        .subscribe();
+    const channel = supabase
+      .channel('episodes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, fetchEpisodesAndData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, fetchEpisodesAndData)
+      .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [fetchEpisodesAndData, isLocalhost]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+
+  }, [fetchEpisodesAndData]);
 
   useEffect(() => {
     if (selectedYear) {

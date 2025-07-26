@@ -73,29 +73,43 @@ export const getProxiedAudioUrl = (originalUrl) => {
     const url = new URL(originalUrl);
     const filePath = url.pathname.substring(1); // Убираем начальный слеш
     
+    // Определяем какой прокси использовать
+    const proxyPath = originalUrl.includes('audio-secondary.alexbrin102.workers.dev') 
+      ? 'audio-secondary-proxy' 
+      : 'audio-proxy';
+    
     // В продакшене используем API роут, в разработке - Vite прокси
     if (import.meta.env.PROD) {
-      return `${window.location.origin}/api/audio-proxy/${filePath}`;
+      return `${window.location.origin}/api/${proxyPath}/${filePath}`;
     } else {
-      return `/api/audio-proxy/${filePath}`;
+      return `/api/${proxyPath}/${filePath}`;
     }
   }
   
   return originalUrl;
 };
 
-// Функция для проверки доступности прокси
-export const testProxyAvailability = async (proxyUrl) => {
+// Функция для проверки доступности прокси с таймаутом
+export const testProxyAvailability = async (proxyUrl, timeout = 5000) => {
   try {
-    const response = await fetch(proxyUrl, { method: 'HEAD' });
-    return response.ok;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    const response = await fetch(proxyUrl, { 
+      method: 'HEAD',
+      signal: controller.signal,
+      mode: 'cors'
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok || response.status === 206; // 206 для частичного контента
   } catch (error) {
-    console.warn('Proxy test failed:', error);
+    console.warn('Proxy test failed:', error.message);
     return false;
   }
 };
 
-// Функция для получения URL с fallback
+// Функция для получения URL с улучшенным fallback
 export const getAudioUrlWithFallback = async (originalUrl) => {
   if (!originalUrl) return originalUrl;
   
@@ -103,14 +117,37 @@ export const getAudioUrlWithFallback = async (originalUrl) => {
   if (originalUrl.includes('alexbrin102.workers.dev')) {
     const proxiedUrl = getProxiedAudioUrl(originalUrl);
     
-    // Тестируем доступность прокси
-    const isProxyAvailable = await testProxyAvailability(proxiedUrl);
+    console.log('Testing proxy availability for:', proxiedUrl);
+    
+    // Тестируем доступность прокси с коротким таймаутом
+    const isProxyAvailable = await testProxyAvailability(proxiedUrl, 3000);
     
     if (isProxyAvailable) {
       console.log('Using proxied URL:', proxiedUrl);
       return proxiedUrl;
     } else {
-      console.warn('Proxy not available, using direct URL');
+      console.warn('Proxy not available, trying alternative approaches');
+      
+      // Попробуем альтернативные прокси напрямую
+      const alternativeProxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`,
+        `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`
+      ];
+      
+      for (const altProxy of alternativeProxies) {
+        try {
+          const isAltAvailable = await testProxyAvailability(altProxy, 2000);
+          if (isAltAvailable) {
+            console.log('Using alternative proxy:', altProxy);
+            return altProxy;
+          }
+        } catch (error) {
+          console.warn('Alternative proxy test failed:', error.message);
+        }
+      }
+      
+      console.warn('All proxies failed, using direct URL (may not work in Russia)');
       return originalUrl;
     }
   }

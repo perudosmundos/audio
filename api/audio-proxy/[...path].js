@@ -15,25 +15,22 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'File path is required' });
   }
 
-  // Расширенный список прокси-серверов для обхода блокировки
+  // Расширенный список прокси-серверов с приоритетами
   const proxyUrls = [
-    // Основные Cloudflare Workers
+    // Прямой доступ к Cloudflare Worker (может работать в некоторых регионах)
     `https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://audio-secondary.alexbrin102.workers.dev/${filePath}`,
     
-    // Публичные CORS прокси
-    `https://cors-anywhere.herokuapp.com/https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://api.allorigins.win/raw?url=https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://corsproxy.io/?https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://thingproxy.freeboard.io/fetch/https://audio.alexbrin102.workers.dev/${filePath}`,
+    // Надежные CORS прокси
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
+    `https://corsproxy.io/?${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
+    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
     
     // Альтернативные прокси
-    `https://api.codetabs.com/v1/proxy?quest=https://audio.alexbrin102.workers.dev/${filePath}`,
-    `https://cors.bridged.cc/https://audio.alexbrin102.workers.dev/${filePath}`,
+    `https://cors-anywhere.herokuapp.com/https://audio.alexbrin102.workers.dev/${filePath}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://audio.alexbrin102.workers.dev/${filePath}`)}`,
     
-    // Резервные варианты
-    `https://cors-anywhere.herokuapp.com/https://audio-secondary.alexbrin102.workers.dev/${filePath}`,
-    `https://api.allorigins.win/raw?url=https://audio-secondary.alexbrin102.workers.dev/${filePath}`,
+    // DNS обход через альтернативные домены (если доступны)
+    `https://audio-backup.alexbrin102.workers.dev/${filePath}`,
   ];
 
   console.log('Audio proxy: Trying to fetch', filePath);
@@ -43,16 +40,17 @@ export default async function handler(req, res) {
     console.log(`Audio proxy: Attempt ${i + 1} - Fetching from`, targetUrl);
     
     try {
-      // Улучшенные заголовки для обхода блокировки
+      // Улучшенные заголовки для разных прокси
       const headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'audio/webm,audio/ogg,audio/wav,audio/*;q=0.9,application/ogg;q=0.7,video/*;q=0.6,*/*;q=0.5',
+        'Accept': 'audio/*, */*',
         'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
         'Accept-Encoding': 'identity',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache'
       };
       
+      // Добавляем Range заголовки для поддержки перемотки
       if (req.headers.range) {
         headers['Range'] = req.headers.range;
         console.log('Audio proxy: Range header', req.headers.range);
@@ -60,23 +58,20 @@ export default async function handler(req, res) {
       if (req.headers['if-range']) {
         headers['If-Range'] = req.headers['if-range'];
       }
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд таймаут
+      if (req.headers['if-none-match']) {
+        headers['If-None-Match'] = req.headers['if-none-match'];
+      }
       
       const response = await fetch(targetUrl, {
         method: req.method,
         headers,
-        signal: controller.signal,
-        redirect: 'follow'
+        timeout: 15000, // Увеличиваем таймаут до 15 секунд
+        signal: AbortSignal.timeout(15000) // Дополнительный таймаут
       });
 
-      clearTimeout(timeoutId);
-
       console.log(`Audio proxy: Response status for attempt ${i + 1}:`, response.status);
-      console.log(`Audio proxy: Response headers for attempt ${i + 1}:`, Object.fromEntries(response.headers.entries()));
 
-      if (response.ok || response.status === 206) {
+      if (response.ok || response.status === 206) { // 206 для частичного контента
         console.log(`Audio proxy: Success with attempt ${i + 1}`);
         
         // Устанавливаем CORS заголовки
@@ -84,7 +79,7 @@ export default async function handler(req, res) {
         res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
         
-        // Передаем важные заголовки от прокси
+        // Передаем важные заголовки от Cloudflare Worker
         const contentType = response.headers.get('content-type');
         if (contentType) {
           res.setHeader('Content-Type', contentType);
@@ -118,26 +113,32 @@ export default async function handler(req, res) {
         // Передаем статус код
         res.status(response.status);
         
-        // ВСЕГДА используем буферизацию для аудио - стриминг может вызывать проблемы
-        console.log('Audio proxy: Fetching audio data');
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        // Для HEAD запросов не отправляем тело
+        if (req.method === 'HEAD') {
+          res.end();
+          return;
+        }
         
-        console.log('Audio proxy: Sending buffer of size', buffer.length);
-        res.send(buffer);
-        
-        return; // Успешно завершаем
+        // Используем потоковую передачу для больших файлов
+        if (response.body) {
+          console.log('Audio proxy: Streaming response');
+          response.body.pipe(res);
+          return;
+        } else {
+          // Fallback для старых окружений
+          console.log('Audio proxy: Fetching audio data as buffer');
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          
+          console.log('Audio proxy: Sending buffer of size', buffer.length);
+          res.send(buffer);
+          return;
+        }
       } else {
         console.log(`Audio proxy: Failed attempt ${i + 1} with status`, response.status);
-        if (response.status === 403 || response.status === 429) {
-          console.log(`Audio proxy: Rate limited or blocked, trying next proxy`);
-        }
       }
     } catch (error) {
       console.error(`Audio proxy: Error in attempt ${i + 1}:`, error.message);
-      if (error.name === 'AbortError') {
-        console.log(`Audio proxy: Request timeout for attempt ${i + 1}`);
-      }
       // Продолжаем к следующему прокси
     }
   }
@@ -150,7 +151,7 @@ export default async function handler(req, res) {
     suggestions: [
       'Try refreshing the page',
       'Check your internet connection',
-      'The audio file might be temporarily unavailable'
+      'Try using a VPN if available'
     ]
   });
 }
@@ -158,5 +159,6 @@ export default async function handler(req, res) {
 export const config = {
   api: {
     responseLimit: false,
+    bodyParser: false, // Отключаем парсинг тела для потоковой передачи
   },
 }; 

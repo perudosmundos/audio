@@ -115,7 +115,7 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         r2_bucket_name: episode.r2_bucket_name
       });
       
-      let finalAudioUrl = await r2Service.getCompatibleUrl(
+      let finalAudioUrl = r2Service.getCompatibleUrl(
         episode.audio_url, 
         episode.r2_object_key, 
         episode.r2_bucket_name

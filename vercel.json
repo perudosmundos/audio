@@ -19,30 +19,6 @@
       "maxDuration": 30
     },
     "api/test-proxy.js": {
-      "maxDuration": 15
-    },
-            "api/direct-audio-test.js": {
-          "maxDuration": 15
-        },
-        "api/test-supabase.js": {
-          "maxDuration": 15
-        },
-    "api/list-files.js": {
-      "maxDuration": 15
-    },
-    "api/check-episode.js": {
-      "maxDuration": 10
-    },
-    "api/test-episodes.js": {
-      "maxDuration": 10
-    },
-    "api/debug-audio-url.js": {
-      "maxDuration": 10
-    },
-    "api/audio-proxy/health-test.js": {
-      "maxDuration": 10
-    },
-    "api/audio-secondary-proxy/health-test.js": {
       "maxDuration": 10
     }
   },
@@ -60,7 +36,7 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match"
         }
       ]
     },
@@ -77,7 +53,7 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match"
         }
       ]
     },
@@ -91,110 +67,10 @@
         {
           "key": "Access-Control-Allow-Methods",
           "value": "GET, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/direct-audio-test",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
         },
         {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/list-files",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/check-episode",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/test-episodes",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/debug-audio-url",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/audio-proxy/health-test",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, HEAD, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/audio-secondary-proxy/health-test",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, HEAD, OPTIONS"
-        }
-      ]
-    },
-    {
-      "source": "/api/test-supabase",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
         }
       ]
     }
