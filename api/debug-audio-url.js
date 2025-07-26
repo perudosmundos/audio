@@ -17,9 +17,9 @@ export default async function handler(req, res) {
       title: "Медитация 29 января",
       lang: "ru",
       date: "2025-01-29",
-      r2_object_key: "2025-01-29_ru.mp3",
-      r2_bucket_name: "audio-files",
-      audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_ru.mp3"
+              r2_object_key: "2025-01-29_ru",
+        r2_bucket_name: "audio-files",
+        audio_url: "https://audio.alexbrin102.workers.dev/2025-01-29_ru"
     };
 
     // Симулируем логику из getCompatibleUrl
@@ -106,9 +106,7 @@ export default async function handler(req, res) {
     // Тестируем разные варианты
     const testVariants = [
       "2025-01-29_ru",
-      "2025-01-29_RU", 
-      "2025-01-29_ru.mp3",
-      "2025-01-29_RU.mp3"
+      "2025-01-29_RU"
     ];
 
     debugInfo.testVariants = testVariants.map(variant => {

@@ -11,13 +11,13 @@ export default async function handler(req, res) {
   
   const testFiles = [
     {
-      key: "2025-01-29_ru.mp3",
+      key: "2025-01-29_ru",
       size: 15000000,
       lastModified: new Date("2025-01-29T10:00:00Z"),
       etag: "test-etag-1"
     },
     {
-      key: "2025-01-29_RU.mp3",
+      key: "2025-01-29_RU",
       size: 15000000,
       lastModified: new Date("2025-01-29T10:00:00Z"),
       etag: "test-etag-2"
