@@ -151,24 +151,24 @@ const r2Service = {
     return `${workerUrl}/${fileKey}`;
   },
 
-  // Совместимая функция для генерации URL (прямой доступ)
+  // Совместимая функция для генерации URL (с прокси)
   getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
     console.log('R2: getCompatibleUrl called with:', { audioUrl, r2ObjectKey, r2BucketName });
     
-    // Если есть прямой URL, используем его
+    // Если есть прямой URL, используем его (прокси будет применен позже)
     if (audioUrl) {
-      console.log('R2: Using direct URL:', audioUrl);
+      console.log('R2: Using provided URL:', audioUrl);
       return audioUrl;
     }
     
-    // Если есть ключ, генерируем прямой R2 URL
+    // Если есть ключ, генерируем R2 URL (прокси будет применен позже)
     if (r2ObjectKey) {
       const workerUrl = r2BucketName === R2_SECONDARY_CONFIG.BUCKET 
         ? R2_SECONDARY_CONFIG.WORKER_PUBLIC_URL 
         : R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL;
       
       const generatedUrl = `${workerUrl}/${r2ObjectKey}`;
-      console.log('R2: Generated direct URL from key:', generatedUrl);
+      console.log('R2: Generated URL from key:', generatedUrl);
       return generatedUrl;
     }
     
