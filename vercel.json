@@ -20,6 +20,9 @@
     },
     "api/test-proxy.js": {
       "maxDuration": 10
+    },
+    "api/test-audio.js": {
+      "maxDuration": 10
     }
   },
   "headers": [
@@ -36,7 +39,7 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept"
         }
       ]
     },
@@ -53,12 +56,29 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range, If-None-Match, Origin, X-Requested-With, Content-Type, Accept"
         }
       ]
     },
     {
       "source": "/api/test-proxy",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        }
+      ]
+    },
+    {
+      "source": "/api/test-audio",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
