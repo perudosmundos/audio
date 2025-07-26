@@ -1,13 +1,22 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
     "api/audio-proxy/[...path].js": {
       "maxDuration": 60
     },
-    "api/test.js": {
-      "maxDuration": 30
+    "api/audio-secondary-proxy/[...path].js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -24,16 +33,16 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, Content-Type"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range"
         },
         {
-          "key": "Access-Control-Expose-Headers",
-          "value": "Content-Length, Content-Range, Accept-Ranges"
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
         }
       ]
     },
     {
-      "source": "/api/test",
+      "source": "/api/audio-secondary-proxy/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
@@ -41,11 +50,15 @@
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
+          "value": "GET, HEAD, OPTIONS"
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Range, Accept-Ranges"
+          "value": "Range, Accept-Ranges, Content-Range, If-Range"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
         }
       ]
     }

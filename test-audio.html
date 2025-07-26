@@ -1,292 +1,197 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Test - DosMundos Podcast</title>
+    <title>Тест аудио прокси</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background: #f5f5f5;
+            background-color: #f5f5f5;
         }
         .container {
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
-        .form-group {
-            margin-bottom: 20px;
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
         }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #555;
-        }
-        input[type="url"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        input[type="url"]:focus {
-            outline: none;
-            border-color: #007bff;
-        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
         button {
-            background: #007bff;
+            background-color: #007bff;
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-size: 16px;
+            padding: 10px 20px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background 0.3s;
+            margin: 5px;
         }
         button:hover {
-            background: #0056b3;
+            background-color: #0056b3;
         }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .results {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #007bff;
-        }
-        .test-result {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .test-result.success {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-        .test-result.error {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        .test-result.warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-        }
-        .loading {
-            text-align: center;
-            color: #666;
-        }
-        .audio-player {
-            margin-top: 20px;
+        input[type="text"] {
             width: 100%;
-        }
-        .summary {
-            margin-top: 20px;
-            padding: 15px;
-            background: #e9ecef;
-            border-radius: 6px;
-            font-weight: 600;
-        }
-        pre {
-            background: #f8f9fa;
-            padding: 10px;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            overflow-x: auto;
-            font-size: 12px;
+        }
+        audio {
+            width: 100%;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎵 Audio Test Tool</h1>
-        <p>Test audio file accessibility and proxy functionality</p>
+        <h1>Тест аудио прокси</h1>
         
-        <div class="form-group">
-            <label for="audioUrl">Audio URL:</label>
-            <input type="url" id="audioUrl" placeholder="https://audio.alexbrin102.workers.dev/example.mp3" />
+        <div class="test-section">
+            <h3>Тест 1: Проверка доступности прокси</h3>
+            <button onclick="testProxyAvailability()">Проверить доступность прокси</button>
+            <div id="proxy-test-result"></div>
         </div>
-        
-        <button onclick="testAudio()" id="testBtn">Test Audio</button>
-        
-        <div id="results" class="results" style="display: none;">
-            <h3>Test Results</h3>
-            <div id="resultsContent"></div>
+
+        <div class="test-section">
+            <h3>Тест 2: Тест конкретного URL</h3>
+            <input type="text" id="test-url" placeholder="Введите URL для тестирования" value="https://audio.alexbrin102.workers.dev/test.mp3">
+            <button onclick="testSpecificUrl()">Тестировать URL</button>
+            <div id="url-test-result"></div>
         </div>
-        
-        <div id="audioPlayer" style="display: none;">
-            <h3>Audio Player Test</h3>
-            <audio id="testAudio" controls class="audio-player">
-                Your browser does not support the audio element.
-            </audio>
+
+        <div class="test-section">
+            <h3>Тест 3: Воспроизведение аудио</h3>
+            <input type="text" id="audio-url" placeholder="Введите URL аудио файла" value="https://audio.alexbrin102.workers.dev/test.mp3">
+            <button onclick="testAudioPlayback()">Тестировать воспроизведение</button>
+            <div id="audio-test-result"></div>
+            <audio id="test-audio" controls style="display: none;"></audio>
+        </div>
+
+        <div class="test-section">
+            <h3>Тест 4: Тест через API</h3>
+            <input type="text" id="api-test-url" placeholder="Введите URL для API теста" value="https://audio.alexbrin102.workers.dev/test.mp3">
+            <button onclick="testViaAPI()">Тестировать через API</button>
+            <div id="api-test-result"></div>
         </div>
     </div>
 
     <script>
-        async function testAudio() {
-            const url = document.getElementById('audioUrl').value.trim();
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        async function testProxyAvailability() {
+            showResult('proxy-test-result', 'Проверяем доступность прокси...', 'info');
+            
+            try {
+                const response = await fetch('/api/test-audio?url=https://audio.alexbrin102.workers.dev/test.mp3');
+                const result = await response.json();
+                
+                if (result.available) {
+                    showResult('proxy-test-result', `✅ Прокси работает! Статус: ${result.status}`, 'success');
+                } else {
+                    showResult('proxy-test-result', `❌ Прокси недоступен. Статус: ${result.status}`, 'error');
+                }
+            } catch (error) {
+                showResult('proxy-test-result', `❌ Ошибка тестирования: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSpecificUrl() {
+            const url = document.getElementById('test-url').value;
             if (!url) {
-                alert('Please enter an audio URL');
+                showResult('url-test-result', '❌ Введите URL для тестирования', 'error');
                 return;
             }
 
-            const testBtn = document.getElementById('testBtn');
-            const results = document.getElementById('results');
-            const resultsContent = document.getElementById('resultsContent');
-            const audioPlayer = document.getElementById('audioPlayer');
-            const testAudio = document.getElementById('testAudio');
-
-            testBtn.disabled = true;
-            testBtn.textContent = 'Testing...';
-            results.style.display = 'block';
-            resultsContent.innerHTML = '<div class="loading">Running tests...</div>';
-
+            showResult('url-test-result', 'Тестируем URL...', 'info');
+            
             try {
-                // Test via our API
-                const response = await fetch(`/api/test?url=${encodeURIComponent(url)}`);
-                const data = await response.json();
-
-                if (response.ok) {
-                    displayResults(data);
-                    
-                    // Set up audio player for testing
-                    testAudio.src = url;
-                    audioPlayer.style.display = 'block';
-                    
-                    // Add audio event listeners for debugging
-                    testAudio.addEventListener('loadstart', () => console.log('Audio: loadstart'));
-                    testAudio.addEventListener('loadedmetadata', () => console.log('Audio: loadedmetadata'));
-                    testAudio.addEventListener('canplay', () => console.log('Audio: canplay'));
-                    testAudio.addEventListener('canplaythrough', () => console.log('Audio: canplaythrough'));
-                    testAudio.addEventListener('error', (e) => {
-                        console.error('Audio error:', e.target.error);
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'test-result error';
-                        errorDiv.innerHTML = `<strong>Audio Player Error:</strong> ${e.target.error?.message || 'Unknown error'}`;
-                        resultsContent.appendChild(errorDiv);
-                    });
+                const response = await fetch(`/api/test-audio?url=${encodeURIComponent(url)}`);
+                const result = await response.json();
+                
+                if (result.available) {
+                    showResult('url-test-result', `✅ URL доступен! Статус: ${result.status}`, 'success');
                 } else {
-                    throw new Error(data.error || 'API test failed');
+                    showResult('url-test-result', `❌ URL недоступен. Статус: ${result.status}`, 'error');
                 }
             } catch (error) {
-                resultsContent.innerHTML = `
-                    <div class="test-result error">
-                        <strong>Test Failed:</strong> ${error.message}
-                    </div>
-                `;
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = 'Test Audio';
+                showResult('url-test-result', `❌ Ошибка тестирования: ${error.message}`, 'error');
             }
         }
 
-        function displayResults(data) {
-            const resultsContent = document.getElementById('resultsContent');
-            let html = '';
-
-            // Summary
-            if (data.summary) {
-                html += `
-                    <div class="summary">
-                        <strong>Summary:</strong><br>
-                        Direct Access: ${data.summary.directAccess ? '✅' : '❌'}<br>
-                        Range Support: ${data.summary.rangeSupport ? '✅' : '❌'}<br>
-                        Proxy Access: ${data.summary.proxyAccess ? '✅' : '❌'}<br>
-                        CORS Enabled: ${data.summary.corsEnabled ? '✅' : '❌'}
-                    </div>
-                `;
+        function testAudioPlayback() {
+            const url = document.getElementById('audio-url').value;
+            if (!url) {
+                showResult('audio-test-result', '❌ Введите URL аудио файла', 'error');
+                return;
             }
 
-            // Direct access test
-            if (data.tests.direct) {
-                const test = data.tests.direct;
-                const className = test.accessible ? 'success' : 'error';
-                html += `
-                    <div class="test-result ${className}">
-                        <strong>Direct Access Test:</strong><br>
-                        Status: ${test.status} ${test.statusText}<br>
-                        Accessible: ${test.accessible ? 'Yes' : 'No'}
-                        ${test.error ? `<br>Error: ${test.error}` : ''}
-                    </div>
-                `;
-            }
-
-            // Range test
-            if (data.tests.range) {
-                const test = data.tests.range;
-                const className = test.supported ? 'success' : 'warning';
-                html += `
-                    <div class="test-result ${className}">
-                        <strong>Range Request Test:</strong><br>
-                        Status: ${test.status} ${test.statusText}<br>
-                        Supported: ${test.supported ? 'Yes' : 'No'}
-                        ${test.contentRange ? `<br>Content-Range: ${test.contentRange}` : ''}
-                        ${test.error ? `<br>Error: ${test.error}` : ''}
-                    </div>
-                `;
-            }
-
-            // Proxy test
-            if (data.tests.proxy) {
-                const test = data.tests.proxy;
-                const className = test.accessible ? 'success' : 'error';
-                html += `
-                    <div class="test-result ${className}">
-                        <strong>Proxy Access Test:</strong><br>
-                        Status: ${test.status} ${test.statusText}<br>
-                        Accessible: ${test.accessible ? 'Yes' : 'No'}<br>
-                        Proxy URL: ${test.proxiedUrl}
-                        ${test.error ? `<br>Error: ${test.error}` : ''}
-                    </div>
-                `;
-            }
-
-            // CORS test
-            if (data.tests.cors) {
-                const test = data.tests.cors;
-                const className = test.hasCorsHeaders ? 'success' : 'warning';
-                html += `
-                    <div class="test-result ${className}">
-                        <strong>CORS Test:</strong><br>
-                        CORS Headers: ${test.hasCorsHeaders ? 'Present' : 'Missing'}<br>
-                        CORS Origin: ${test.corsOrigin || 'Not set'}<br>
-                        Range Headers: ${test.hasRangeHeaders ? 'Present' : 'Missing'}
-                    </div>
-                `;
-            }
-
-            // Raw data
-            html += `
-                <div class="test-result">
-                    <strong>Raw Test Data:</strong>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
-                </div>
-            `;
-
-            resultsContent.innerHTML = html;
+            const audio = document.getElementById('test-audio');
+            audio.style.display = 'block';
+            audio.src = url;
+            
+            audio.onloadstart = () => {
+                showResult('audio-test-result', '🔄 Загрузка аудио...', 'info');
+            };
+            
+            audio.oncanplay = () => {
+                showResult('audio-test-result', '✅ Аудио готово к воспроизведению!', 'success');
+            };
+            
+            audio.onerror = (e) => {
+                showResult('audio-test-result', `❌ Ошибка воспроизведения: ${e.message || 'Неизвестная ошибка'}`, 'error');
+            };
         }
 
-        // Allow Enter key to trigger test
-        document.getElementById('audioUrl').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                testAudio();
+        async function testViaAPI() {
+            const url = document.getElementById('api-test-url').value;
+            if (!url) {
+                showResult('api-test-result', '❌ Введите URL для API теста', 'error');
+                return;
             }
-        });
+
+            showResult('api-test-result', 'Тестируем через API...', 'info');
+            
+            try {
+                const response = await fetch(`/api/test-audio?url=${encodeURIComponent(url)}`);
+                const result = await response.json();
+                
+                let message = `URL: ${result.url}<br>`;
+                message += `Доступен: ${result.available ? '✅ Да' : '❌ Нет'}<br>`;
+                message += `Статус: ${result.status} ${result.statusText}<br>`;
+                message += `Время: ${result.timestamp}`;
+                
+                if (result.error) {
+                    message += `<br>Ошибка: ${result.error}`;
+                }
+                
+                showResult('api-test-result', message, result.available ? 'success' : 'error');
+            } catch (error) {
+                showResult('api-test-result', `❌ Ошибка API теста: ${error.message}`, 'error');
+            }
+        }
+
+        // Автоматический тест при загрузке страницы
+        window.onload = function() {
+            testProxyAvailability();
+        };
     </script>
 </body>
 </html> 

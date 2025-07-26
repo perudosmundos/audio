@@ -99,13 +99,8 @@ const usePlayerNavigation = ({
         return;
     }
     
-    if (!audioRef.current) {
-        console.log('usePlayerNavigation: No audio ref available');
-        return;
-    }
-    
     // Проверяем реальное состояние аудио элемента
-    const audioIsActuallyPlaying = !audioRef.current.paused;
+    const audioIsActuallyPlaying = audioRef.current && !audioRef.current.paused;
     const newIsPlaying = !audioIsActuallyPlaying;
     
     console.log('usePlayerNavigation: Audio state check', { 
@@ -114,57 +109,8 @@ const usePlayerNavigation = ({
       isPlayingState 
     });
     
-    if (newIsPlaying) {
-      // Пытаемся запустить воспроизведение
-      console.log('usePlayerNavigation: Attempting to play audio');
-      const playPromise = audioRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('usePlayerNavigation: Playback started successfully');
-            setIsPlayingState(true);
-            onPlayerStateChange?.({isPlaying: true});
-          })
-          .catch((error) => {
-            console.error('usePlayerNavigation: Playback failed:', error);
-            
-            if (error.name === 'NotAllowedError') {
-              console.log('usePlayerNavigation: NotAllowedError - user interaction required');
-              // Не изменяем состояние, так как воспроизведение не запустилось
-              toast({ 
-                title: getLocaleString('playbackErrorTitle', currentLanguage) || 'Ошибка воспроизведения', 
-                description: getLocaleString('playbackErrorDescription', currentLanguage) || 'Нажмите кнопку воспроизведения еще раз', 
-                variant: 'destructive' 
-              });
-            } else if (error.name === 'NotSupportedError') {
-              console.log('usePlayerNavigation: NotSupportedError - audio format not supported');
-              setIsPlayingState(false);
-              onPlayerStateChange?.({isPlaying: false});
-              toast({ 
-                title: getLocaleString('audioErrorTitle', currentLanguage) || 'Ошибка аудио', 
-                description: getLocaleString('audioNotSupported', currentLanguage) || 'Формат аудио не поддерживается браузером', 
-                variant: 'destructive' 
-              });
-            } else {
-              // Для других ошибок сбрасываем состояние
-              setIsPlayingState(false);
-              onPlayerStateChange?.({isPlaying: false});
-              toast({ 
-                title: getLocaleString('errorGeneric', currentLanguage), 
-                description: error.message, 
-                variant: 'destructive' 
-              });
-            }
-          });
-      }
-    } else {
-      // Останавливаем воспроизведение
-      console.log('usePlayerNavigation: Pausing audio');
-      audioRef.current.pause();
-      setIsPlayingState(false);
-      onPlayerStateChange?.({isPlaying: false});
-    }
+    setIsPlayingState(newIsPlaying);
+    onPlayerStateChange?.({isPlaying: newIsPlaying});
   }, [episodeData?.audio_url, toast, currentLanguage, audioRef, isPlayingState, setIsPlayingState, onPlayerStateChange]);
 
   const setPlaybackRateByIndex = useCallback((index) => {

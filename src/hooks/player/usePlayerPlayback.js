@@ -236,12 +236,12 @@ const usePlayerPlayback = ({
   // Автоматический старт воспроизведения при загрузке нового эпизода
   useEffect(() => {
     if (audioRef.current && episodeData?.audio_url && !isSeekingRef.current) {
-      // Если это новый эпизод (src изменился), загружаем аудио но не запускаем автоматически
+      // Если это новый эпизод (src изменился), запускаем воспроизведение
       if (audioRef.current.src !== episodeData.audio_url) {
         audioRef.current.src = episodeData.audio_url;
         audioRef.current.load();
         
-        // Ждем загрузки метаданных
+        // Ждем загрузки метаданных перед воспроизведением
         const handleCanPlay = () => {
           audioRef.current?.removeEventListener('canplay', handleCanPlay);
           console.log('usePlayerPlayback: canplay event fired, checking for jump', { jumpToTime, playAfterJump });
@@ -252,19 +252,35 @@ const usePlayerPlayback = ({
             const time = parseFloat(jumpToTime);
             if (!isNaN(time)) {
               audioRef.current.currentTime = time;
-              // Не запускаем автоматическое воспроизведение после jump
-              // Пользователь должен сам нажать кнопку play
-              console.log('usePlayerPlayback: Jump completed, waiting for user interaction');
+              if (playAfterJump && audioRef.current.paused) {
+                playPromiseRef.current = audioRef.current.play();
+                playPromiseRef.current?.then(() => {
+                  console.log('usePlayerPlayback: Delayed jump playback started');
+                  setIsPlayingState(true);
+                  onPlayerStateChange?.({ isPlaying: true });
+                }).catch(error => {
+                  if (error.name === 'NotAllowedError' && typeof setShowPlayOverlay === 'function') setShowPlayOverlay(true);
+                  if (error.name !== 'AbortError') {
+                    console.error("Delayed jump play error:", error);
+                  }
+                });
+              }
             }
+          } else if (isPlayingState && audioRef.current?.paused) {
+            playPromiseRef.current = audioRef.current.play();
+            playPromiseRef.current?.catch(error => {
+              if (error.name === 'NotAllowedError' && typeof setShowPlayOverlay === 'function') setShowPlayOverlay(true);
+              if (error.name !== 'AbortError') {
+                console.error("Auto-play error:", error);
+              }
+            });
           }
-          // Убираем автоматическое воспроизведение
-          console.log('usePlayerPlayback: Audio ready, waiting for user interaction');
         };
         
         audioRef.current.addEventListener('canplay', handleCanPlay);
       }
     }
-  }, [episodeData?.audio_url, jumpToTime, playAfterJump]);
+  }, [episodeData?.audio_url, isPlayingState, jumpToTime, playAfterJump]);
 
 };
 

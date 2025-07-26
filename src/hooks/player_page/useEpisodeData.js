@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import { getProxiedAudioUrl } from '@/lib/utils'; // Используем прокси для России
 import r2Service from '@/lib/r2Service';
 
 // Utility function to check if a file exists on Archive.org
@@ -115,51 +114,24 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         r2_bucket_name: episode.r2_bucket_name
       });
       
-      // Используем прямой URL без прокси
-      let finalAudioUrl = episode.audio_url;
+      // Используем новую функцию для получения рабочего URL
+      const workingUrlResult = await r2Service.getWorkingAudioUrl(
+        episode.audio_url, 
+        episode.r2_object_key, 
+        episode.r2_bucket_name
+      );
       
-      // Если есть R2 данные, используем их для генерации URL
-      if (episode.r2_object_key) {
-        const generatedUrl = r2Service.getCompatibleUrl(
-          episode.audio_url, 
-          episode.r2_object_key, 
-          episode.r2_bucket_name
-        );
-        
-        if (generatedUrl) {
-          finalAudioUrl = generatedUrl;
-          console.log('useEpisodeData: Using generated R2 URL:', finalAudioUrl);
-        } else {
-          console.warn('useEpisodeData: Failed to generate R2 URL, using original:', episode.audio_url);
-        }
-      }
+      let finalAudioUrl = workingUrlResult.url;
+      console.log('useEpisodeData: Working URL result', workingUrlResult);
       
-      // Применяем прямую ссылку без прокси
-      finalAudioUrl = getProxiedAudioUrl(finalAudioUrl);
-      
-      // Проверяем, что у нас есть валидный URL
       if (!finalAudioUrl) {
-        console.error('useEpisodeData: No valid audio URL available');
-        setError(getLocaleString('audioNotAvailable', currentLanguage) || 'Аудио недоступно');
+        console.error('useEpisodeData: No working audio URL found');
+        setError('No working audio URL found');
         setLoading(false);
         return;
       }
       
-      // Проверяем, что URL валидный
-      try {
-        // Если это относительный URL (начинается с /), делаем его абсолютным для валидации
-        const urlToValidate = finalAudioUrl.startsWith('/') 
-          ? `${window.location.origin}${finalAudioUrl}`
-          : finalAudioUrl;
-        
-        new URL(urlToValidate);
-        console.log('useEpisodeData: Final audio URL (valid):', finalAudioUrl);
-      } catch (urlError) {
-        console.error('useEpisodeData: Invalid audio URL:', finalAudioUrl, urlError);
-        setError(getLocaleString('invalidAudioUrl', currentLanguage) || 'Неверный URL аудио');
-        setLoading(false);
-        return;
-      }
+      console.log('useEpisodeData: Final audio URL', finalAudioUrl);
       
       setEpisodeData({...episode, audio_url: finalAudioUrl});
       
