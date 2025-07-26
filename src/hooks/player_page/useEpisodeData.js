@@ -147,8 +147,13 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       
       // Проверяем, что URL валидный
       try {
-        new URL(finalAudioUrl);
-        console.log('useEpisodeData: Final direct audio URL (valid):', finalAudioUrl);
+        // Если это относительный URL (начинается с /), делаем его абсолютным для валидации
+        const urlToValidate = finalAudioUrl.startsWith('/') 
+          ? `${window.location.origin}${finalAudioUrl}`
+          : finalAudioUrl;
+        
+        new URL(urlToValidate);
+        console.log('useEpisodeData: Final audio URL (valid):', finalAudioUrl);
       } catch (urlError) {
         console.error('useEpisodeData: Invalid audio URL:', finalAudioUrl, urlError);
         setError(getLocaleString('invalidAudioUrl', currentLanguage) || 'Неверный URL аудио');
