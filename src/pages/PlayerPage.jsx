@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { formatShortDate } from '@/lib/utils';
 import useEpisodeData from '@/hooks/player_page/useEpisodeData';
+import useLocalEpisodeData from '@/hooks/player_page/useLocalEpisodeData';
 import usePlayerInteractions from '@/hooks/player_page/usePlayerInteractions';
 import useSupabaseSubscriptions from '@/hooks/player_page/useSupabaseSubscriptions';
 import useSpeakerAssignment from '@/hooks/player/useSpeakerAssignment'; 
@@ -24,18 +25,47 @@ const PlayerPage = ({ currentLanguage, user }) => {
   const [showFloatingControls, setShowFloatingControls] = useState(false);
   const playerControlsContainerRef = useRef(null);
 
+  // Определяем, находимся ли мы в локальной среде
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  // Используем локальные данные в режиме разработки
   const {
-    episodeData,
-    questions,
-    transcript,
-    loading,
-    error,
-    questionsUpdatedId,
-    fetchEpisodeDetails,
-    fetchQuestionsForEpisode,
-    fetchTranscriptForEpisode,
-    setTranscript,
+    episodeData: localEpisodeData,
+    questions: localQuestions,
+    transcript: localTranscript,
+    loading: localLoading,
+    error: localError,
+    questionsUpdatedId: localQuestionsUpdatedId,
+    fetchEpisodeDetails: localFetchEpisodeDetails,
+    fetchQuestionsForEpisode: localFetchQuestionsForEpisode,
+    fetchTranscriptForEpisode: localFetchTranscriptForEpisode,
+    setTranscript: localSetTranscript,
+  } = useLocalEpisodeData(episodeSlug, currentLanguage, toast);
+
+  const {
+    episodeData: prodEpisodeData,
+    questions: prodQuestions,
+    transcript: prodTranscript,
+    loading: prodLoading,
+    error: prodError,
+    questionsUpdatedId: prodQuestionsUpdatedId,
+    fetchEpisodeDetails: prodFetchEpisodeDetails,
+    fetchQuestionsForEpisode: prodFetchQuestionsForEpisode,
+    fetchTranscriptForEpisode: prodFetchTranscriptForEpisode,
+    setTranscript: prodSetTranscript,
   } = useEpisodeData(episodeSlug, currentLanguage, toast);
+
+  // Выбираем данные в зависимости от среды
+  const episodeData = isLocalhost ? localEpisodeData : prodEpisodeData;
+  const questions = isLocalhost ? localQuestions : prodQuestions;
+  const transcript = isLocalhost ? localTranscript : prodTranscript;
+  const loading = isLocalhost ? localLoading : prodLoading;
+  const error = isLocalhost ? localError : prodError;
+  const questionsUpdatedId = isLocalhost ? localQuestionsUpdatedId : prodQuestionsUpdatedId;
+  const fetchEpisodeDetails = isLocalhost ? localFetchEpisodeDetails : prodFetchEpisodeDetails;
+  const fetchQuestionsForEpisode = isLocalhost ? localFetchQuestionsForEpisode : prodFetchQuestionsForEpisode;
+  const fetchTranscriptForEpisode = isLocalhost ? localFetchTranscriptForEpisode : prodFetchTranscriptForEpisode;
+  const setTranscript = isLocalhost ? localSetTranscript : prodSetTranscript;
 
   const {
     jumpDetails,
@@ -50,13 +80,16 @@ const PlayerPage = ({ currentLanguage, user }) => {
     setShowFloatingControls: setPlayerShowFloatingControls
   } = usePlayerInteractions(audioRef, playerControlsContainerRef, episodeSlug, questions, true); 
 
-  useSupabaseSubscriptions(
-    episodeSlug,
-    episodeData,
-    currentLanguage,
-    fetchQuestionsForEpisode,
-    fetchTranscriptForEpisode
-  );
+  // Подписываемся на изменения только в продакшене
+  if (!isLocalhost) {
+    useSupabaseSubscriptions(
+      episodeSlug,
+      episodeData,
+      currentLanguage,
+      fetchQuestionsForEpisode,
+      fetchTranscriptForEpisode
+    );
+  }
   
   useEffect(() => {
     const handleScroll = () => {
