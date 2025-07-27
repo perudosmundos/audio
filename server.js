@@ -2,6 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+// Полифилл для fetch в Node.js
+if (!global.fetch) {
+  global.fetch = require('node-fetch');
+}
+
 const app = express();
 const PORT = 3000;
 
@@ -46,7 +51,7 @@ app.use('/api', async (req, res, next) => {
       const response = await fetch(targetUrl, {
         method: req.method,
         headers,
-        timeout: 20000
+        signal: AbortSignal.timeout(15000) // Используем AbortSignal вместо timeout
       });
 
       if (!response.ok && response.status !== 206) {
@@ -115,7 +120,7 @@ app.use('/api', async (req, res, next) => {
       const response = await fetch(targetUrl, {
         method: req.method,
         headers,
-        timeout: 15000
+        signal: AbortSignal.timeout(15000) // Используем AbortSignal вместо timeout
       });
 
       if (!response.ok && response.status !== 206) {
@@ -181,7 +186,7 @@ app.use('/api', async (req, res, next) => {
         try {
           const directResponse = await fetch(testUrl, { 
             method: 'HEAD',
-            timeout: 10000
+            signal: AbortSignal.timeout(10000)
           });
           
           results.tests.directOriginal = {
@@ -201,7 +206,7 @@ app.use('/api', async (req, res, next) => {
         try {
           const directApiResponse = await fetch(`http://localhost:${PORT}/api/direct-audio/${fileName}`, { 
             method: 'HEAD',
-            timeout: 10000
+            signal: AbortSignal.timeout(10000)
           });
           
           results.tests.directAPI = {
@@ -221,7 +226,7 @@ app.use('/api', async (req, res, next) => {
         try {
           const proxyApiResponse = await fetch(`http://localhost:${PORT}/api/audio-proxy/${fileName}`, { 
             method: 'HEAD',
-            timeout: 10000
+            signal: AbortSignal.timeout(10000)
           });
           
           results.tests.proxyAPI = {

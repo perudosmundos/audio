@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест сервера</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Тест dev сервера</h1>
+        
+        <div class="test-section">
+            <h3>Тест 1: Проверка доступности сервера</h3>
+            <button onclick="testServerAvailability()">Проверить сервер</button>
+            <div id="server-test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Тест 2: Прямой доступ к аудио</h3>
+            <button onclick="testDirectAudio()">Тестировать прямой доступ</button>
+            <div id="direct-audio-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Тест 3: Прокси доступ к аудио</h3>
+            <button onclick="testProxyAudio()">Тестировать прокси</button>
+            <div id="proxy-audio-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Тест 4: Тестовый API</h3>
+            <button onclick="testSpecificAPI()">Тестировать API</button>
+            <div id="specific-api-result"></div>
+        </div>
+    </div>
+
+    <script>
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        async function testServerAvailability() {
+            showResult('server-test-result', 'Проверяем доступность сервера...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/test-specific');
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('server-test-result', `✅ Сервер работает! Получен ответ: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('server-test-result', `❌ Сервер отвечает с ошибкой: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('server-test-result', `❌ Ошибка подключения к серверу: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDirectAudio() {
+            showResult('direct-audio-result', 'Тестируем прямой доступ к аудио...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/direct-audio/2025-02-19_RU.mp3', { method: 'HEAD' });
+                if (response.ok || response.status === 206) {
+                    showResult('direct-audio-result', `✅ Прямой доступ работает! Статус: ${response.status}`, 'success');
+                } else {
+                    showResult('direct-audio-result', `❌ Прямой доступ не работает. Статус: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('direct-audio-result', `❌ Ошибка прямого доступа: ${error.message}`, 'error');
+            }
+        }
+
+        async function testProxyAudio() {
+            showResult('proxy-audio-result', 'Тестируем прокси доступ к аудио...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/audio-proxy/2025-02-19_RU.mp3', { method: 'HEAD' });
+                if (response.ok || response.status === 206) {
+                    showResult('proxy-audio-result', `✅ Прокси доступ работает! Статус: ${response.status}`, 'success');
+                } else {
+                    showResult('proxy-audio-result', `❌ Прокси доступ не работает. Статус: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('proxy-audio-result', `❌ Ошибка прокси доступа: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSpecificAPI() {
+            showResult('specific-api-result', 'Тестируем специальный API...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/test-specific');
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('specific-api-result', `✅ API работает! Результаты: <pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                } else {
+                    showResult('specific-api-result', `❌ API не работает. Статус: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showResult('specific-api-result', `❌ Ошибка API: ${error.message}`, 'error');
+            }
+        }
+
+        // Автоматический запуск тестов при загрузке страницы
+        window.onload = function() {
+            setTimeout(() => {
+                testServerAvailability();
+                setTimeout(() => testDirectAudio(), 1000);
+                setTimeout(() => testProxyAudio(), 2000);
+                setTimeout(() => testSpecificAPI(), 3000);
+            }, 500);
+        };
+    </script>
+</body>
+</html> 
