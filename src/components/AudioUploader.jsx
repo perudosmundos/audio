@@ -85,6 +85,22 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
 
     for (const file of files) {
       try {
+        // Проверяем API ключ перед загрузкой
+        console.log('AudioUploader: Validating Bunny.net API key...');
+        const apiValidation = await bunnyService.validateAPIKey();
+        
+        if (!apiValidation.valid) {
+          console.error('AudioUploader: API key validation failed:', apiValidation.error);
+          toast({ 
+            title: getLocaleString('uploadError', currentLanguage), 
+            description: `Bunny.net API key error: ${apiValidation.error}`,
+            variant: 'destructive'
+          });
+          continue;
+        }
+        
+        console.log('AudioUploader: API key is valid, proceeding with upload...');
+        
         const { fileUrl: workerFileUrl, fileKey, bucketName } = await bunnyService.uploadFile(
           file, 
           (progress, details) => {

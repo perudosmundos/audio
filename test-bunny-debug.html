@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bunny.net Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .config-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 11px;
+            margin: 10px 0;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .upload-section.dragover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #007bff;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐰 Bunny.net Debug Test</h1>
+    
+    <div class="container">
+        <h2>Configuration</h2>
+        <div class="test-section">
+            <h3>Current Configuration</h3>
+            <div class="config-display" id="configDisplay"></div>
+            <button onclick="testConfig()">Test Configuration</button>
+            <div id="configResult" class="result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Connection Tests</h2>
+        <div class="test-section">
+            <h3>1. Test Storage Zone Access</h3>
+            <button onclick="testStorageAccess()">Test Storage Access</button>
+            <button onclick="testStorageList()">List Files</button>
+            <div id="storageResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Test CDN Access</h3>
+            <button onclick="testCDNAccess()">Test CDN Access</button>
+            <button onclick="testCDNHeaders()">Test CDN Headers</button>
+            <div id="cdnResult" class="result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Upload Tests</h2>
+        <div class="test-section">
+            <h3>3. Test Small File Upload</h3>
+            <button onclick="testSmallUpload()">Upload Test File (1KB)</button>
+            <button onclick="testTextUpload()">Upload Text File</button>
+            <div id="smallUploadResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. Test Audio File Upload</h3>
+            <div class="upload-section" id="uploadArea">
+                <p>Drag and drop an audio file here or click to select</p>
+                <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                <button onclick="document.getElementById('fileInput').click()">Select Audio File</button>
+            </div>
+            <div class="progress" id="progressContainer" style="display: none;">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div id="audioUploadResult" class="result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Error Analysis</h2>
+        <div class="test-section">
+            <h3>5. Detailed Error Analysis</h3>
+            <button onclick="testCORS()">Test CORS</button>
+            <button onclick="testNetwork()">Test Network</button>
+            <button onclick="testAPIKey()">Test API Key</button>
+            <div id="errorResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Bunny.net configuration
+        const BUNNY_CONFIG = {
+            API_KEY: "588622d1-bf9a-4474-ac44-a35120a563b14df6ca78-1e4f-45df-9fbd-c595e47a9aed",
+            STORAGE_ZONE: "dosmundos-audio",
+            STORAGE_URL: "https://storage.bunnycdn.com/dosmundos-audio/",
+            CDN_URL: "https://dosmundos-audio.b-cdn.net/"
+        };
+
+        // Display configuration
+        function displayConfig() {
+            const configDisplay = document.getElementById('configDisplay');
+            configDisplay.textContent = `API Key: ${BUNNY_CONFIG.API_KEY.substring(0, 20)}...\nStorage Zone: ${BUNNY_CONFIG.STORAGE_ZONE}\nStorage URL: ${BUNNY_CONFIG.STORAGE_URL}\nCDN URL: ${BUNNY_CONFIG.CDN_URL}`;
+        }
+
+        // Test configuration
+        async function testConfig() {
+            const resultDiv = document.getElementById('configResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing configuration...';
+
+            try {
+                // Test API key format
+                if (!BUNNY_CONFIG.API_KEY || BUNNY_CONFIG.API_KEY.length < 50) {
+                    throw new Error('API key appears to be invalid (too short)');
+                }
+
+                // Test URLs
+                const storageUrl = new URL(BUNNY_CONFIG.STORAGE_URL);
+                const cdnUrl = new URL(BUNNY_CONFIG.CDN_URL);
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Configuration looks valid!\n\nAPI Key: ${BUNNY_CONFIG.API_KEY.substring(0, 20)}... (${BUNNY_CONFIG.API_KEY.length} chars)\nStorage Zone: ${BUNNY_CONFIG.STORAGE_ZONE}\nStorage URL: ${storageUrl.href}\nCDN URL: ${cdnUrl.href}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Configuration error: ${error.message}`;
+            }
+        }
+
+        // Test storage access
+        async function testStorageAccess() {
+            const resultDiv = document.getElementById('storageResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing storage access...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                const responseText = await response.text();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Storage access successful!\nStatus: ${response.status}\nResponse: ${responseText.substring(0, 500)}...`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Storage access failed!\nStatus: ${response.status}\nStatus Text: ${response.statusText}\nResponse: ${responseText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Storage access error: ${error.message}\n\nThis might be a CORS issue or network problem.`;
+            }
+        }
+
+        // Test storage list
+        async function testStorageList() {
+            const resultDiv = document.getElementById('storageResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Listing storage files...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                if (response.ok) {
+                    const files = await response.json();
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Storage list successful!\nFiles found: ${files.length}\n\nFiles:\n${JSON.stringify(files, null, 2)}`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Storage list failed!\nStatus: ${response.status}\nError: ${errorText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Storage list error: ${error.message}`;
+            }
+        }
+
+        // Test CDN access
+        async function testCDNAccess() {
+            const resultDiv = document.getElementById('cdnResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing CDN access...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.CDN_URL, {
+                    method: 'HEAD'
+                });
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ CDN access successful!\nStatus: ${response.status}\nHeaders: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ CDN access failed!\nStatus: ${response.status}\nStatus Text: ${response.statusText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ CDN access error: ${error.message}`;
+            }
+        }
+
+        // Test CDN headers
+        async function testCDNHeaders() {
+            const resultDiv = document.getElementById('cdnResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing CDN headers...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.CDN_URL, {
+                    method: 'OPTIONS'
+                });
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ CDN headers test!\nStatus: ${response.status}\nHeaders: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ CDN headers error: ${error.message}`;
+            }
+        }
+
+        // Test small file upload
+        async function testSmallUpload() {
+            const resultDiv = document.getElementById('smallUploadResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Creating and uploading test file...';
+
+            try {
+                // Create a small test file
+                const testContent = 'This is a test file for Bunny.net upload. ' + new Date().toISOString();
+                const testBlob = new Blob([testContent], { type: 'text/plain' });
+                const testFile = new File([testBlob], 'test.txt', { type: 'text/plain' });
+
+                const fileKey = `test_${Date.now()}.txt`;
+                const arrayBuffer = await testFile.arrayBuffer();
+
+                const headers = {
+                    'AccessKey': BUNNY_CONFIG.API_KEY,
+                    'Content-Type': testFile.type,
+                    'Content-Length': arrayBuffer.byteLength.toString()
+                };
+
+                const uploadUrl = `${BUNNY_CONFIG.STORAGE_URL}${fileKey}`;
+                const response = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers,
+                    body: arrayBuffer
+                });
+
+                if (response.ok) {
+                    const cdnUrl = `${BUNNY_CONFIG.CDN_URL}${fileKey}`;
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Small file upload successful!\nFile Key: ${fileKey}\nCDN URL: ${cdnUrl}\nSize: ${arrayBuffer.byteLength} bytes\nResponse: ${response.status}`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Small file upload failed!\nStatus: ${response.status}\nError: ${errorText}\nURL: ${uploadUrl}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Small file upload error: ${error.message}\n\nStack: ${error.stack}`;
+            }
+        }
+
+        // Test text file upload
+        async function testTextUpload() {
+            const resultDiv = document.getElementById('smallUploadResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Uploading text file...';
+
+            try {
+                const testContent = 'Hello from Bunny.net! ' + new Date().toISOString();
+                const testBlob = new Blob([testContent], { type: 'text/plain' });
+
+                const fileKey = `text_${Date.now()}.txt`;
+                const arrayBuffer = await testBlob.arrayBuffer();
+
+                const headers = {
+                    'AccessKey': BUNNY_CONFIG.API_KEY,
+                    'Content-Type': 'text/plain',
+                    'Content-Length': arrayBuffer.byteLength.toString()
+                };
+
+                const uploadUrl = `${BUNNY_CONFIG.STORAGE_URL}${fileKey}`;
+                
+                console.log('Uploading to:', uploadUrl);
+                console.log('Headers:', headers);
+                console.log('Body size:', arrayBuffer.byteLength);
+
+                const response = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers,
+                    body: arrayBuffer
+                });
+
+                console.log('Response:', response);
+
+                if (response.ok) {
+                    const cdnUrl = `${BUNNY_CONFIG.CDN_URL}${fileKey}`;
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Text file upload successful!\nFile Key: ${fileKey}\nCDN URL: ${cdnUrl}\nSize: ${arrayBuffer.byteLength} bytes`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Text file upload failed!\nStatus: ${response.status}\nStatus Text: ${response.statusText}\nError: ${errorText}\nURL: ${uploadUrl}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Text file upload error: ${error.message}\n\nStack: ${error.stack}`;
+            }
+        }
+
+        // File upload functionality
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const audioUploadResult = document.getElementById('audioUploadResult');
+
+        // Drag and drop handlers
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleAudioUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleAudioUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleAudioUpload(file) {
+            if (!file.type.startsWith('audio/')) {
+                audioUploadResult.className = 'result error';
+                audioUploadResult.textContent = '❌ Please select an audio file';
+                return;
+            }
+
+            progressContainer.style.display = 'block';
+            audioUploadResult.className = 'result info';
+            audioUploadResult.textContent = `Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`;
+
+            try {
+                const fileKey = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                
+                console.log('Starting upload for:', fileKey);
+                console.log('File size:', file.size);
+                console.log('File type:', file.type);
+
+                // Read file as ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                progressBar.style.width = '25%';
+
+                console.log('ArrayBuffer size:', arrayBuffer.byteLength);
+
+                // Prepare headers
+                const headers = {
+                    'AccessKey': BUNNY_CONFIG.API_KEY,
+                    'Content-Type': file.type,
+                    'Content-Length': arrayBuffer.byteLength.toString()
+                };
+
+                progressBar.style.width = '50%';
+
+                console.log('Headers:', headers);
+
+                // Upload to Bunny.net
+                const uploadUrl = `${BUNNY_CONFIG.STORAGE_URL}${fileKey}`;
+                console.log('Upload URL:', uploadUrl);
+
+                const response = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers,
+                    body: arrayBuffer
+                });
+
+                progressBar.style.width = '100%';
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+                if (response.ok) {
+                    const cdnUrl = `${BUNNY_CONFIG.CDN_URL}${fileKey}`;
+                    audioUploadResult.className = 'result success';
+                    audioUploadResult.textContent = `✅ Audio upload successful!\nFile Key: ${fileKey}\nCDN URL: ${cdnUrl}\nSize: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB\nResponse: ${response.status}`;
+                } else {
+                    const errorText = await response.text();
+                    audioUploadResult.className = 'result error';
+                    audioUploadResult.textContent = `❌ Audio upload failed!\nStatus: ${response.status}\nStatus Text: ${response.statusText}\nError: ${errorText}\nURL: ${uploadUrl}`;
+                }
+            } catch (error) {
+                audioUploadResult.className = 'result error';
+                audioUploadResult.textContent = `❌ Audio upload error: ${error.message}\n\nStack: ${error.stack}`;
+            } finally {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 2000);
+            }
+        }
+
+        // Test CORS
+        async function testCORS() {
+            const resultDiv = document.getElementById('errorResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing CORS...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ CORS test completed!\nStatus: ${response.status}\nHeaders: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ CORS test failed: ${error.message}`;
+            }
+        }
+
+        // Test network
+        async function testNetwork() {
+            const resultDiv = document.getElementById('errorResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing network connectivity...';
+
+            try {
+                // Test basic connectivity
+                const testResponse = await fetch('https://httpbin.org/get');
+                if (!testResponse.ok) {
+                    throw new Error('Basic network connectivity failed');
+                }
+
+                // Test Bunny.net connectivity
+                const bunnyResponse = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'HEAD',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Network test successful!\nBasic connectivity: OK\nBunny.net connectivity: ${bunnyResponse.status}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network test failed: ${error.message}`;
+            }
+        }
+
+        // Test API key
+        async function testAPIKey() {
+            const resultDiv = document.getElementById('errorResult');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing API key...';
+
+            try {
+                // Test with valid API key
+                const validResponse = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                // Test with invalid API key
+                const invalidResponse = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'AccessKey': 'invalid-key'
+                    }
+                });
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ API key test completed!\nValid key response: ${validResponse.status}\nInvalid key response: ${invalidResponse.status}\n\nAPI key appears to be ${validResponse.ok ? 'valid' : 'invalid'}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ API key test failed: ${error.message}`;
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Bunny.net debug test page loaded');
+            console.log('Configuration:', BUNNY_CONFIG);
+            displayConfig();
+        });
+    </script>
+</body>
+</html> 

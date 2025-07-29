@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bunny.net API Key Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .config {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 11px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔑 Bunny.net API Key Test</h1>
+    
+    <div class="container">
+        <h2>Configuration</h2>
+        <div class="config" id="configDisplay"></div>
+        <button onclick="testAPIKey()">Test API Key</button>
+        <button onclick="testStorageAccess()">Test Storage Access</button>
+        <button onclick="testSmallUpload()">Test Small Upload</button>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const BUNNY_CONFIG = {
+            API_KEY: "588622d1-bf9a-4474-ac44-a35120a563b14df6ca78-1e4f-45df-9fbd-c595e47a9aed",
+            STORAGE_ZONE: "dosmundos-audio",
+            STORAGE_URL: "https://storage.bunnycdn.com/dosmundos-audio/",
+            CDN_URL: "https://dosmundos-audio.b-cdn.net/"
+        };
+
+        function displayConfig() {
+            const configDisplay = document.getElementById('configDisplay');
+            configDisplay.textContent = `API Key: ${BUNNY_CONFIG.API_KEY.substring(0, 20)}...\nStorage Zone: ${BUNNY_CONFIG.STORAGE_ZONE}\nStorage URL: ${BUNNY_CONFIG.STORAGE_URL}`;
+        }
+
+        async function testAPIKey() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing API key...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'GET',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                const responseText = await response.text();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ API key is valid!\nStatus: ${response.status}\nResponse: ${responseText.substring(0, 200)}...`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ API key is invalid!\nStatus: ${response.status}\nStatus Text: ${response.statusText}\nResponse: ${responseText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ API key test failed: ${error.message}`;
+            }
+        }
+
+        async function testStorageAccess() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing storage access...';
+
+            try {
+                const response = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+                    method: 'HEAD',
+                    headers: {
+                        'AccessKey': BUNNY_CONFIG.API_KEY
+                    }
+                });
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Storage access successful!\nStatus: ${response.status}\nHeaders: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Storage access failed!\nStatus: ${response.status}\nStatus Text: ${response.statusText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Storage access error: ${error.message}`;
+            }
+        }
+
+        async function testSmallUpload() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing small file upload...';
+
+            try {
+                const testContent = 'Hello from Bunny.net! ' + new Date().toISOString();
+                const testBlob = new Blob([testContent], { type: 'text/plain' });
+                const fileKey = `test_${Date.now()}.txt`;
+                const arrayBuffer = await testBlob.arrayBuffer();
+
+                const headers = {
+                    'AccessKey': BUNNY_CONFIG.API_KEY,
+                    'Content-Type': 'text/plain',
+                    'Content-Length': arrayBuffer.byteLength.toString()
+                };
+
+                const uploadUrl = `${BUNNY_CONFIG.STORAGE_URL}${fileKey}`;
+                
+                console.log('Uploading to:', uploadUrl);
+                console.log('Headers:', headers);
+
+                const response = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers,
+                    body: arrayBuffer
+                });
+
+                if (response.ok) {
+                    const cdnUrl = `${BUNNY_CONFIG.CDN_URL}${fileKey}`;
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Small upload successful!\nFile Key: ${fileKey}\nCDN URL: ${cdnUrl}\nSize: ${arrayBuffer.byteLength} bytes`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Small upload failed!\nStatus: ${response.status}\nError: ${errorText}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Small upload error: ${error.message}`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            displayConfig();
+        });
+    </script>
+</body>
+</html> 

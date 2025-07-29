@@ -7,17 +7,56 @@ const BUNNY_CONFIG = {
 };
 
 const bunnyService = {
+  // Проверка и валидация API ключа
+  validateAPIKey: async () => {
+    console.log('Bunny: Validating API key...');
+    
+    try {
+      const response = await fetch(BUNNY_CONFIG.STORAGE_URL, {
+        method: 'GET',
+        headers: {
+          'AccessKey': BUNNY_CONFIG.API_KEY
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (response.ok) {
+        console.log('Bunny: API key is valid');
+        return { valid: true, message: 'API key is valid' };
+      } else {
+        const errorText = await response.text();
+        console.error('Bunny: API key validation failed:', response.status, errorText);
+        return { 
+          valid: false, 
+          error: `HTTP ${response.status}: ${errorText}`,
+          message: 'API key validation failed'
+        };
+      }
+    } catch (error) {
+      console.error('Bunny: API key validation error:', error);
+      return { 
+        valid: false, 
+        error: error.message,
+        message: 'API key validation error'
+      };
+    }
+  },
+
   // Загрузка файла в Bunny.net Storage
   uploadFile: async (file, onProgress, currentLanguage, originalFilename) => {
     const fileKey = originalFilename ? originalFilename.replace(/\s+/g, '_') : `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     
     console.log('Bunny: Starting upload for', fileKey);
+    console.log('Bunny: File size:', file.size, 'bytes');
+    console.log('Bunny: File type:', file.type);
     
     try {
       if (onProgress) onProgress(0);
       
       // Читаем файл как ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
+      console.log('Bunny: ArrayBuffer size:', arrayBuffer.byteLength, 'bytes');
+      
       if (onProgress) onProgress(25);
       
       // Подготавливаем заголовки для загрузки
@@ -27,18 +66,28 @@ const bunnyService = {
         'Content-Length': arrayBuffer.byteLength.toString()
       };
       
+      console.log('Bunny: Upload headers:', headers);
+      
       if (onProgress) onProgress(50);
       
       // Загружаем файл в Bunny.net Storage
       const uploadUrl = `${BUNNY_CONFIG.STORAGE_URL}${fileKey}`;
+      console.log('Bunny: Upload URL:', uploadUrl);
+      
       const response = await fetch(uploadUrl, {
         method: 'PUT',
         headers,
         body: arrayBuffer
       });
       
+      console.log('Bunny: Response status:', response.status);
+      console.log('Bunny: Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Bunny: Upload failed with status:', response.status);
+        console.error('Bunny: Error response:', errorText);
+        throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
       if (onProgress) onProgress(100);
@@ -57,6 +106,7 @@ const bunnyService = {
       
     } catch (error) {
       console.error('Bunny: Upload error', error);
+      console.error('Bunny: Error stack:', error.stack);
       throw new Error(`Failed to upload to Bunny.net: ${error.message}`);
     }
   },
