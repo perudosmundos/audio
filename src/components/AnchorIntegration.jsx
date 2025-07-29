@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import { Upload, Play, Download, Trash2, BarChart3 } from 'lucide-react';
-import buzzsproutService from '@/lib/buzzsproutService';
+import podbeanService from '@/lib/podbeanService';
 import { getLocaleString } from '@/lib/locales';
 
 const AnchorIntegration = ({ currentLanguage }) => {
@@ -32,7 +32,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
   const loadEpisodes = async () => {
     setLoading(true);
     try {
-      const result = await buzzsproutService.getEpisodes();
+      const result = await podbeanService.getEpisodes();
       if (result.success) {
         setEpisodes(result.episodes);
       } else {
@@ -94,7 +94,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
         });
       }, 500);
 
-      const result = await buzzsproutService.uploadEpisode(selectedFile, {
+      const result = await podbeanService.uploadEpisode(selectedFile, {
         ...metadata,
         publishDate: new Date().toISOString()
       });
@@ -105,7 +105,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
       if (result.success) {
         toast({
           title: getLocaleString('uploadSuccess', currentLanguage),
-          description: getLocaleString('episodeUploadedToBuzzsprout', currentLanguage)
+          description: getLocaleString('episodeUploadedToPodbean', currentLanguage)
         });
         
         // Очищаем форму
@@ -140,7 +140,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
     }
 
     try {
-      const result = await buzzsproutService.deleteEpisode(episodeId);
+      const result = await podbeanService.deleteEpisode(episodeId);
       if (result.success) {
         toast({
           title: getLocaleString('deleteSuccess', currentLanguage),
@@ -173,15 +173,15 @@ const AnchorIntegration = ({ currentLanguage }) => {
     <>
       <Button onClick={() => setIsOpen(true)} variant="outline">
         <Upload className="w-4 h-4 mr-2" />
-        {getLocaleString('buzzsproutIntegration', currentLanguage)}
+        {getLocaleString('podbeanIntegration', currentLanguage)}
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-                      <DialogTitle>{getLocaleString('buzzsproutIntegration', currentLanguage)}</DialogTitle>
+                      <DialogTitle>{getLocaleString('podbeanIntegration', currentLanguage)}</DialogTitle>
           <DialogDescription>
-            {getLocaleString('buzzsproutIntegrationDescription', currentLanguage)}
+            {getLocaleString('podbeanIntegrationDescription', currentLanguage)}
           </DialogDescription>
           </DialogHeader>
 
