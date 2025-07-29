@@ -20,6 +20,9 @@
     },
     "api/direct-audio/[...path].js": {
       "maxDuration": 60
+    },
+    "api/bunny-audio/[...path].js": {
+      "maxDuration": 60
     }
   },
   "headers": [

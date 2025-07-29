@@ -96,7 +96,7 @@
   "close": "Cerrar",
   "startUpload": "Comenzar subida",
   "uploadingInProgress": "Subiendo...",
-      "uploadToR2Success": "Archivo subido exitosamente a Cloudflare R2.",
+      "uploadToR2Success": "Archivo subido a Archive.org exitosamente",
   "metadataSavedSuccess": "Metadatos guardados en la base de datos.",
   "transcriptionStarted": "Transcripción iniciada.",
   "errorUploadingToR2": "Error al subir a R2: {errorMessage}",

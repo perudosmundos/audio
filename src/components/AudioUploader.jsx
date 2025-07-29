@@ -7,9 +7,9 @@ import { Progress } from '@/components/ui/progress';
 import { UploadCloud, FileAudio, X, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { getLocaleString } from '@/lib/locales';
-import r2Service from '@/lib/r2Service'; 
-import assemblyAIService from '@/lib/assemblyAIService';
+import bunnyService from '@/lib/bunnyService';
 import { getFileNameWithoutExtension } from '@/lib/utils';
+import assemblyAIService from '@/lib/assemblyAIService';
 
 const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) => {
   const [files, setFiles] = useState([]);
@@ -85,7 +85,7 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
 
     for (const file of files) {
       try {
-        const { fileUrl: workerFileUrl, fileKey, bucketName } = await r2Service.uploadFile(
+        const { fileUrl: workerFileUrl, fileKey, bucketName } = await bunnyService.uploadFile(
           file, 
           (progress, details) => {
             setUploadProgress(progress);
@@ -93,7 +93,7 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
           },
           currentLanguage
         );
-        toast({ title: getLocaleString('uploadToR2Success', currentLanguage), description: `${file.name} (Archive.org: ${bucketName})` });
+        toast({ title: getLocaleString('uploadToBunnySuccess', currentLanguage), description: `${file.name} (Bunny.net: ${bucketName})` });
 
         const audioForDuration = new Audio(URL.createObjectURL(file));
         let duration = 0;

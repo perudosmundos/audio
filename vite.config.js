@@ -294,6 +294,39 @@ export default defineConfig({
 						}
 					});
 				}
+			},
+			'/bunny-audio': {
+				target: 'https://bunny.alexbrin102.workers.dev',
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/bunny-audio/, ''),
+				configure: (proxy, options) => {
+					proxy.on('proxyReq', (proxyReq, req, res) => {
+						// Добавляем CORS заголовки для прокси
+						proxyReq.setHeader('Origin', 'https://bunny.alexbrin102.workers.dev');
+						
+						// Передаем Range заголовки для поддержки перемотки
+						if (req.headers.range) {
+							proxyReq.setHeader('Range', req.headers.range);
+						}
+					});
+					proxy.on('proxyRes', (proxyRes, req, res) => {
+						// Добавляем CORS заголовки в ответ
+						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
+						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
+						
+						// Передаем заголовки для поддержки Range запросов
+						if (proxyRes.headers['accept-ranges']) {
+							res.setHeader('Accept-Ranges', proxyRes.headers['accept-ranges']);
+						}
+						if (proxyRes.headers['content-range']) {
+							res.setHeader('Content-Range', proxyRes.headers['content-range']);
+						}
+						if (proxyRes.headers['content-length']) {
+							res.setHeader('Content-Length', proxyRes.headers['content-length']);
+						}
+					});
+				}
 			}
 		}
 	},
