@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import { Upload, Play, Download, Trash2, BarChart3 } from 'lucide-react';
-import anchorService from '@/lib/anchorService';
+import buzzsproutService from '@/lib/buzzsproutService';
 import { getLocaleString } from '@/lib/locales';
 
 const AnchorIntegration = ({ currentLanguage }) => {
@@ -32,7 +32,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
   const loadEpisodes = async () => {
     setLoading(true);
     try {
-      const result = await anchorService.getEpisodes();
+      const result = await buzzsproutService.getEpisodes();
       if (result.success) {
         setEpisodes(result.episodes);
       } else {
@@ -94,7 +94,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
         });
       }, 500);
 
-      const result = await anchorService.uploadEpisode(selectedFile, {
+      const result = await buzzsproutService.uploadEpisode(selectedFile, {
         ...metadata,
         publishDate: new Date().toISOString()
       });
@@ -105,7 +105,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
       if (result.success) {
         toast({
           title: getLocaleString('uploadSuccess', currentLanguage),
-          description: getLocaleString('episodeUploadedSuccessfully', currentLanguage)
+          description: getLocaleString('episodeUploadedToBuzzsprout', currentLanguage)
         });
         
         // Очищаем форму
@@ -140,7 +140,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
     }
 
     try {
-      const result = await anchorService.deleteEpisode(episodeId);
+      const result = await buzzsproutService.deleteEpisode(episodeId);
       if (result.success) {
         toast({
           title: getLocaleString('deleteSuccess', currentLanguage),
@@ -173,16 +173,16 @@ const AnchorIntegration = ({ currentLanguage }) => {
     <>
       <Button onClick={() => setIsOpen(true)} variant="outline">
         <Upload className="w-4 h-4 mr-2" />
-        {getLocaleString('anchorIntegration', currentLanguage)}
+        {getLocaleString('buzzsproutIntegration', currentLanguage)}
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{getLocaleString('anchorIntegration', currentLanguage)}</DialogTitle>
-            <DialogDescription>
-              {getLocaleString('anchorIntegrationDescription', currentLanguage)}
-            </DialogDescription>
+                      <DialogTitle>{getLocaleString('buzzsproutIntegration', currentLanguage)}</DialogTitle>
+          <DialogDescription>
+            {getLocaleString('buzzsproutIntegrationDescription', currentLanguage)}
+          </DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
