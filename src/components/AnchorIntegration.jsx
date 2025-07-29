@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
-import { Upload, Play, Download, Trash2, BarChart3 } from 'lucide-react';
+import { Upload, Play, Download, Trash2, BarChart3, Edit } from 'lucide-react';
 import podbeanService from '@/lib/podbeanService';
 import { getLocaleString } from '@/lib/locales';
 
@@ -15,10 +15,14 @@ const AnchorIntegration = ({ currentLanguage }) => {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [editingEpisode, setEditingEpisode] = useState(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [metadata, setMetadata] = useState({
     title: '',
     description: '',
-    language: 'ru'
+    language: 'ru',
+    publishDate: new Date().toISOString().split('T')[0],
+    publishTime: '12:00'
   });
   const { toast } = useToast();
 
@@ -94,9 +98,12 @@ const AnchorIntegration = ({ currentLanguage }) => {
         });
       }, 500);
 
+      // Формируем полную дату публикации
+      const fullPublishDate = new Date(`${metadata.publishDate}T${metadata.publishTime}:00`);
+      
       const result = await podbeanService.uploadEpisode(selectedFile, {
         ...metadata,
-        publishDate: new Date().toISOString()
+        publishDate: fullPublishDate.toISOString()
       });
 
       clearInterval(progressInterval);
@@ -110,7 +117,13 @@ const AnchorIntegration = ({ currentLanguage }) => {
         
         // Очищаем форму
         setSelectedFile(null);
-        setMetadata({ title: '', description: '', language: 'ru' });
+        setMetadata({ 
+          title: '', 
+          description: '', 
+          language: 'ru',
+          publishDate: new Date().toISOString().split('T')[0],
+          publishTime: '12:00'
+        });
         setUploadProgress(0);
         
         // Перезагружаем список эпизодов
@@ -131,6 +144,65 @@ const AnchorIntegration = ({ currentLanguage }) => {
     } finally {
       setLoading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleEditEpisode = (episode) => {
+    setEditingEpisode(episode);
+    setMetadata({
+      title: episode.title || '',
+      description: episode.description || '',
+      language: episode.language || 'ru',
+      publishDate: episode.published_at ? new Date(episode.published_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      publishTime: episode.published_at ? new Date(episode.published_at).toTimeString().slice(0, 5) : '12:00'
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEpisode || !metadata.title) {
+      toast({
+        title: getLocaleString('errorGeneric', currentLanguage),
+        description: getLocaleString('fillRequiredFields', currentLanguage),
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const fullPublishDate = new Date(`${metadata.publishDate}T${metadata.publishTime}:00`);
+      
+      const result = await podbeanService.updateEpisode(editingEpisode.id, {
+        title: metadata.title,
+        description: metadata.description,
+        language: metadata.language,
+        published_at: fullPublishDate.toISOString()
+      });
+
+      if (result.success) {
+        toast({
+          title: getLocaleString('updateSuccess', currentLanguage),
+          description: getLocaleString('episodeUpdatedSuccessfully', currentLanguage)
+        });
+        setShowEditDialog(false);
+        setEditingEpisode(null);
+        await loadEpisodes();
+      } else {
+        toast({
+          title: getLocaleString('errorGeneric', currentLanguage),
+          description: result.error,
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: getLocaleString('errorGeneric', currentLanguage),
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -243,6 +315,30 @@ const AnchorIntegration = ({ currentLanguage }) => {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {getLocaleString('publishDate', currentLanguage)}
+                </label>
+                <Input
+                  type="date"
+                  value={metadata.publishDate}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, publishDate: e.target.value }))}
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {getLocaleString('publishTime', currentLanguage)}
+                </label>
+                <Input
+                  type="time"
+                  value={metadata.publishTime}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, publishTime: e.target.value }))}
+                  disabled={loading}
+                />
+              </div>
+
               {uploadProgress > 0 && (
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -291,7 +387,10 @@ const AnchorIntegration = ({ currentLanguage }) => {
                           </p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                             <span>{formatDuration(episode.duration || 0)}</span>
-                            <span>{new Date(episode.publish_date).toLocaleDateString()}</span>
+                            <span>{episode.published_at ? new Date(episode.published_at).toLocaleDateString() : 'Не опубликован'}</span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                              {episode.language === 'ru' ? 'RU' : episode.language === 'es' ? 'ES' : 'EN'}
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -310,6 +409,13 @@ const AnchorIntegration = ({ currentLanguage }) => {
                             <Download className="w-3 h-3" />
                           </Button>
                           <Button
+                            onClick={() => handleEditEpisode(episode)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
                             onClick={() => handleDeleteEpisode(episode.id)}
                             variant="outline"
                             size="sm"
@@ -323,6 +429,101 @@ const AnchorIntegration = ({ currentLanguage }) => {
                 </div>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог редактирования эпизода */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{getLocaleString('editEpisode', currentLanguage)}</DialogTitle>
+            <DialogDescription>
+              {getLocaleString('editEpisodeDescription', currentLanguage)}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {getLocaleString('title', currentLanguage)} *
+              </label>
+              <Input
+                value={metadata.title}
+                onChange={(e) => setMetadata(prev => ({ ...prev, title: e.target.value }))}
+                placeholder={getLocaleString('enterEpisodeTitle', currentLanguage)}
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {getLocaleString('description', currentLanguage)}
+              </label>
+              <Textarea
+                value={metadata.description}
+                onChange={(e) => setMetadata(prev => ({ ...prev, description: e.target.value }))}
+                placeholder={getLocaleString('enterEpisodeDescription', currentLanguage)}
+                rows={3}
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {getLocaleString('language', currentLanguage)}
+              </label>
+              <select
+                value={metadata.language}
+                onChange={(e) => setMetadata(prev => ({ ...prev, language: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                disabled={loading}
+              >
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {getLocaleString('publishDate', currentLanguage)}
+              </label>
+              <Input
+                type="date"
+                value={metadata.publishDate}
+                onChange={(e) => setMetadata(prev => ({ ...prev, publishDate: e.target.value }))}
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {getLocaleString('publishTime', currentLanguage)}
+              </label>
+              <Input
+                type="time"
+                value={metadata.publishTime}
+                onChange={(e) => setMetadata(prev => ({ ...prev, publishTime: e.target.value }))}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button
+              onClick={() => setShowEditDialog(false)}
+              variant="outline"
+              disabled={loading}
+            >
+              {getLocaleString('cancel', currentLanguage)}
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={loading || !metadata.title}
+            >
+              {loading ? getLocaleString('saving', currentLanguage) : getLocaleString('save', currentLanguage)}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

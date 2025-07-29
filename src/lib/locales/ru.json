@@ -356,5 +356,12 @@
   "episodeDeletedSuccessfully": "Эпизод успешно удален",
   "confirmDeleteEpisode": "Вы уверены, что хотите удалить этот эпизод?",
   "fillRequiredFields": "Пожалуйста, заполните все обязательные поля",
-  "invalidAudioFile": "Пожалуйста, выберите аудиофайл"
+  "invalidAudioFile": "Пожалуйста, выберите аудиофайл",
+  "publishDate": "Дата публикации",
+  "publishTime": "Время публикации",
+  "editEpisode": "Редактировать эпизод",
+  "editEpisodeDescription": "Измените метаданные эпизода",
+  "updateSuccess": "Обновление успешно",
+  "episodeUpdatedSuccessfully": "Эпизод успешно обновлен",
+  "saving": "Сохранение..."
 }
