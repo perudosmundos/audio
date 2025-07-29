@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import bunnyService from '@/lib/bunnyService';
+import r2Service from '@/lib/r2Service';
 
 // Utility function to check if a file exists on Archive.org
 export const checkEpisodeFileExists = async (episode) => {
@@ -11,7 +11,7 @@ export const checkEpisodeFileExists = async (episode) => {
   }
   
   try {
-    const fileExists = await bunnyService.checkFileExists(episode.r2_object_key);
+    const fileExists = await r2Service.checkFileExists(episode.r2_object_key);
     return { exists: fileExists.exists, error: null };
   } catch (error) {
     console.warn('Error checking file existence for episode:', episode.slug, error);
@@ -115,7 +115,7 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
       });
       
       // Используем новую функцию для получения рабочего URL
-      const workingUrlResult = await bunnyService.getWorkingAudioUrl(
+      const workingUrlResult = await r2Service.getWorkingAudioUrl(
         episode.audio_url, 
         episode.r2_object_key, 
         episode.r2_bucket_name

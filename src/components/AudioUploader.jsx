@@ -7,9 +7,9 @@ import { Progress } from '@/components/ui/progress';
 import { UploadCloud, FileAudio, X, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { getLocaleString } from '@/lib/locales';
-import bunnyService from '@/lib/bunnyService';
-import { getFileNameWithoutExtension } from '@/lib/utils';
+import r2Service from '@/lib/r2Service'; 
 import assemblyAIService from '@/lib/assemblyAIService';
+import { getFileNameWithoutExtension } from '@/lib/utils';
 
 const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) => {
   const [files, setFiles] = useState([]);
@@ -85,23 +85,7 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
 
     for (const file of files) {
       try {
-        // Проверяем API ключ перед загрузкой
-        console.log('AudioUploader: Validating Bunny.net API key...');
-        const apiValidation = await bunnyService.validateAPIKey();
-        
-        if (!apiValidation.valid) {
-          console.error('AudioUploader: API key validation failed:', apiValidation.error);
-          toast({ 
-            title: getLocaleString('uploadError', currentLanguage), 
-            description: `Bunny.net API key error: ${apiValidation.error}`,
-            variant: 'destructive'
-          });
-          continue;
-        }
-        
-        console.log('AudioUploader: API key is valid, proceeding with upload...');
-        
-        const { fileUrl: workerFileUrl, fileKey, bucketName } = await bunnyService.uploadFile(
+        const { fileUrl: workerFileUrl, fileKey, bucketName } = await r2Service.uploadFile(
           file, 
           (progress, details) => {
             setUploadProgress(progress);
@@ -109,7 +93,7 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
           },
           currentLanguage
         );
-        toast({ title: getLocaleString('uploadToBunnySuccess', currentLanguage), description: `${file.name} (Bunny.net: ${bucketName})` });
+        toast({ title: getLocaleString('uploadToR2Success', currentLanguage), description: `${file.name} (Archive.org: ${bucketName})` });
 
         const audioForDuration = new Audio(URL.createObjectURL(file));
         let duration = 0;
