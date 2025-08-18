@@ -1,14 +1,15 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import path from 'node:path';
 
-// Полифилл для fetch в Node.js
-if (!global.fetch) {
-  global.fetch = require('node-fetch');
+// Полифилл для fetch в Node.js (для сред без глобального fetch)
+if (typeof globalThis.fetch === 'undefined') {
+  const { default: fetch } = await import('node-fetch');
+  globalThis.fetch = fetch;
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
 
 // CORS middleware
 app.use(cors({
@@ -288,4 +289,4 @@ app.listen(PORT, () => {
   console.log(`   - /api/test-specific`);
 });
 
-module.exports = app; 
+export default app;
