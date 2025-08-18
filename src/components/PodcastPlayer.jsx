@@ -157,7 +157,7 @@ const PodcastPlayer = ({
   const handleDownloadAudio = () => {
     if (episodeAudioUrl) {
       const link = document.createElement('a');
-      link.href = episodeAudioUrl;
+      link.href = episodeAudioUrl; // должен быть прямой workers.dev из useEpisodeData
       link.download = `${episodeSlug || 'podcast_episode'}.mp3`; 
       document.body.appendChild(link);
       link.click();
