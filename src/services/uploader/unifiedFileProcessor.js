@@ -254,6 +254,7 @@ export const processSingleItem = async ({
       }
     }
 
+    let existingTranscriptData = null;
     if (upsertedEpisode.slug) {
       updateItemState(itemData.id, { transcriptionStatus: getLocaleString('startingTranscription', currentLanguage) });
       
@@ -267,6 +268,8 @@ export const processSingleItem = async ({
       if (transcriptCheckError && transcriptCheckError.code !== 'PGRST116') {
         throw new Error(getLocaleString('supabaseTranscriptError', currentLanguage, { errorMessage: transcriptCheckError.message }));
       }
+
+      existingTranscriptData = existingTranscript;
 
       let shouldSubmitTranscription = true;
       if (existingTranscript && !userConfirmedOverwriteGlobal) {
@@ -310,7 +313,9 @@ export const processSingleItem = async ({
       isUploading: false, 
       uploadComplete: true, 
       uploadError: null,
-      transcriptionStatus: existingTranscript?.status === 'completed' ? 'completed' : itemData.transcriptionStatus
+      transcriptionStatus: (existingTranscriptData && existingTranscriptData.status === 'completed')
+        ? 'completed'
+        : itemData.transcriptionStatus
     });
 
     return { success: true, requiresDialog: false };

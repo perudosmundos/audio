@@ -207,7 +207,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
   };
 
   const handleDeleteEpisode = async (episodeId) => {
-    if (!confirm(getLocaleString('confirmDeleteEpisode', currentLanguage))) {
+    if (!window.confirm(getLocaleString('confirmDeleteEpisode', currentLanguage))) {
       return;
     }
 

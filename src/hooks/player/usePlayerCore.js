@@ -10,50 +10,51 @@ const usePlayerCore = (initialDuration = 0) => {
   const [isAddQuestionPlayerDialogOpen, setIsAddQuestionPlayerDialogOpen] = useState(false);
   const [addQuestionDialogInitialTime, setAddQuestionDialogInitialTime] = useState(0);
 
-  // Initialization effect
-  const initializePlayer = ({
-    episodeData,
-    audioRef,
-    playbackRateOptions,
-    onPlayerStateChange,
-    lastJumpIdProcessedRef,
-  }) => {
-    useEffect(() => {
-      setIsPlayingState(false);
-      setCurrentTimeState(0);
-      setActiveQuestionTitleState('');
-      setDurationState(episodeData?.duration || 0);
-      setCurrentPlaybackRateIndex(0); 
+  const [initConfig, setInitConfig] = useState(null);
 
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.playbackRate = playbackRateOptions[0].value;
-        if (episodeData?.audio_url) {
-          if (audioRef.current.src !== episodeData.audio_url) {
-            audioRef.current.src = episodeData.audio_url;
-            audioRef.current.load();
-          }
-        } else {
-          audioRef.current.removeAttribute('src');
-          audioRef.current.load(); 
+  // Initialization effect (top-level hook usage)
+  useEffect(() => {
+    if (!initConfig) return;
+
+    const {
+      episodeData,
+      audioRef,
+      playbackRateOptions,
+      onPlayerStateChange,
+      lastJumpIdProcessedRef,
+    } = initConfig;
+
+    setIsPlayingState(false);
+    setCurrentTimeState(0);
+    setActiveQuestionTitleState('');
+    setDurationState(episodeData?.duration || 0);
+    setCurrentPlaybackRateIndex(0);
+
+    if (audioRef?.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.playbackRate = playbackRateOptions?.[0]?.value ?? 1;
+      if (episodeData?.audio_url) {
+        if (audioRef.current.src !== episodeData.audio_url) {
+          audioRef.current.src = episodeData.audio_url;
+          audioRef.current.load();
         }
+      } else {
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
       }
-      if (lastJumpIdProcessedRef) lastJumpIdProcessedRef.current = null;
-      onPlayerStateChange?.({isPlaying: false, currentTime: 0, duration: episodeData?.duration || 0, activeQuestionTitle: ''});
-    }, [
-        episodeData?.slug, 
-        episodeData?.audio_url, 
-        episodeData?.duration, 
-        audioRef, 
-        setIsPlayingState, 
-        setCurrentTimeState, 
-        setActiveQuestionTitleState, 
-        setDurationState, 
-        setCurrentPlaybackRateIndex, 
-        playbackRateOptions, 
-        onPlayerStateChange,
-        lastJumpIdProcessedRef
-      ]);
+    }
+    if (lastJumpIdProcessedRef) lastJumpIdProcessedRef.current = null;
+    onPlayerStateChange?.({
+      isPlaying: false,
+      currentTime: 0,
+      duration: episodeData?.duration || 0,
+      activeQuestionTitle: ''
+    });
+  }, [initConfig, setIsPlayingState, setCurrentTimeState, setActiveQuestionTitleState, setDurationState, setCurrentPlaybackRateIndex]);
+
+  // API to trigger initialization from consumers
+  const initializePlayer = (config) => {
+    setInitConfig(config);
   };
 
   return {
