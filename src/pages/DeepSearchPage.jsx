@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { Input } from '@/components/ui/input';
@@ -47,8 +47,6 @@ const SearchResultItem = ({ item, searchTerm, type, episodeTitle }) => {
     linkTarget = `/episode/${item.episodeSlug}#segment-${item.segmentStart}&play=true`;
   }
   
-  const textToHighlight = type === 'question' ? item.questionTitle : item.segmentText;
-
   return (
      <li className="p-3 bg-slate-700/60 rounded-lg hover:bg-slate-600/70 transition-colors animate-fade-in-up">
       <Link 

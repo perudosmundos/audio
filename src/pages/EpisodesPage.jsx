@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+// Link is not used here
 import { supabase } from '@/lib/supabaseClient';
-import { useToast } from '@/components/ui/use-toast';
+// useToast is not used here
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import EpisodesPageHeader from '@/components/episodes/EpisodesPageHeader';
@@ -9,7 +9,7 @@ import EpisodesList from '@/components/episodes/EpisodesList';
 import EmptyState from '@/components/episodes/EmptyState';
 import FilterAndSearchControls from '@/components/episodes/FilterAndSearchControls';
 import { getLocaleString } from '@/lib/locales';
-import useEpisodeData from '@/hooks/player_page/useEpisodeData';
+// useEpisodeData is not used here
 
 const EpisodesPage = ({ currentLanguage }) => {
   const [episodes, setEpisodes] = useState([]);
@@ -23,13 +23,10 @@ const EpisodesPage = ({ currentLanguage }) => {
   const [selectedYear, setSelectedYear] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
 
-
-
-  const monthLabels = [
+  const monthLabels = useMemo(() => ([
     "january", "february", "march", "april", "may", "june", 
     "july", "august", "september", "october", "november", "december"
-  ];
-
+  ]), []);
 
   const fetchEpisodesAndData = useCallback(async () => {
     setLoading(true);

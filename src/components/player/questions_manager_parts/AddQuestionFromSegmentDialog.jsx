@@ -22,7 +22,6 @@ const AddQuestionFromSegmentDialog = ({
 }) => {
   const [questionTitle, setQuestionTitle] = useState('');
   const [questionTime, setQuestionTime] = useState(0);
-  const [isTimeInputFocused, setIsTimeInputFocused] = useState(false);
 
   useEffect(() => {
     if (segment) {
@@ -79,8 +78,6 @@ const AddQuestionFromSegmentDialog = ({
                 id="qfs-time" 
                 type="text" 
                 value={formatFullTime(questionTime, true)} 
-                onFocus={() => setIsTimeInputFocused(true)} 
-                onBlur={() => setIsTimeInputFocused(false)} 
                 onChange={handleDialogTimeInputChange} 
                 className="bg-slate-800 border-slate-700 focus:border-purple-500 focus:ring-purple-500 col-span-3 tabular-nums" 
                 placeholder="HH:MM:SS" 

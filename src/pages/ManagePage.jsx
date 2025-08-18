@@ -86,11 +86,10 @@ const ManageEpisodesList = ({ currentLanguage }) => {
     setIsDeleting(true);
 
     let successCount = 0;
-    let errorCount = 0;
 
     for (const episode of episodesToDelete) {
       try {
-        const { slug, lang, r2_object_key, r2_bucket_name, title } = episode;
+        const { slug, lang, r2_object_key, r2_bucket_name } = episode;
         
         const { error: questionsError } = await supabase.from('questions').delete().eq('episode_slug', slug).eq('lang', lang);
         if (questionsError) throw new Error(getLocaleString('errorDeletingQuestions', currentLanguage, { errorMessage: questionsError.message }));
@@ -112,7 +111,6 @@ const ManageEpisodesList = ({ currentLanguage }) => {
         successCount++;
       } catch (error) {
         toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `${getLocaleString('errorDeletingEpisodeDB', currentLanguage, {errorMessage: error.message})} (Episode: ${episode.title || episode.slug})`, variant: 'destructive' });
-        errorCount++;
       }
     }
     

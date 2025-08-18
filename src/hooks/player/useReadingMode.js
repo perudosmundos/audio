@@ -1,11 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { useToast as useShadcnToast } from '@/components/ui/use-toast';
-import { getLocaleString } from '@/lib/locales';
+import { useState, useCallback } from 'react';
 
 const useReadingMode = (mainPlayerIsPlaying, toastInstance, currentLanguage, mainAudioRef, setMainPlayerIsPlaying) => {
-  const defaultToastHook = useShadcnToast();
-  const { toast } = toastInstance || defaultToastHook;
-
   const [readingMode, setReadingMode] = useState(false);
 
   const toggleReadingMode = useCallback(() => {

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
-import { Upload, Play, Download, Trash2, BarChart3, Edit } from 'lucide-react';
+import { Upload, Play, Download, Trash2, Edit } from 'lucide-react';
 import podbeanService from '@/lib/podbeanService';
 import { getLocaleString } from '@/lib/locales';
 
@@ -26,14 +26,7 @@ const AnchorIntegration = ({ currentLanguage }) => {
   });
   const { toast } = useToast();
 
-  // Загрузка эпизодов при открытии
-  useEffect(() => {
-    if (isOpen) {
-      loadEpisodes();
-    }
-  }, [isOpen]);
-
-  const loadEpisodes = async () => {
+  const loadEpisodes = useCallback(async () => {
     setLoading(true);
     try {
       const result = await podbeanService.getEpisodes();
@@ -55,7 +48,14 @@ const AnchorIntegration = ({ currentLanguage }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentLanguage, toast]);
+
+  // Загрузка эпизодов при открытии
+  useEffect(() => {
+    if (isOpen) {
+      loadEpisodes();
+    }
+  }, [isOpen, loadEpisodes]);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];

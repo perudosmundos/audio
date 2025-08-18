@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AudioElement from '@/components/player/player_parts/AudioElement';
 import PlayerHeader from '@/components/player/player_parts/PlayerHeader';
@@ -67,7 +66,6 @@ const PodcastPlayer = ({
   const {
     isSpeakerAssignmentDialogOpen,
     segmentForSpeakerAssignment,
-    handleOpenSpeakerAssignmentDialog,
     handleSaveSpeakerAssignment,
     handleCloseSpeakerAssignmentDialog
   } = useSpeakerAssignment(episodeData, onTranscriptUpdate, toast, currentLanguage, fetchTranscriptForEpisode, episodeSlug, langForContent);
@@ -96,14 +94,21 @@ const PodcastPlayer = ({
   });
 
   const { handleTimeUpdate, handleLoadedMetadata } = usePlayerTimeUpdates({
-    audioRef, isSeekingRef, internalQuestions, currentLanguage,
-    setCurrentTimeState, setActiveQuestionTitleState, setDurationState,
-    onPlayerStateChange, skipEmptySegments, transcript: episodeData?.transcript, 
+    audioRef,
+    isSeekingRef,
+    internalQuestions,
+    currentLanguage,
+    setCurrentTimeState,
+    setActiveQuestionTitleState,
+    setDurationState,
+    onPlayerStateChange,
+    skipEmptySegments,
+    transcript: episodeData?.transcript,
   });
 
   const { 
     handleProgressChange, handleSkip, navigateQuestion,
-    seekAudio, togglePlayPause, setPlaybackRateByIndex
+    seekAudio, togglePlayPause
   } = usePlayerNavigation({
     audioRef, durationState, isPlayingState, setIsPlayingState,
     onQuestionSelectJump, internalQuestions, currentTimeState,
@@ -233,8 +238,8 @@ const PodcastPlayer = ({
                 description: getLocaleString('audioErrorDescriptionPlayer', currentLanguage, {episodeTitle: episodeData.title}),
                 variant: "destructive",
                 });
-            }
-          }}
+              }
+            }}
         />
         
         <PlayerUIControls 

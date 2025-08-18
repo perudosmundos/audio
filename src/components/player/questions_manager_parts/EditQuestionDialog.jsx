@@ -29,7 +29,6 @@ const EditQuestionDialog = ({
   mainPlayerSeekAudio,
 }) => {
   const [internalTitle, setInternalTitle] = useState('');
-  const [isTimeInputFocused, setIsTimeInputFocused] = useState(false);
   
   const isSpecialBlock = questionData?.is_intro || questionData?.is_full_transcript || questionData?.id === 'intro-virtual';
 
@@ -76,8 +75,6 @@ const EditQuestionDialog = ({
                 id="question-time-dialog" 
                 type="text" 
                 value={formatFullTime(externalDialogTime, true)} 
-                onFocus={() => setIsTimeInputFocused(true)} 
-                onBlur={() => setIsTimeInputFocused(false)} 
                 onChange={onDialogTimeInputChange} 
                 className="bg-slate-800 border-slate-700 focus:border-purple-500 focus:ring-purple-500 col-span-3 tabular-nums" 
                 placeholder="HH:MM:SS" 

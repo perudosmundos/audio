@@ -103,12 +103,10 @@ const QuestionBlock = React.memo(({
 
   const {
     editingSegment,
-    setEditingSegment, 
     editedText,
     setEditedText,
     showConfirmDialog,
     confirmDialogProps,
-    textareaRef, 
     setTextareaRef: setInternalTextareaRef,
     handleEditSegment,
     handleSaveCurrentSegmentEdit,

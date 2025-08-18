@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import EpisodeQuestionsList from './EpisodeQuestionsList';
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { formatFullTime, formatShortDate } from '@/lib/utils';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+// Removed unused icons to satisfy linter
 
 const EpisodeListItem = React.memo(({ episode, currentLanguage, questionsCount, questionsForEpisode }) => {
   

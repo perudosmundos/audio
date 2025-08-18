@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { PlusCircle, ListFilter, AlertTriangle } from 'lucide-react';
+import { PlusCircle, ListFilter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getLocaleString } from '@/lib/locales';
 import QuestionBlock from '@/components/player/questions_manager_parts/QuestionBlock.jsx';
@@ -55,7 +55,7 @@ const QuestionsManager = ({
   const prevSegmentToHighlightRef = useRef(null);
 
   const langForContent = episodeLang === 'all' ? currentLanguage : episodeLang;
-  const localTranscriptUtterances = transcriptUtterances || [];
+  const localTranscriptUtterances = useMemo(() => transcriptUtterances || [], [transcriptUtterances]);
   
   const handleSaveEditedSegment = useCallback(async (updatedUtterances) => {
      if (!episodeSlug || !langForContent) {
@@ -380,7 +380,7 @@ const QuestionsManager = ({
       question={question}
       segments={questionSegmentsMapWithVirtual[question.id] || []}
       isActiveQuestion={activeQuestion?.id === question.id}
-      isJumpTarget={jumpToQuestionId === String(question.id) || segmentToHighlight && (questionSegmentsMapWithVirtual[question.id] || []).some(s => s.start === segmentToHighlight)}
+      isJumpTarget={jumpToQuestionId === String(question.id) || (segmentToHighlight && (questionSegmentsMapWithVirtual[question.id] || []).some(s => s.start === segmentToHighlight))}
       isExpanded={(!!expandedQuestions[question.id] || (isSpecialBlock && displayableQuestions.length === 1))}
       onToggleExpansion={() => toggleQuestionExpansion(question.id)}
       onActivate={() => handleActivateQuestion(question)}

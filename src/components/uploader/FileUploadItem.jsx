@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileAudio, X, CheckCircle, Loader2, AlertTriangle, Languages } from 'lucide-react';
+import { FileAudio, X, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

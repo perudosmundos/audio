@@ -12,7 +12,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
-import { Settings, ScrollText, Download, SkipForward, PlusCircle, Gauge } from 'lucide-react';
+import { Settings, ScrollText, Download, SkipForward, Gauge } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const PlayerSettingsMenu = ({
