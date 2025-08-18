@@ -1,0 +1,54 @@
+name: Fix commit encoding
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_encoding:
+        description: "Source encoding of broken messages (latin1 or cp1252)"
+        required: false
+        default: latin1
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config i18n.commitencoding utf-8
+          git config i18n.logoutputencoding utf-8
+
+      - name: Create backup branch
+        run: |
+          git branch backup/pre-encoding-fix || true
+          git push origin backup/pre-encoding-fix || true
+
+      - name: Rewrite commit messages (${ { github.event.inputs.source_encoding || 'latin1' } } -> utf-8)
+        env:
+          SRC: ${{ github.event.inputs.source_encoding || 'latin1' }}
+        run: |
+          set -e
+          export FILTER_BRANCH_SQUELCH_WARNING=1
+          git filter-branch -f --msg-filter "python3 -c 'import os,sys; enc=os.environ.get("SRC","latin1"); s=sys.stdin.read();
+          try:
+            sys.stdout.write(s.encode(enc).decode("utf-8"))
+          except Exception:
+            sys.stdout.write(s)
+          '" -- --all
+
+      - name: Show last 10 commit titles
+        run: git log --oneline -n 10
+
+      - name: Force push rewritten history
+        run: |
+          git push --force-with-lease --all
+          git push --force-with-lease --tags
+
