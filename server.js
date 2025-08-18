@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { Readable } = require('stream');
 
 // Полифилл для fetch в Node.js
 if (!global.fetch) {
@@ -87,13 +88,27 @@ app.use('/api', async (req, res, next) => {
         res.setHeader('Content-Range', contentRange);
       }
       
+      // Для HEAD запроса не передаем тело
+      if (req.method === 'HEAD') {
+        res.status(response.status).end();
+        return;
+      }
+
       res.status(response.status);
-      
+
       // Стримим данные
       const stream = response.body;
-      if (stream) {
-        stream.pipe(res);
-      } else {
+      try {
+        if (stream && typeof Readable.fromWeb === 'function') {
+          Readable.fromWeb(stream).pipe(res);
+        } else if (stream && typeof stream.pipe === 'function') {
+          stream.pipe(res);
+        } else {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          res.send(buffer);
+        }
+      } catch (e) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         res.send(buffer);
@@ -156,13 +171,27 @@ app.use('/api', async (req, res, next) => {
         res.setHeader('Content-Range', contentRange);
       }
       
+      // Для HEAD запроса не передаем тело
+      if (req.method === 'HEAD') {
+        res.status(response.status).end();
+        return;
+      }
+
       res.status(response.status);
-      
+
       // Стримим данные
       const stream = response.body;
-      if (stream) {
-        stream.pipe(res);
-      } else {
+      try {
+        if (stream && typeof Readable.fromWeb === 'function') {
+          Readable.fromWeb(stream).pipe(res);
+        } else if (stream && typeof stream.pipe === 'function') {
+          stream.pipe(res);
+        } else {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          res.send(buffer);
+        }
+      } catch (e) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         res.send(buffer);
