@@ -1,3 +1,5 @@
+import { Readable } from 'stream';
+
 export default async function handler(req, res) {
   // Обработка OPTIONS запросов для CORS
   if (req.method === 'OPTIONS') {
@@ -82,21 +84,38 @@ export default async function handler(req, res) {
       res.setHeader('Content-Range', contentRange);
     }
     
+    // Для HEAD запроса не передаем тело
+    if (req.method === 'HEAD') {
+      res.status(response.status).end();
+      return;
+    }
+
     // Передаем статус код
     res.status(response.status);
-    
+
     // Стримим данные
     console.log('Direct audio: Streaming audio data');
-    
+
     const stream = response.body;
-    if (stream) {
-      stream.pipe(res);
-    } else {
-      // Fallback для случаев, когда stream недоступен
-      console.log('Direct audio: Stream not available, using buffer fallback');
+    try {
+      if (stream && typeof Readable.fromWeb === 'function') {
+        // Преобразуем Web Stream в Node.js stream и пайпим в ответ
+        Readable.fromWeb(stream).pipe(res);
+      } else if (stream && typeof stream.pipe === 'function') {
+        // Node.js Readable stream
+        stream.pipe(res);
+      } else {
+        // Fallback для случаев, когда stream недоступен
+        console.log('Direct audio: Stream not available, using buffer fallback');
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        console.log('Direct audio: Sending buffer of size', buffer.length);
+        res.send(buffer);
+      }
+    } catch (e) {
+      console.error('Direct audio: Streaming failed, falling back to buffer', e.message);
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      console.log('Direct audio: Sending buffer of size', buffer.length);
       res.send(buffer);
     }
     
