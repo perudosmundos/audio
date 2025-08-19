@@ -114,25 +114,9 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
         r2_bucket_name: episode.r2_bucket_name
       });
       
-      // Используем новую функцию для получения рабочего URL
-      const workingUrlResult = await r2Service.getWorkingAudioUrl(
-        episode.audio_url, 
-        episode.r2_object_key, 
-        episode.r2_bucket_name
-      );
-      
-      let finalAudioUrl = workingUrlResult.url;
-      console.log('useEpisodeData: Working URL result', workingUrlResult);
-      
-      if (!finalAudioUrl) {
-        console.error('useEpisodeData: No working audio URL found');
-        setError('No working audio URL found');
-        setLoading(false);
-        return;
-      }
-      
-      console.log('useEpisodeData: Final audio URL', finalAudioUrl);
-      
+      // Используем оригинальный URL из базы без прокси
+      const finalAudioUrl = episode.audio_url;
+      console.log('useEpisodeData: Using DB audio URL as final', finalAudioUrl);
       setEpisodeData({...episode, audio_url: finalAudioUrl});
       
       const langForContent = episode.lang === 'all' ? currentLanguage : episode.lang;

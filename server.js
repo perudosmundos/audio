@@ -27,8 +27,8 @@ app.use('/api', async (req, res, next) => {
     // Импортируем API роуты динамически
     const apiPath = req.path;
     
-    if (apiPath.startsWith('/direct-audio/')) {
-      // Обработка прямого доступа к аудио
+    if (false && apiPath.startsWith('/direct-audio/')) {
+      // Deprecated: direct-audio proxy removed
       const filePath = apiPath.replace('/direct-audio/', '');
       const targetUrl = `https://audio.alexbrin102.workers.dev/${filePath}`;
       
@@ -114,8 +114,8 @@ app.use('/api', async (req, res, next) => {
         res.send(buffer);
       }
       
-    } else if (apiPath.startsWith('/audio-proxy/')) {
-      // Обработка прокси аудио
+    } else if (false && apiPath.startsWith('/audio-proxy/')) {
+      // Deprecated: audio proxy removed
       const filePath = apiPath.replace('/audio-proxy/', '');
       const targetUrl = `https://audio.alexbrin102.workers.dev/${filePath}`;
       
@@ -312,8 +312,7 @@ app.use('/api', async (req, res, next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Development API server running on http://localhost:${PORT}`);
   console.log(`📡 API routes available:`);
-  console.log(`   - /api/direct-audio/*`);
-  console.log(`   - /api/audio-proxy/*`);
+  // Proxies removed
   console.log(`   - /api/test-specific`);
 });
 
