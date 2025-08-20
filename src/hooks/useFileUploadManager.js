@@ -52,15 +52,41 @@ const useFileUploadManager = (currentLanguage) => {
   }, [updateItemState, currentLanguage, toast]);
 
   const handleTranslateTimings = useCallback(async (esItemId) => {
+    console.log("🔄 Starting translation process for esItemId:", esItemId);
+    
     const currentFiles = filesToProcess;
     const esItem = currentFiles.find(item => item.id === esItemId && item.lang === 'es');
+    
+    console.log("📝 ES Item found:", esItem ? "✅" : "❌");
+    console.log("📄 ES timingsText length:", esItem?.timingsText?.length || 0);
+    console.log("📄 ES timingsText preview:", esItem?.timingsText?.substring(0, 100) || "empty");
+    
     if (!esItem || !esItem.timingsText) {
+      console.error("❌ No ES item or timingsText found");
       toast({ title: getLocaleString('errorGeneric', currentLanguage), description: "Нет текста таймингов для перевода.", variant: "destructive" });
       return;
     }
 
+    // Check if timingsText has meaningful content (not just whitespace or very short)
+    const trimmedText = esItem.timingsText.trim();
+    if (trimmedText.length < 3) {
+      console.warn("⚠️ TimingsText too short, skipping translation:", trimmedText.length);
+      toast({ title: getLocaleString('errorGeneric', currentLanguage), description: "Текст таймингов слишком короткий для перевода.", variant: "destructive" });
+      return;
+    }
+
+    // Check if text looks like it contains timing information (basic format check)
+    const hasTimingPattern = /\d{1,2}:\d{2}/.test(trimmedText) || /\d{1,2}\.\d{2}/.test(trimmedText);
+    if (!hasTimingPattern) {
+      console.warn("⚠️ TimingsText doesn't appear to contain timing patterns");
+      console.log("📄 Full timingsText for analysis:", trimmedText);
+    }
+
     const enItem = currentFiles.find(item => item.originalFileId === esItem.originalFileId && item.lang === 'en');
+    console.log("📝 EN Item found:", enItem ? "✅" : "❌");
+    
     if (!enItem) {
+      console.error("❌ No EN item found for originalFileId:", esItem.originalFileId);
       toast({ title: getLocaleString('errorGeneric', currentLanguage), description: "Не найден соответствующий английский элемент для сохранения перевода.", variant: "destructive" });
       return;
     }
@@ -68,17 +94,55 @@ const useFileUploadManager = (currentLanguage) => {
     updateItemState(enItem.id, { isTranslatingTimings: true, timingsText: getLocaleString('timingsTranslating', currentLanguage) });
 
     try {
-      const translatedText = await translateTextOpenAI(esItem.timingsText, 'en');
-      if (translatedText) {
+      console.log("🤖 Calling translateTextOpenAI with text length:", esItem.timingsText.length);
+      const translatedText = await translateTextOpenAI(esItem.timingsText, 'en', currentLanguage);
+      console.log("✅ Translation completed, result length:", translatedText?.length || 0);
+      console.log("📄 Translated text preview:", translatedText?.substring(0, 100) || "empty");
+      
+      if (translatedText && translatedText.trim() !== '') {
         updateItemState(enItem.id, { timingsText: translatedText, isTranslatingTimings: false });
         toast({ title: getLocaleString('translateTimingsSuccessTitle', currentLanguage), description: getLocaleString('translateTimingsSuccessDesc', currentLanguage) });
+        console.log("✅ Translation process completed successfully");
       } else {
         throw new Error("Перевод вернул пустой текст.");
       }
     } catch (error) {
-      console.error("Error translating timings text:", error);
-      updateItemState(enItem.id, { timingsText: getLocaleString('translateTimingsErrorDesc', currentLanguage, { errorMessage: '' }), isTranslatingTimings: false });
-      toast({ title: getLocaleString('translateTimingsErrorTitle', currentLanguage), description: getLocaleString('translateTimingsErrorDesc', currentLanguage, { errorMessage: error.message }), variant: "destructive" });
+      console.error("❌ Error translating timings text:", error);
+      console.error("❌ Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.substring(0, 300)
+      });
+      
+      // Determine error type and provide specific feedback
+      let errorTitle = getLocaleString('translateTimingsErrorTitle', currentLanguage);
+      let errorDescription = error.message;
+      
+      if (error.message.includes('API key')) {
+        errorTitle = "🔑 Ошибка API Ключа";
+        errorDescription = "OpenAI API ключ недоступен или недействителен. Проверьте настройки сервера.";
+      } else if (error.message.includes('quota') || error.message.includes('limit')) {
+        errorTitle = "💳 Превышен Лимит";
+        errorDescription = "Превышен лимит использования OpenAI API. Попробуйте позже.";
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorTitle = "🌐 Сетевая Ошибка";
+        errorDescription = "Проблема с подключением к OpenAI. Проверьте интернет-соединение.";
+      } else if (error.message.includes('timeout')) {
+        errorTitle = "⏱️ Таймаут";
+        errorDescription = "Запрос к OpenAI занял слишком много времени. Попробуйте снова.";
+      }
+      
+      updateItemState(enItem.id, { 
+        timingsText: `❌ ${errorDescription}`, 
+        isTranslatingTimings: false 
+      });
+      
+      toast({ 
+        title: errorTitle, 
+        description: errorDescription, 
+        variant: "destructive",
+        duration: 8000  // Show error longer
+      });
     }
   }, [filesToProcess, updateItemState, currentLanguage, toast]);
 

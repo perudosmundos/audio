@@ -340,5 +340,6 @@
   "deselectAll": "Deseleccionar todo",
   "deleteSelected": "Eliminar seleccionados",
   "errorTranslatingTranscriptOpenAI": "Error al traducir la transcripción con OpenAI.",
-  "errorTranslatingTranscriptOpenAIDesc": "Ocurrió un error al traducir la transcripción con OpenAI. Intenta dividir el texto en partes más pequeñas o reducir el tamaño."
+  "errorTranslatingTranscriptOpenAIDesc": "Ocurrió un error al traducir la transcripción con OpenAI. Intenta dividir el texto en partes más pequeñas o reducir el tamaño.",
+  "errorTranslatingTextOpenAI": "Error al traducir el texto con OpenAI: {errorMessage}"
 }

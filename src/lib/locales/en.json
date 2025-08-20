@@ -332,5 +332,6 @@
   "deselectAll": "Deselect all",
   "deleteSelected": "Delete selected",
   "errorTranslatingTranscriptOpenAI": "Error translating transcript with OpenAI.",
-  "errorTranslatingTranscriptOpenAIDesc": "An error occurred while translating the transcript with OpenAI. Try splitting the text into smaller parts or reducing the size."
+  "errorTranslatingTranscriptOpenAIDesc": "An error occurred while translating the transcript with OpenAI. Try splitting the text into smaller parts or reducing the size.",
+  "errorTranslatingTextOpenAI": "Error translating text with OpenAI: {errorMessage}"
 }

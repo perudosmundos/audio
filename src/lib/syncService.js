@@ -1,0 +1,473 @@
+import { supabase } from './supabaseClient';
+import offlineDataService from './offlineDataService';
+
+class SyncService {
+  constructor() {
+    this.isOnline = navigator.onLine;
+    this.syncInProgress = false;
+    this.syncListeners = [];
+    this.networkListeners = [];
+    
+    // Инициализация слушателей сетевых событий
+    this.initNetworkListeners();
+    
+    // Автоматическая синхронизация при восстановлении соединения
+    this.setupAutoSync();
+  }
+
+  // Инициализация слушателей сетевых событий
+  initNetworkListeners() {
+    window.addEventListener('online', () => {
+      console.log('[Sync] Network connection restored');
+      this.isOnline = true;
+      this.notifyNetworkListeners(true);
+      this.syncOfflineChanges();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('[Sync] Network connection lost');
+      this.isOnline = false;
+      this.notifyNetworkListeners(false);
+    });
+
+    // Проверка соединения каждые 30 секунд
+    setInterval(() => {
+      this.checkConnection();
+    }, 30000);
+  }
+
+  // Настройка автоматической синхронизации
+  setupAutoSync() {
+    // Синхронизация при загрузке страницы, если онлайн
+    if (this.isOnline) {
+      setTimeout(() => this.syncOfflineChanges(), 1000);
+    }
+
+    // Периодическая синхронизация каждые 5 минут
+    setInterval(() => {
+      if (this.isOnline && !this.syncInProgress) {
+        this.syncOfflineChanges();
+      }
+    }, 5 * 60 * 1000);
+  }
+
+  // Проверка соединения
+  async checkConnection() {
+    try {
+      const response = await fetch('/ping', { 
+        method: 'HEAD', 
+        cache: 'no-cache',
+        timeout: 5000 
+      });
+      
+      const wasOnline = this.isOnline;
+      this.isOnline = response.ok;
+      
+      if (!wasOnline && this.isOnline) {
+        console.log('[Sync] Connection restored via ping');
+        this.notifyNetworkListeners(true);
+        this.syncOfflineChanges();
+      } else if (wasOnline && !this.isOnline) {
+        console.log('[Sync] Connection lost via ping');
+        this.notifyNetworkListeners(false);
+      }
+    } catch (error) {
+      if (this.isOnline) {
+        console.log('[Sync] Connection lost via ping error');
+        this.isOnline = false;
+        this.notifyNetworkListeners(false);
+      }
+    }
+  }
+
+  // Подписка на изменения сетевого состояния
+  onNetworkChange(callback) {
+    this.networkListeners.push(callback);
+    return () => {
+      this.networkListeners = this.networkListeners.filter(cb => cb !== callback);
+    };
+  }
+
+  // Подписка на события синхронизации
+  onSyncChange(callback) {
+    this.syncListeners.push(callback);
+    return () => {
+      this.syncListeners = this.syncListeners.filter(cb => cb !== callback);
+    };
+  }
+
+  // Уведомление слушателей о изменении сети
+  notifyNetworkListeners(isOnline) {
+    this.networkListeners.forEach(callback => {
+      try {
+        callback(isOnline);
+      } catch (error) {
+        console.error('[Sync] Network listener error:', error);
+      }
+    });
+  }
+
+  // Уведомление слушателей о синхронизации
+  notifySyncListeners(event, data = {}) {
+    this.syncListeners.forEach(callback => {
+      try {
+        callback(event, data);
+      } catch (error) {
+        console.error('[Sync] Sync listener error:', error);
+      }
+    });
+  }
+
+  // Получение статуса сети
+  getNetworkStatus() {
+    return {
+      isOnline: this.isOnline,
+      syncInProgress: this.syncInProgress
+    };
+  }
+
+  // Сохранение данных с автоматической синхронизацией
+  async saveData(type, data, operation = 'update') {
+    await offlineDataService.init();
+
+    try {
+      // Сохраняем локально
+      switch (type) {
+        case 'episode':
+          await offlineDataService.saveEpisode(data);
+          break;
+        case 'transcript':
+          await offlineDataService.saveTranscript(data);
+          break;
+        case 'questions':
+          await offlineDataService.saveQuestions(data.questions, data.episodeSlug, data.lang);
+          break;
+      }
+
+      // Если онлайн, пытаемся синхронизировать сразу
+      if (this.isOnline) {
+        try {
+          await this.syncDataToServer(type, data, operation);
+        } catch (error) {
+          console.log('[Sync] Immediate sync failed, adding to queue:', error);
+          await offlineDataService.addToSyncQueue(type, data, operation);
+        }
+      } else {
+        // Если офлайн, добавляем в очередь синхронизации
+        await offlineDataService.addToSyncQueue(type, data, operation);
+      }
+
+      return { success: true, offline: !this.isOnline };
+    } catch (error) {
+      console.error('[Sync] Failed to save data:', error);
+      throw error;
+    }
+  }
+
+  // Загрузка данных с поддержкой офлайн
+  async loadData(type, params) {
+    await offlineDataService.init();
+
+    try {
+      // Если онлайн, пытаемся загрузить с сервера
+      if (this.isOnline) {
+        try {
+          const serverData = await this.loadDataFromServer(type, params);
+          
+          // Сохраняем в локальный кеш
+          switch (type) {
+            case 'episode':
+              await offlineDataService.saveEpisode(serverData);
+              break;
+            case 'transcript':
+              await offlineDataService.saveTranscript(serverData);
+              break;
+            case 'questions':
+              await offlineDataService.saveQuestions(
+                serverData, 
+                params.episodeSlug, 
+                params.lang
+              );
+              break;
+          }
+          
+          return { data: serverData, source: 'server' };
+        } catch (error) {
+          console.log('[Sync] Server load failed, trying cache:', error);
+        }
+      }
+
+      // Загружаем из локального кеша
+      let cachedData;
+      switch (type) {
+        case 'episode':
+          cachedData = await offlineDataService.getEpisode(params.slug);
+          break;
+        case 'transcript':
+          cachedData = await offlineDataService.getTranscript(params.episodeSlug, params.lang);
+          break;
+        case 'questions':
+          cachedData = await offlineDataService.getQuestions(params.episodeSlug, params.lang);
+          break;
+        case 'episodes':
+          cachedData = await offlineDataService.getAllEpisodes();
+          break;
+      }
+
+      if (cachedData) {
+        return { data: cachedData, source: 'cache' };
+      }
+
+      throw new Error(`No ${type} data available offline`);
+    } catch (error) {
+      console.error(`[Sync] Failed to load ${type}:`, error);
+      throw error;
+    }
+  }
+
+  // Синхронизация данных с сервером
+  async syncDataToServer(type, data, operation) {
+    switch (type) {
+      case 'transcript':
+        return await this.syncTranscriptToServer(data, operation);
+      case 'questions':
+        return await this.syncQuestionsToServer(data, operation);
+      case 'episode':
+        return await this.syncEpisodeToServer(data, operation);
+      default:
+        throw new Error(`Unknown sync type: ${type}`);
+    }
+  }
+
+  // Загрузка данных с сервера
+  async loadDataFromServer(type, params) {
+    switch (type) {
+      case 'episode':
+        const { data: episodeData, error: episodeError } = await supabase
+          .from('episodes')
+          .select('*')
+          .eq('slug', params.slug)
+          .single();
+        
+        if (episodeError) throw episodeError;
+        return episodeData;
+
+      case 'transcript':
+        const { data: transcriptData, error: transcriptError } = await supabase
+          .from('transcripts')
+          .select('*')
+          .eq('episode_slug', params.episodeSlug)
+          .eq('lang', params.lang)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (transcriptError) throw transcriptError;
+        return transcriptData;
+
+      case 'questions':
+        const { data: questionsData, error: questionsError } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('episode_slug', params.episodeSlug)
+          .eq('lang', params.lang)
+          .order('time', { ascending: true });
+        
+        if (questionsError) throw questionsError;
+        return questionsData;
+
+      case 'episodes':
+        const { data: episodesData, error: episodesError } = await supabase
+          .from('episodes')
+          .select('*')
+          .order('date', { ascending: false });
+        
+        if (episodesError) throw episodesError;
+        return episodesData;
+
+      default:
+        throw new Error(`Unknown load type: ${type}`);
+    }
+  }
+
+  // Синхронизация транскрипта с сервером
+  async syncTranscriptToServer(data, operation) {
+    switch (operation) {
+      case 'update':
+        const { error: updateError } = await supabase
+          .from('transcripts')
+          .update({
+            edited_transcript_data: {
+              utterances: data.utterances,
+              words: data.words,
+              text: data.text
+            }
+          })
+          .eq('id', data.id);
+        
+        if (updateError) throw updateError;
+        break;
+
+      case 'create':
+        const { error: createError } = await supabase
+          .from('transcripts')
+          .insert(data);
+        
+        if (createError) throw createError;
+        break;
+
+      default:
+        throw new Error(`Unknown transcript operation: ${operation}`);
+    }
+  }
+
+  // Синхронизация вопросов с сервером
+  async syncQuestionsToServer(data, operation) {
+    switch (operation) {
+      case 'update':
+      case 'create':
+        // Удаляем существующие вопросы и создаем новые
+        const { error: deleteError } = await supabase
+          .from('questions')
+          .delete()
+          .eq('episode_slug', data.episodeSlug)
+          .eq('lang', data.lang);
+        
+        if (deleteError) throw deleteError;
+
+        if (data.questions && data.questions.length > 0) {
+          const { error: insertError } = await supabase
+            .from('questions')
+            .insert(data.questions);
+          
+          if (insertError) throw insertError;
+        }
+        break;
+
+      default:
+        throw new Error(`Unknown questions operation: ${operation}`);
+    }
+  }
+
+  // Синхронизация эпизода с сервером
+  async syncEpisodeToServer(data, operation) {
+    switch (operation) {
+      case 'update':
+        const { error: updateError } = await supabase
+          .from('episodes')
+          .update(data)
+          .eq('slug', data.slug);
+        
+        if (updateError) throw updateError;
+        break;
+
+      case 'create':
+        const { error: createError } = await supabase
+          .from('episodes')
+          .insert(data);
+        
+        if (createError) throw createError;
+        break;
+
+      default:
+        throw new Error(`Unknown episode operation: ${operation}`);
+    }
+  }
+
+  // Синхронизация всех офлайн изменений
+  async syncOfflineChanges() {
+    if (this.syncInProgress || !this.isOnline) {
+      return;
+    }
+
+    this.syncInProgress = true;
+    this.notifySyncListeners('sync_start');
+
+    try {
+      await offlineDataService.init();
+      const syncQueue = await offlineDataService.getSyncQueue();
+      
+      console.log(`[Sync] Processing ${syncQueue.length} offline changes`);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const item of syncQueue) {
+        try {
+          await this.syncDataToServer(item.type, item.data, item.operation);
+          await offlineDataService.removeSyncItem(item.id);
+          successCount++;
+          
+          this.notifySyncListeners('sync_item_success', {
+            type: item.type,
+            operation: item.operation
+          });
+        } catch (error) {
+          console.error(`[Sync] Failed to sync ${item.type}:`, error);
+          
+          const updatedItem = await offlineDataService.incrementSyncAttempts(item.id);
+          
+          if (updatedItem && updatedItem.attempts >= updatedItem.max_attempts) {
+            console.log(`[Sync] Max attempts reached for ${item.type}, removing from queue`);
+            await offlineDataService.removeSyncItem(item.id);
+          }
+          
+          errorCount++;
+          
+          this.notifySyncListeners('sync_item_error', {
+            type: item.type,
+            operation: item.operation,
+            error: error.message
+          });
+        }
+      }
+
+      console.log(`[Sync] Completed: ${successCount} success, ${errorCount} errors`);
+      
+      this.notifySyncListeners('sync_complete', {
+        successCount,
+        errorCount,
+        totalCount: syncQueue.length
+      });
+    } catch (error) {
+      console.error('[Sync] Sync process failed:', error);
+      this.notifySyncListeners('sync_error', { error: error.message });
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  // Принудительная синхронизация
+  async forcSync() {
+    if (!this.isOnline) {
+      throw new Error('Cannot sync while offline');
+    }
+    
+    return this.syncOfflineChanges();
+  }
+
+  // Очистка старых данных
+  async cleanupOldData(maxAge = 7 * 24 * 60 * 60 * 1000) {
+    await offlineDataService.init();
+    await offlineDataService.clearExpiredData(maxAge);
+    
+    // Уведомляем Service Worker об очистке кеша
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CLEAR_OLD_CACHE',
+        maxAge
+      });
+    }
+  }
+
+  // Получение статистики использования хранилища
+  async getStorageStats() {
+    await offlineDataService.init();
+    return await offlineDataService.getStorageUsage();
+  }
+}
+
+// Создаем единственный экземпляр сервиса
+const syncService = new SyncService();
+
+export default syncService;
