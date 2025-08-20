@@ -6,7 +6,7 @@ let openai;
 const initializeOpenAI = async () => {
   if (openai) return openai;
   try {
-    console.log("Attempting to fetch OpenAI API key via Edge Function...");
+
     const { data, error } = await supabase.functions.invoke('get-env-variables', {
       body: { variable_names: ['OPENAI_API_KEY'] }, 
     });
@@ -22,7 +22,7 @@ const initializeOpenAI = async () => {
     
     const OpenAI = (await import('openai')).default;
     openai = new OpenAI({ apiKey: data.OPENAI_API_KEY, dangerouslyAllowBrowser: true });
-    console.log("OpenAI API key fetched and client initialized successfully.");
+
     return openai;
   } catch (error) {
     console.error('Error initializing OpenAI:', error);

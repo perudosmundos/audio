@@ -67,7 +67,7 @@ const PlayerControls = ({
         variant="ghost" 
         size="icon"
         onClick={() => {
-          console.log('PlayerControls: Skip backward button clicked');
+      
           onSkip(-10);
         }}
         className={`text-white hover:text-white/80 hover:bg-white/15 ${controlSize}`}
@@ -80,7 +80,7 @@ const PlayerControls = ({
         variant="default" 
         size="icon"
         onClick={() => {
-          console.log('PlayerControls: Play/Pause button clicked', { isPlaying });
+      
           onPlayPause();
         }}
         className={`bg-white text-blue-700 hover:bg-white/90 rounded-full flex items-center justify-center shadow-lg ${mainButtonSize}`}
@@ -93,7 +93,7 @@ const PlayerControls = ({
         variant="ghost" 
         size="icon"
         onClick={() => {
-          console.log('PlayerControls: Skip forward button clicked');
+      
           onSkip(10);
         }}
         className={`text-white hover:text-white/80 hover:bg-white/10 ${controlSize}`}

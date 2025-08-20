@@ -11,7 +11,7 @@ const usePlayerState = (initialDuration = 0) => {
   const [addQuestionDialogInitialTime, setAddQuestionDialogInitialTime] = useState(0);
 
   const setIsPlayingStateWithLog = useCallback((value) => {
-    console.log('usePlayerState: setIsPlayingState called with', value);
+
     setIsPlayingState(value);
   }, []);
 

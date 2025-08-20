@@ -14,15 +14,7 @@ const usePlayerInitialization = ({
   jumpToTime, // Добавляем параметр для проверки активного перехода
 }) => {
   useEffect(() => {
-    console.log('usePlayerInitialization: Initializing player', { 
-      episodeSlug: episodeData?.slug, 
-      audioUrl: episodeData?.audio_url,
-      jumpToTime,
-      lastJumpIdProcessed: lastJumpIdProcessedRef?.current,
-      audioCurrentTime: audioRef.current?.currentTime,
-      audioReadyState: audioRef.current?.readyState,
-      audioSrc: audioRef.current?.src
-    });
+
     
     // Проверяем, есть ли активный переход
     const hasActiveJump = jumpToTime !== null && jumpToTime !== undefined;
@@ -41,10 +33,7 @@ const usePlayerInitialization = ({
     
     // Не сбрасываем currentTime, если есть активный переход или это просто пауза
     if (!hasActiveJump && !isJustPause) {
-      console.log('usePlayerInitialization: Resetting currentTime to 0');
       setCurrentTimeState(0);
-    } else {
-      console.log('usePlayerInitialization: Keeping currentTime', { hasActiveJump, isJustPause });
     }
     
     setActiveQuestionTitleState('');
@@ -54,10 +43,7 @@ const usePlayerInitialization = ({
     if (audioRef.current) {
       // Не сбрасываем currentTime аудио, если есть активный переход или это просто пауза
       if (!hasActiveJump && !isJustPause) {
-        console.log('usePlayerInitialization: Resetting audio currentTime to 0');
         audioRef.current.currentTime = 0;
-      } else {
-        console.log('usePlayerInitialization: Keeping audio currentTime', { hasActiveJump, isJustPause });
       }
       audioRef.current.playbackRate = playbackRateOptions[0].value;
       if (episodeData?.audio_url) {

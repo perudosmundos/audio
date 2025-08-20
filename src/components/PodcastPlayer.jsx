@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -60,7 +61,6 @@ const PodcastPlayer = ({
   const isSeekingRef = useRef(false);
   const lastJumpIdProcessedRef = useRef(null);
   const [skipEmptySegments, setSkipEmptySegments] = useState(false);
-  const [showPlayOverlay, setShowPlayOverlay] = useState(false);
 
   const langForContent = episodeData?.lang === 'all' ? currentLanguage : episodeData?.lang;
 
@@ -80,19 +80,12 @@ const PodcastPlayer = ({
     jumpToTime: episodeData?.jumpToTime,
   });
 
-  console.log('PodcastPlayer: About to call usePlayerTimeUpdates', {
-    hasAudioRef: !!audioRef.current,
-    questionsCount: internalQuestions?.length,
-    hasTranscript: !!episodeData?.transcript
-  });
-
   usePlayerPlayback({
     episodeData, audioRef, isPlayingState, setIsPlayingState,
     playPromiseRef, isSeekingRef, toast, currentLanguage,
     onPlayerStateChange, lastJumpIdProcessedRef, 
     jumpToTime: episodeData?.jumpToTime, jumpId: episodeData?.jumpId,
     playAfterJump: episodeData?.playAfterJump, setCurrentTimeState,
-    setShowPlayOverlay
   });
 
   const { handleTimeUpdate, handleLoadedMetadata } = usePlayerTimeUpdates({
@@ -143,17 +136,6 @@ const PodcastPlayer = ({
     }
   }, [navigateQuestion, handleSkip, togglePlayPause, seekAudio]);
 
-  useEffect(() => {
-    if (audioRef.current && episodeData && episodeData.audio_url) {
-      console.log('PodcastPlayer: Setting isPlaying to true for episode:', episodeData.audio_url);
-      // Устанавливаем состояние воспроизведения в true только если это новый эпизод
-      // или если аудио еще не было загружено
-      if (audioRef.current.src !== episodeData.audio_url || audioRef.current.readyState === 0) {
-      setIsPlayingState(true);
-      }
-    }
-  }, [audioRef, episodeData, setIsPlayingState]);
-
   const handleDownloadAudio = () => {
     if (episodeAudioUrl) {
       const link = document.createElement('a');
@@ -178,39 +160,12 @@ const PodcastPlayer = ({
     setIsAddQuestionPlayerDialogOpen(true);
   }, [currentTimeState, setAddQuestionDialogInitialTime, setIsAddQuestionPlayerDialogOpen]);
 
-  // Функция для ручного запуска play
-  const handleManualPlay = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.play().then(() => {
-        setShowPlayOverlay(false);
-        setIsPlayingState(true);
-        onPlayerStateChange?.({ isPlaying: true });
-      }).catch((error) => {
-        if (error.name !== 'AbortError') {
-          setShowPlayOverlay(true);
-        }
-      });
-    }
-  }, [audioRef, setIsPlayingState, onPlayerStateChange]);
-
 
   if (!episodeData) return <div className="p-4 text-center">{getLocaleString('selectAnEpisode', currentLanguage)}</div>;
 
   return (
     <>
     <div className="relative podcast-player bg-slate-800/50 p-2 sm:p-3 md:p-4 rounded-xl shadow-2xl border border-slate-700/40">
-      {/* Overlay для ручного запуска */}
-      {showPlayOverlay && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/70 rounded-xl">
-          <button
-            onClick={handleManualPlay}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg text-lg font-semibold shadow-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          >
-            ▶️ Нажмите для воспроизведения
-          </button>
-          <div className="mt-2 text-slate-200 text-sm">Браузер заблокировал автозапуск. Нажмите для старта аудио.</div>
-        </div>
-      )}
       <PlayerHeader 
         episodeTitle={episodeData.displayTitle}
         episodeDate={episodeData.date} 
@@ -243,21 +198,12 @@ const PodcastPlayer = ({
           currentLanguage={currentLanguage}
           currentTime={currentTimeState}
           duration={durationState}
-          onProgressChange={(time) => {
-            console.log('PodcastPlayer: onProgressChange called with', time);
-            handleProgressChange(time);
-          }}
+          onProgressChange={handleProgressChange}
           questions={internalQuestions}
           onQuestionSelectJump={onQuestionSelectJump}
           onNavigateQuestion={navigateQuestion}
-          onTogglePlayPause={() => {
-            console.log('PodcastPlayer: onTogglePlayPause called');
-            togglePlayPause();
-          }}
-          onSkip={(seconds) => {
-            console.log('PodcastPlayer: onSkip called with', seconds);
-            handleSkip(seconds);
-          }}
+          onTogglePlayPause={togglePlayPause}
+          onSkip={handleSkip}
           playerControlsContainerRef={playerControlsContainerRef}
           showTranscript={showTranscript}
           onToggleShowTranscript={onToggleShowTranscript}

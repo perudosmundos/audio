@@ -18,7 +18,7 @@ const AudioElement = React.memo(({
 
   React.useEffect(() => {
     if (audioRef.current && episodeAudioUrl) {
-      console.log('AudioElement: Setting src to', episodeAudioUrl);
+  
       // Устанавливаем src только если он изменился
       if (audioRef.current.src !== episodeAudioUrl) {
         audioRef.current.src = episodeAudioUrl;
@@ -38,15 +38,15 @@ const AudioElement = React.memo(({
   };
 
   const handleCanPlay = () => {
-    console.log('AudioElement: canplay event fired');
+    
   };
 
   const handleLoadStart = () => {
-    console.log('AudioElement: loadstart event fired');
+    
   };
 
   const handleLoadedData = () => {
-    console.log('AudioElement: loadeddata event fired');
+    
   };
 
   return (
@@ -60,8 +60,7 @@ const AudioElement = React.memo(({
       onCanPlay={handleCanPlay}
       onLoadStart={handleLoadStart}
       onLoadedData={handleLoadedData}
-      preload="metadata"
-      crossOrigin="anonymous"
+      preload="auto"
     />
   );
 });

@@ -90,6 +90,9 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
           (progress, details) => {
             setUploadProgress(progress);
             setUploadProgressDetails(details);
+            if (details?.message) {
+              console.log(`[Upload UI] ${file.name}: ${progress}% — ${details.message} (${details?.uploadedMB || '0.00'} / ${details?.totalMB || '0.00'} MB)`);
+            }
           },
           currentLanguage
         );

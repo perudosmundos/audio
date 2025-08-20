@@ -29,6 +29,8 @@ const PlayerPage = ({ currentLanguage, user }) => {
     questions,
     transcript,
     loading,
+    questionsLoading,
+    transcriptLoading,
     error,
     questionsUpdatedId,
     fetchEpisodeDetails,
@@ -162,13 +164,7 @@ const PlayerPage = ({ currentLanguage, user }) => {
       onTranscriptUpdate: handleTranscriptUpdate 
     };
 
-    console.log('PlayerPage: playerEpisodeDataMemo created', {
-      slug: playerData.slug,
-      audio_url: playerData.audio_url,
-      duration: playerData.duration,
-      questionsCount: playerData.questions?.length,
-      transcriptUtterancesCount: playerData.transcript?.utterances?.length
-    });
+
 
     return playerData;
   }, [episodeData, questions, transcript, jumpDetails, questionsUpdatedId, currentLanguage, handleTranscriptUpdate]);
@@ -189,7 +185,8 @@ const PlayerPage = ({ currentLanguage, user }) => {
     playerEpisodeDataMemo?.lang
   );
 
-  if (loading) {
+  // Пока не получили базовые данные эпизода — показываем простой лоадер
+  if (loading && !episodeData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-purple-400" />
@@ -198,11 +195,24 @@ const PlayerPage = ({ currentLanguage, user }) => {
     );
   }
 
-  if (error || !playerEpisodeDataMemo) {
+  // Не блокируем рендер плеера: если грузится только текст/вопросы — покажем их спиннеры ниже
+  if (!episodeData && !loading) {
     return (
       <div className="text-center p-8 bg-red-700/30 rounded-lg shadow-xl">
         <h2 className="text-xl font-bold mb-2">{getLocaleString('errorLoadingData', currentLanguage)}</h2>
-        <p className="max-w-md mx-auto">{error || getLocaleString('episodeNotFound', currentLanguage)}</p>
+        <p className="max-w-md mx-auto">{getLocaleString('episodeNotFound', currentLanguage)}</p>
+        <Button onClick={() => navigate('/episodes')} variant="outline" className="mt-4 bg-slate-700/50 hover:bg-slate-600/70 border-slate-600 text-slate-300 hover:text-white">
+          <ArrowLeft className="mr-2 h-4 w-4" /> {getLocaleString('backToEpisodesShort', currentLanguage)}
+        </Button>
+      </div>
+    );
+  }
+
+  if (error && !playerEpisodeDataMemo) {
+    return (
+      <div className="text-center p-8 bg-red-700/30 rounded-lg shadow-xl">
+        <h2 className="text-xl font-bold mb-2">{getLocaleString('errorLoadingData', currentLanguage)}</h2>
+        <p className="max-w-md mx-auto">{error}</p>
         <Button onClick={() => navigate('/episodes')} variant="outline" className="mt-4 bg-slate-700/50 hover:bg-slate-600/70 border-slate-600 text-slate-300 hover:text-white">
           <ArrowLeft className="mr-2 h-4 w-4" /> {getLocaleString('backToEpisodesShort', currentLanguage)}
         </Button>
@@ -224,28 +234,36 @@ const PlayerPage = ({ currentLanguage, user }) => {
       )}
       <div className="w-full max-w-3xl">
         <div ref={playerControlsContainerRef} className="mb-4">
-          <PodcastPlayer
-              key={playerEpisodeDataMemo.slug + '-' + playerEpisodeDataMemo.lang + '-' + playerEpisodeDataMemo.questionsUpdatedId + '-' + (playerEpisodeDataMemo.transcript?.utterances?.length || 0)}
-              episodeData={playerEpisodeDataMemo}
-              onQuestionUpdate={handleQuestionUpdate}
-              currentLanguage={currentLanguage}
-              onQuestionSelectJump={handleSeekToTime}
-              audioRef={audioRef} 
-              episodeSlug={playerEpisodeDataMemo.slug}
-              episodeAudioUrl={playerEpisodeDataMemo.audio_url}
-              episodeLang={playerEpisodeDataMemo.lang}
-              episodeDate={playerEpisodeDataMemo.date}
-              navigateBack={() => navigate('/episodes')}
-              onPlayerStateChange={handlePlayerStateChange}
-              playerControlsContainerRef={playerControlsContainerRef}
-              showTranscript={showTranscriptUI}
-              onToggleShowTranscript={handleToggleShowTranscript}
-              user={user}
-              onTranscriptUpdate={handleTranscriptUpdate}
-              fetchTranscriptForEpisode={fetchTranscriptForEpisode}
-          />
+          {playerEpisodeDataMemo && (
+            <PodcastPlayer
+                key={playerEpisodeDataMemo.slug + '-' + playerEpisodeDataMemo.lang}
+                episodeData={playerEpisodeDataMemo}
+                onQuestionUpdate={handleQuestionUpdate}
+                currentLanguage={currentLanguage}
+                onQuestionSelectJump={handleSeekToTime}
+                audioRef={audioRef} 
+                episodeSlug={playerEpisodeDataMemo.slug}
+                episodeAudioUrl={playerEpisodeDataMemo.audio_url}
+                episodeLang={playerEpisodeDataMemo.lang}
+                episodeDate={playerEpisodeDataMemo.date}
+                navigateBack={() => navigate('/episodes')}
+                onPlayerStateChange={handlePlayerStateChange}
+                playerControlsContainerRef={playerControlsContainerRef}
+                showTranscript={showTranscriptUI}
+                onToggleShowTranscript={handleToggleShowTranscript}
+                user={user}
+                onTranscriptUpdate={handleTranscriptUpdate}
+                fetchTranscriptForEpisode={fetchTranscriptForEpisode}
+            />
+          )}
         </div>
-        <div className="w-full">
+        <div className="w-full relative">
+          {(questionsLoading || transcriptLoading) && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-2 py-1 rounded-md bg-slate-800/70 backdrop-blur border border-slate-700/70 text-slate-300 text-xs flex items-center gap-1.5 shadow-md">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-400" />
+              <span>{getLocaleString('loadingTranscriptAndQuestions', currentLanguage) || 'Loading transcript and questions...'}</span>
+            </div>
+          )}
            <QuestionsManager
             questions={playerEpisodeDataMemo.questions || []}
             currentTime={playerState.currentTime}
@@ -268,7 +286,12 @@ const PlayerPage = ({ currentLanguage, user }) => {
             disableAutomaticCollapse={true}
             onOpenSpeakerAssignmentDialog={handleOpenSpeakerAssignmentDialog}
             transcriptUtterances={playerEpisodeDataMemo.transcript?.utterances || []}
+            transcriptId={playerEpisodeDataMemo.transcript?.id || null}
+            transcriptWords={playerEpisodeDataMemo.transcript?.words || []}
             segmentToHighlight={playerEpisodeDataMemo.segmentToHighlight}
+            isLoading={Boolean(questionsLoading)}
+            transcriptLoading={Boolean(transcriptLoading)}
+            onTranscriptLocalUpdate={setTranscript}
           />
         </div>
       </div>

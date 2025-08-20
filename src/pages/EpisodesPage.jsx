@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
-import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import EpisodesPageHeader from '@/components/episodes/EpisodesPageHeader';
-import EpisodesList from '@/components/episodes/EpisodesList';
-import EmptyState from '@/components/episodes/EmptyState';
-import FilterAndSearchControls from '@/components/episodes/FilterAndSearchControls';
 import { getLocaleString } from '@/lib/locales';
-import useEpisodeData from '@/hooks/player_page/useEpisodeData';
+import EpisodesList from '@/components/episodes/EpisodesList';
+import EpisodesPageHeader from '@/components/episodes/EpisodesPageHeader';
+import FilterAndSearchControls from '@/components/episodes/FilterAndSearchControls';
+import EmptyState from '@/components/episodes/EmptyState';
 
 const EpisodesPage = ({ currentLanguage }) => {
   const [episodes, setEpisodes] = useState([]);
@@ -22,8 +19,6 @@ const EpisodesPage = ({ currentLanguage }) => {
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
-
-
 
   const monthLabels = [
     "january", "february", "march", "april", "may", "june", 
@@ -151,7 +146,6 @@ const EpisodesPage = ({ currentLanguage }) => {
       <EpisodesPageHeader 
         currentLanguage={currentLanguage}
       />
-      
       <FilterAndSearchControls
         years={availableYears}
         months={availableMonths}

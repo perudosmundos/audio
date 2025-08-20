@@ -53,6 +53,7 @@ const assemblyAIService = {
         speaker_labels: true,
         punctuate: true,
         format_text: true,
+        words: true,
         dual_channel: false,
       };
 

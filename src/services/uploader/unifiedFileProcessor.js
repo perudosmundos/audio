@@ -254,6 +254,7 @@ export const processSingleItem = async ({
       }
     }
 
+    let finalTranscriptStatus = itemData.transcriptionStatus;
     if (upsertedEpisode.slug) {
       updateItemState(itemData.id, { transcriptionStatus: getLocaleString('startingTranscription', currentLanguage) });
       
@@ -272,7 +273,7 @@ export const processSingleItem = async ({
       if (existingTranscript && !userConfirmedOverwriteGlobal) {
         if (existingTranscript.status === 'completed') {
           shouldSubmitTranscription = false;
-          updateItemState(itemData.id, { transcriptionStatus: 'completed' });
+          finalTranscriptStatus = 'completed';
         } else if (existingTranscript.status === 'processing' && existingTranscript.assemblyai_transcript_id) {
           shouldSubmitTranscription = false;
           startPollingForItem(itemData, updateItemState, currentLanguage, toast, pollingIntervalsRef);
@@ -310,7 +311,7 @@ export const processSingleItem = async ({
       isUploading: false, 
       uploadComplete: true, 
       uploadError: null,
-      transcriptionStatus: existingTranscript?.status === 'completed' ? 'completed' : itemData.transcriptionStatus
+      transcriptionStatus: finalTranscriptStatus
     });
 
     return { success: true, requiresDialog: false };

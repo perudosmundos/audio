@@ -80,7 +80,7 @@ const useSegmentEditing = (
     let actionDetail = {};
 
     switch (actionType) {
-      case 'Split':
+      case 'Split': {
         if (textareaRef?.current && textareaRef.current.selectionStart !== undefined) {
           cursorPos = textareaRef.current.selectionStart;
         } else if (cursorPos === undefined || cursorPos === null) {
@@ -119,7 +119,8 @@ const useSegmentEditing = (
         newUtterances = [...utterances.slice(0, segmentIndexInAllUtterances), newSegment1, newSegment2, ...utterances.slice(segmentIndexInAllUtterances + 1)];
         actionDetail = { splitAt: cursorPos, segment1: newSegment1, segment2: newSegment2 };
         break;
-      case 'Merge':
+      }
+      case 'Merge': {
         const currentSegmentIndex = utterances.findIndex(utt => (utt.id || utt.start) === (segmentToModify.id || segmentToModify.start));
         if (currentSegmentIndex <= 0) {
           toast({ title: getLocaleString('errorMergingSegment', currentLanguage), description: getLocaleString('cannotMergeFirstSegment', currentLanguage), variant: 'destructive' });
@@ -132,10 +133,12 @@ const useSegmentEditing = (
         newUtterances = [...utterances.slice(0, currentSegmentIndex - 1), mergedSegment, ...utterances.slice(currentSegmentIndex + 1)];
         actionDetail = { mergedWith: previousSegment.id || previousSegment.start, resultingSegment: mergedSegment };
         break;
-      case 'Delete':
+      }
+      case 'Delete': {
         newUtterances = utterances.filter(utt => (utt.id || utt.start) !== (segmentToModify.id || segmentToModify.start));
         actionDetail = { deletedSegment: segmentToModify };
         break;
+      }
       default:
         return;
     }

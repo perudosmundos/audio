@@ -2,6 +2,7 @@
 node_modules/
 dist/
 build/
+.vercel/
 .env
 .env.*
 
@@ -73,3 +74,8 @@ Searches/
 
 # Android Studio projects
 AndroidStudioProjects/ 
+
+# Project specific
+uploads/
+depcheck-result.json
+eslint-report.json

@@ -20,24 +20,18 @@ const usePlayerNavigation = ({
 }) => {
 
   const handleProgressChange = useCallback((newTime) => {
-    console.log('usePlayerNavigation: handleProgressChange called with', newTime);
     if (audioRef.current && !isNaN(newTime)) {
       const clampedTime = Math.max(0, Math.min(durationState || 0, newTime));
-      console.log('usePlayerNavigation: Seeking to time', clampedTime);
+      
       onQuestionSelectJump(clampedTime, null, isPlayingState);
-    } else {
-      console.log('usePlayerNavigation: Invalid time or no audio ref', { newTime, hasAudioRef: !!audioRef.current });
     }
   }, [audioRef, durationState, onQuestionSelectJump, isPlayingState]);
 
   const handleSkip = useCallback((seconds) => {
-    console.log('usePlayerNavigation: handleSkip called with', seconds);
     if (audioRef.current) {
       const newTime = audioRef.current.currentTime + seconds;
-      console.log('usePlayerNavigation: Skipping to time', newTime);
+      
       onQuestionSelectJump(newTime, null, isPlayingState);
-    } else {
-      console.log('usePlayerNavigation: No audio ref for skip');
     }
   }, [onQuestionSelectJump, audioRef, isPlayingState]);
 
@@ -83,16 +77,10 @@ const usePlayerNavigation = ({
   }, [onQuestionSelectJump]);
 
   const togglePlayPause = useCallback(() => {
-    console.log('usePlayerNavigation: togglePlayPause called', { 
-      isPlayingState, 
-      hasAudioUrl: !!episodeData?.audio_url,
-      hasAudioRef: !!audioRef.current,
-      audioCurrentTime: audioRef.current?.currentTime,
-      audioPaused: audioRef.current?.paused
-    });
+
     
     if (!episodeData?.audio_url && audioRef.current) {
-        console.log('usePlayerNavigation: No audio URL available');
+
         toast({ title: getLocaleString('errorGeneric', currentLanguage), description: getLocaleString('noAudioSource', currentLanguage), variant: 'destructive' });
         setIsPlayingState(false);
         onPlayerStateChange?.({isPlaying: false});
@@ -103,11 +91,7 @@ const usePlayerNavigation = ({
     const audioIsActuallyPlaying = audioRef.current && !audioRef.current.paused;
     const newIsPlaying = !audioIsActuallyPlaying;
     
-    console.log('usePlayerNavigation: Audio state check', { 
-      audioIsActuallyPlaying, 
-      newIsPlaying, 
-      isPlayingState 
-    });
+
     
     setIsPlayingState(newIsPlaying);
     onPlayerStateChange?.({isPlaying: newIsPlaying});

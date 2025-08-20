@@ -207,13 +207,34 @@ export const processTranscriptData = (data) => {
     return { ...data, utterances: [] };
   }
 
+  // Debug: basic stats before processing
+  try {
+    console.log('[TranscriptProcessing] Incoming utterances:', data.utterances.length);
+  } catch (e) {}
+
   const processedUtterances = data.utterances.flatMap(utt => {
     const utteranceWithWords = {
       ...utt,
       words: data.words?.filter(w => w.start >= utt.start && w.end <= utt.end && w.confidence > 0) || utt.words || []
     };
-    return splitLongUtterance(utteranceWithWords);
+    const splitted = splitLongUtterance(utteranceWithWords);
+    try {
+      if ((utt.end - utt.start) > 120000) {
+        console.log('[TranscriptProcessing] Long utterance detected:', {
+          start: utt.start,
+          end: utt.end,
+          durationMs: utt.end - utt.start,
+          originalTextLen: (utt.text || '').length,
+          splitCount: splitted.length
+        });
+      }
+    } catch (e) {}
+    return splitted;
   }).filter(utt => utt.text && utt.text.trim() !== "");
   
+  try {
+    console.log('[TranscriptProcessing] Processed utterances:', processedUtterances.length);
+  } catch (e) {}
+
   return { ...data, utterances: processedUtterances, words: data.words };
 };

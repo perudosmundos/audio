@@ -14,7 +14,6 @@ import OverwriteDialog from '@/components/uploader/OverwriteDialog';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatShortDate } from '@/lib/utils';
-import AnchorIntegration from '@/components/AnchorIntegration';
 
 const ManageEpisodesList = ({ currentLanguage }) => {
   const [episodes, setEpisodes] = useState([]);
@@ -307,18 +306,15 @@ const ManagePage = ({ currentLanguage }) => {
       )}
       
       <div className="flex items-center justify-between mt-8">
-        <div className="flex gap-2">
-          <Button 
-              onClick={open} 
-              variant="outline"
-              className="border-purple-500 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 focus-visible:ring-purple-500"
-              disabled={isProcessingAll}
-          >
-              <PlusCircle className="mr-2 h-5 w-5" />
-              {getLocaleString('addAnotherFile', currentLanguage)}
-          </Button>
-          <AnchorIntegration currentLanguage={currentLanguage} />
-        </div>
+        <Button 
+            onClick={open} 
+            variant="outline"
+            className="border-purple-500 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200 focus-visible:ring-purple-500"
+            disabled={isProcessingAll}
+        >
+            <PlusCircle className="mr-2 h-5 w-5" />
+            {getLocaleString('addAnotherFile', currentLanguage)}
+        </Button>
         <Button 
           onClick={handleProcessAllFiles} 
           disabled={isProcessingAll || filesToProcess.length === 0 || filesToProcess.every(fd => fd.isUploading || fd.uploadComplete || fd.uploadError)} 

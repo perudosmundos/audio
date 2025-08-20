@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Search as SearchIcon, ArrowLeft, FileText, MessageSquare } from 'lucide-react';
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { formatShortDate } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import Fuse from 'fuse.js';
 
 const HighlightedText = ({ text, highlightParts }) => {
@@ -50,7 +51,13 @@ const SearchResultItem = ({ item, searchTerm, type, episodeTitle }) => {
   const textToHighlight = type === 'question' ? item.questionTitle : item.segmentText;
 
   return (
-     <li className="p-3 bg-slate-700/60 rounded-lg hover:bg-slate-600/70 transition-colors animate-fade-in-up">
+     <motion.li
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+      className="p-3 bg-slate-700/60 rounded-lg hover:bg-slate-600/70 transition-colors"
+    >
       <Link 
         to={linkTarget}
         className="block group"
@@ -67,7 +74,7 @@ const SearchResultItem = ({ item, searchTerm, type, episodeTitle }) => {
           </div>
         )}
       </Link>
-    </li>
+    </motion.li>
   )
 }
 
@@ -301,7 +308,13 @@ const DeepSearchPage = ({ currentLanguage }) => {
             {getPluralizedLocaleString('searchResultsCount', currentLanguage, totalResultCount, { count: totalResultCount, query: searchTerm })}
           </h2>
           
-          <ul
+          <motion.ul
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: { opacity: 1, transition: { staggerChildren: 0.07 } },
+              hidden: { opacity: 0 },
+            }}
             className="space-y-3"
           >
             {allResults.map((item) => (
@@ -313,7 +326,7 @@ const DeepSearchPage = ({ currentLanguage }) => {
                 episodeTitle={episodeTitlesMap[item.episodeSlug] || item.episodeSlug}
               />
             ))}
-          </ul>
+          </motion.ul>
         </div>
       )}
     </div>

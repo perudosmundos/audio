@@ -132,7 +132,7 @@ window.fetch = function(...args) {
 			return response;
 		})
 		.catch(error => {
-			if (!url.match(/\.html?$/i)) {
+			if (!url.match(/\\.html?$/i)) {
 				console.error(error);
 			}
 
@@ -176,25 +176,33 @@ const addTransformIndexHtml = {
 	},
 };
 
-console.warn = () => {};
+// Limit noisy warnings and error filtering to development only
+if (isDev) {
+    console.warn = () => {};
+}
 
 const logger = createLogger()
 const loggerError = logger.error
 
-logger.error = (msg, options) => {
-	if (options?.error?.toString().includes('CssSyntaxError: [postcss]')) {
-		return;
-	}
+if (isDev) {
+    logger.error = (msg, options) => {
+        if (options?.error?.toString().includes('CssSyntaxError: [postcss]')) {
+            return;
+        }
 
-	loggerError(msg, options);
+        loggerError(msg, options);
+    }
 }
+
+// Enable error/console overlay injection only for development or when explicitly requested
+const enableDebugOverlays = isDev || process.env.VITE_DEBUG_OVERLAYS === 'true';
 
 export default defineConfig({
 	customLogger: logger,
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin()] : []),
 		react(),
-		addTransformIndexHtml
+        ...(enableDebugOverlays ? [addTransformIndexHtml] : [])
 	],
 	server: {
 		cors: {
@@ -207,95 +215,7 @@ export default defineConfig({
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
 		allowedHosts: true,
-		proxy: {
-			'/api': {
-				target: 'http://localhost:3000',
-				changeOrigin: true,
-				configure: (proxy, options) => {
-					proxy.on('proxyReq', (proxyReq, req, res) => {
-						// Добавляем CORS заголовки для API
-						proxyReq.setHeader('Origin', 'http://localhost:5173');
-						
-						// Передаем Range заголовки для поддержки перемотки
-						if (req.headers.range) {
-							proxyReq.setHeader('Range', req.headers.range);
-						}
-					});
-					proxy.on('proxyRes', (proxyRes, req, res) => {
-						// Добавляем CORS заголовки в ответ
-						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
-						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
-						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
-					});
-				}
-			},
-			'/audio-proxy': {
-				target: 'https://audio.alexbrin102.workers.dev',
-				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/audio-proxy/, ''),
-				configure: (proxy, options) => {
-					proxy.on('proxyReq', (proxyReq, req, res) => {
-						// Добавляем CORS заголовки для прокси
-						proxyReq.setHeader('Origin', 'https://audio.alexbrin102.workers.dev');
-						
-						// Передаем Range заголовки для поддержки перемотки
-						if (req.headers.range) {
-							proxyReq.setHeader('Range', req.headers.range);
-						}
-					});
-					proxy.on('proxyRes', (proxyRes, req, res) => {
-						// Добавляем CORS заголовки в ответ
-						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
-						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
-						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
-						
-						// Передаем заголовки для поддержки Range запросов
-						if (proxyRes.headers['accept-ranges']) {
-							res.setHeader('Accept-Ranges', proxyRes.headers['accept-ranges']);
-						}
-						if (proxyRes.headers['content-range']) {
-							res.setHeader('Content-Range', proxyRes.headers['content-range']);
-						}
-						if (proxyRes.headers['content-length']) {
-							res.setHeader('Content-Length', proxyRes.headers['content-length']);
-						}
-					});
-				}
-			},
-			'/audio-secondary-proxy': {
-				target: 'https://audio-secondary.alexbrin102.workers.dev',
-				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/audio-secondary-proxy/, ''),
-				configure: (proxy, options) => {
-					proxy.on('proxyReq', (proxyReq, req, res) => {
-						// Добавляем CORS заголовки для прокси
-						proxyReq.setHeader('Origin', 'https://audio-secondary.alexbrin102.workers.dev');
-						
-						// Передаем Range заголовки для поддержки перемотки
-						if (req.headers.range) {
-							proxyReq.setHeader('Range', req.headers.range);
-						}
-					});
-					proxy.on('proxyRes', (proxyRes, req, res) => {
-						// Добавляем CORS заголовки в ответ
-						proxyRes.headers['Access-Control-Allow-Origin'] = '*';
-						proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS';
-						proxyRes.headers['Access-Control-Allow-Headers'] = 'Range, Accept-Ranges, Content-Range';
-						
-						// Передаем заголовки для поддержки Range запросов
-						if (proxyRes.headers['accept-ranges']) {
-							res.setHeader('Accept-Ranges', proxyRes.headers['accept-ranges']);
-						}
-						if (proxyRes.headers['content-range']) {
-							res.setHeader('Content-Range', proxyRes.headers['content-range']);
-						}
-						if (proxyRes.headers['content-length']) {
-							res.setHeader('Content-Length', proxyRes.headers['content-length']);
-						}
-					});
-				}
-			}
-		}
+		proxy: {}
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
@@ -304,6 +224,16 @@ export default defineConfig({
 		},
 	},
 	build: {
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: !isDev,
+				drop_debugger: !isDev,
+			},
+			format: {
+				comments: false,
+			},
+		},
 		rollupOptions: {
 			external: [
 				'@babel/parser',

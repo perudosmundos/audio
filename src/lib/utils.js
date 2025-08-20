@@ -33,32 +33,19 @@ export const getFileNameWithoutExtension = (filename) => {
 
 export const formatShortDate = (dateString, language = 'ru') => {
   if (!dateString) return '';
-  
+
   const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now - date);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 1) {
-    return language === 'ru' ? 'Вчера' : language === 'es' ? 'Ayer' : 'Yesterday';
-  } else if (diffDays === 2) {
-    return language === 'ru' ? 'Позавчера' : language === 'es' ? 'Anteayer' : 'Day before yesterday';
-  } else if (diffDays <= 7) {
-    return language === 'ru' ? `${diffDays} дней назад` : language === 'es' ? `Hace ${diffDays} días` : `${diffDays} days ago`;
-  }
-  
-  const options = { 
-    day: 'numeric', 
-    month: 'long' 
-  };
-  
-  if (language === 'ru') {
-    options.locale = 'ru-RU';
-  } else if (language === 'es') {
-    options.locale = 'es-ES';
-  } else {
-    options.locale = 'en-US';
-  }
-  
-  return date.toLocaleDateString(options.locale, options);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}.${month}.${year}`;
 };
+
+// Функция для преобразования аудио URL через прокси (для обхода CORS)
+export const getProxiedAudioUrl = (originalUrl) => originalUrl;
+
+// Функция для проверки доступности прокси
+export const testProxyAvailability = async () => true;
+
+// Функция для получения URL с fallback
+export const getAudioUrlWithFallback = async (originalUrl) => originalUrl;

@@ -29,15 +29,12 @@ const usePlayerTimeUpdates = ({
 
   const handleTimeUpdate = useCallback(() => {
     if (!audioRef.current || isSeekingRef.current) {
-      console.log('usePlayerTimeUpdates: Skipping time update', { 
-        hasAudioRef: !!audioRef.current, 
-        isSeeking: isSeekingRef.current 
-      });
+
       return;
     }
 
     const currentTime = audioRef.current.currentTime;
-    console.log('usePlayerTimeUpdates: Time update', { currentTime, duration: audioRef.current.duration });
+
     setCurrentTimeState(currentTime);
 
     if (skipEmptySegments && transcript?.utterances && transcript.utterances.length > 0) {

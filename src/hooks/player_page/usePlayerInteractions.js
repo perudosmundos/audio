@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug, questions, initialShowTranscript = false) => {
@@ -9,6 +9,8 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
   const [playerState, setPlayerState] = useState({ isPlaying: false, currentTime: 0, duration: 0, activeQuestionTitle: '' });
   const [showTranscriptUI, setShowTranscriptUI] = useState(initialShowTranscript);
 
+
+  const didDefaultAutoplayRef = useRef(false);
 
   useEffect(() => {
     const hash = location.hash;
@@ -29,15 +31,31 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
       } else if (questionMatch) {
         const questionId = questionMatch[1];
         const play = hash.includes('&play=true');
-        const question = questions.find(q => String(q.id) === questionId || q.slug === questionId); 
+        let question = questions.find(q => String(q.id) === questionId || q.slug === questionId);
         console.log('usePlayerInteractions: Found question for jump', { questionId, question, play });
         if (question) {
           setJumpDetails({ time: question.time, id: `question-${questionId}`, questionId: questionId, playAfterJump: play, segmentToHighlight: null });
+        } else {
+          // Если вопросы ещё не подгрузились, повторим попытку позже
+          const retry = setTimeout(() => {
+            const q2 = questions.find(q => String(q.id) === questionId || q.slug === questionId);
+            if (q2) {
+              setJumpDetails({ time: q2.time, id: `question-${questionId}`, questionId: questionId, playAfterJump: play, segmentToHighlight: null });
+            }
+            clearTimeout(retry);
+          }, 600);
         }
       }
     } else {
-      console.log('usePlayerInteractions: No hash found, clearing jump details');
-      setJumpDetails({ time: null, id: null, questionId: null, playAfterJump: false, segmentToHighlight: null });
+      // Нет якоря — включаем автозапуск с начала один раз
+      if (!didDefaultAutoplayRef.current) {
+        didDefaultAutoplayRef.current = true;
+        const newHash = '#segment-0&play=true';
+        if (location.hash !== newHash) {
+          navigate(`${location.pathname}${newHash}`, { replace: true, state: location.state });
+        }
+        setJumpDetails({ time: 0, id: 'segment-0', questionId: null, playAfterJump: true, segmentToHighlight: 0 });
+      }
     }
   }, [location.hash, questions, episodeSlug]);
 

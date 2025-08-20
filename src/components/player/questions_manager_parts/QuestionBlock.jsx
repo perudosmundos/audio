@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Edit, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getLocaleString } from '@/lib/locales';
 import { formatFullTime } from '@/lib/utils';
@@ -97,7 +97,8 @@ const QuestionBlock = React.memo(({
   readingModeEditingActive,
   setReadingModeEditingSegmentRef,
   onOpenSpeakerAssignmentDialog,
-  segmentToHighlight
+  segmentToHighlight,
+  transcriptLoading
 }) => {
   const [visibleSegmentsCount, setVisibleSegmentsCount] = useState(isReadingMode ? Infinity : 5);
 
@@ -129,8 +130,11 @@ const QuestionBlock = React.memo(({
   useEffect(() => {
     if (segmentToHighlight && isExpanded && segments.length > visibleSegmentsCount) {
       const segmentIndex = segments.findIndex(s => s.start === segmentToHighlight);
-      if (segmentIndex !== -1 && segmentIndex >= visibleSegmentsCount) {
-        setVisibleSegmentsCount(segments.length); // Show all segments
+      if (segmentIndex !== -1) {
+        const desiredVisible = Math.min(segments.length, segmentIndex + 6); // target + 5 after
+        if (desiredVisible > visibleSegmentsCount) {
+          setVisibleSegmentsCount(desiredVisible);
+        }
       }
     }
   }, [segmentToHighlight, isExpanded, segments, visibleSegmentsCount]);
@@ -139,7 +143,20 @@ const QuestionBlock = React.memo(({
     setVisibleSegmentsCount(prev => prev + 10);
   }, []);
 
-  const blockHighlightClass = isActiveQuestion && !isReadingMode
+  const isFullTranscriptBlock = Boolean(question?.is_full_transcript) || question?.id === 'full-transcript-virtual';
+  const isActiveBySegment = (
+    !isReadingMode &&
+    !isFullTranscriptBlock &&
+    typeof activeSegmentTime === 'number' &&
+    Array.isArray(segments) &&
+    segments.some(s => typeof s.start === 'number' && typeof s.end === 'number' && activeSegmentTime >= s.start && activeSegmentTime < s.end)
+  );
+
+  // Highlight rules: when playing, highlight only the block that contains the current segment;
+  // when paused/stopped, highlight the clicked/active question
+  const shouldHighlight = !isReadingMode && ((mainPlayerIsPlaying && isActiveBySegment) || (!mainPlayerIsPlaying && isActiveQuestion));
+
+  const blockHighlightClass = shouldHighlight && !isReadingMode
     ? (isJumpTarget && isExpanded ? 'ring-1 ring-purple-500/30' : 'bg-purple-600/10 ring-1 ring-purple-500/20')
     : '';
 
@@ -182,7 +199,7 @@ const QuestionBlock = React.memo(({
       <div className={`mb-0.5 rounded-md ${blockHighlightClass} ${isReadingMode ? 'reading-mode-block' : ''}`}>
         <QuestionBlockHeader
           question={question}
-          isActiveQuestion={isActiveQuestion}
+          isActiveQuestion={shouldHighlight}
           isExpanded={isExpanded || !!editingSegment} 
           editingSegment={editingSegment}
           onActivate={onActivate}
@@ -210,14 +227,14 @@ const QuestionBlock = React.memo(({
                 isSaving={isSaving}
                 setEditedText={setEditedText}
                 audioRef={audioRef}
-                segmentPlaying={false} 
+                segmentPlaying={mainPlayerIsPlaying}
                 onAddQuestionFromSegment={onAddQuestionFromSegment}
                 performActionWithConfirmation={performActionWithConfirmation}
                 setTextareaRef={setInternalTextareaRef}
                 handleLoadMoreSegments={handleLoadMoreSegments}
                 toggleTextExpansion={onToggleExpansion}
                 isJumpTarget={isJumpTarget}
-                isActiveQuestionBlock={isActiveQuestion}
+                isActiveQuestionBlock={shouldHighlight}
                 isExpanded={isExpanded}
                 isReadingMode={isReadingMode}
                 readingModeEditingActive={readingModeEditingActive}
@@ -229,7 +246,12 @@ const QuestionBlock = React.memo(({
              <div 
                className={`text-xs pt-1.5 pl-1.5 mt-1 rounded-b-md pb-2 ${isReadingMode ? 'text-slate-600' : 'text-slate-400 border-t border-slate-700/20'}`}
              >
-               {getLocaleString('noTranscriptData', currentLanguage)}
+               <span className="inline-flex items-center gap-1.5">
+                 {transcriptLoading && (
+                   <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-400" />
+                 )}
+                 {getLocaleString('noTranscriptData', currentLanguage)}
+               </span>
              </div>
            )}
       </div>

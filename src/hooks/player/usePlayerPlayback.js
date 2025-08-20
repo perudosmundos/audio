@@ -20,16 +20,7 @@ const usePlayerPlayback = ({
   const playPromiseRef = useRef(null);
 
   useEffect(() => {
-    console.log('usePlayerPlayback: jumpToTime effect triggered', { 
-      jumpToTime, 
-      jumpId, 
-      playAfterJump, 
-      hasAudioRef: !!audioRef.current,
-      lastJumpIdProcessed: lastJumpIdProcessedRef?.current
-    });
-    
     if (jumpToTime === null || jumpToTime === undefined || !audioRef.current) {
-      console.log('usePlayerPlayback: Skipping jump - invalid conditions');
       return;
     }
     
@@ -37,12 +28,10 @@ const usePlayerPlayback = ({
     const id = jumpId;
 
     if (isNaN(time)) {
-      console.log('usePlayerPlayback: Skipping jump - invalid time');
       return;
     }
 
     if (lastJumpIdProcessedRef && lastJumpIdProcessedRef.current === id) {
-      console.log('usePlayerPlayback: Skipping jump - already processed');
       return;
     }
     
@@ -50,18 +39,15 @@ const usePlayerPlayback = ({
       lastJumpIdProcessedRef.current = id;
     }
     
-    console.log('usePlayerPlayback: Performing seek to time', { time, id, playAfterJump });
+
 
     const performSeek = async () => {
-      console.log('usePlayerPlayback: performSeek started', { time, playAfterJump });
-      
       if (!audioRef.current || isSeekingRef.current) {
-        console.log('usePlayerPlayback: performSeek skipped - no audio ref or already seeking');
         return;
       }
       
       isSeekingRef.current = true;
-      console.log('usePlayerPlayback: Setting seeking flag');
+
       
       // Cancel any pending play promise
       if (playPromiseRef.current) {
@@ -69,7 +55,6 @@ const usePlayerPlayback = ({
       }
       
       if (!audioRef.current.paused) {
-        console.log('usePlayerPlayback: Pausing audio before seek');
         audioRef.current.pause();
       }
       
@@ -80,18 +65,16 @@ const usePlayerPlayback = ({
       onPlayerStateChange?.({ currentTime: time });
       
       // Set the audio element's time
-      console.log('usePlayerPlayback: Setting audio currentTime to', time);
       audioRef.current.currentTime = time;
 
       const onSeeked = () => {
-        console.log('usePlayerPlayback: seeked event fired');
         audioRef.current?.removeEventListener('seeked', onSeeked);
         
         if (playAfterJump) {
-          console.log('usePlayerPlayback: Starting playback after seek');
+
           playPromiseRef.current = audioRef.current.play();
           playPromiseRef.current?.then(() => {
-            console.log('usePlayerPlayback: Playback started after seek');
+
             setIsPlayingState(true);
             onPlayerStateChange?.({ isPlaying: true });
           }).catch(e => {
@@ -100,12 +83,10 @@ const usePlayerPlayback = ({
             setIsPlayingState(false);
             onPlayerStateChange?.({ isPlaying: false });
           }).finally(() => {
-            console.log('usePlayerPlayback: Clearing seeking flag after play');
             isSeekingRef.current = false;
           });
         } else {
           // If not playing after jump, we are paused.
-          console.log('usePlayerPlayback: Keeping paused after seek');
           setIsPlayingState(false);
           onPlayerStateChange?.({ isPlaying: false });
           isSeekingRef.current = false;
@@ -137,30 +118,36 @@ const usePlayerPlayback = ({
 
 
   useEffect(() => {
-    console.log('usePlayerPlayback: useEffect triggered', { 
-      isPlayingState, 
-      hasAudioUrl: !!episodeData?.audio_url,
-      audioUrl: episodeData?.audio_url,
-      isSeeking: isSeekingRef.current,
-      audioPaused: audioRef.current?.paused
-    });
-    
     if (audioRef.current && !isSeekingRef.current) {
-      if (isPlayingState && episodeData?.audio_url) {
-        console.log('usePlayerPlayback: Attempting to play audio');
+      // Если URL есть и это первый запуск без явного перехода, попробуем автостарт
+      if (episodeData?.audio_url && !isPlayingState && (jumpToTime === null || typeof jumpToTime === 'undefined')) {
         if (audioRef.current.src !== episodeData.audio_url) {
-           console.log('usePlayerPlayback: Setting new src');
+          audioRef.current.src = episodeData.audio_url;
+          audioRef.current.load();
+        }
+        // Пытаемся начать воспроизведение (браузер может заблокировать, это ок)
+        const p = audioRef.current.play();
+        p?.then(() => {
+          setIsPlayingState(true);
+          onPlayerStateChange?.({ isPlaying: true });
+        }).catch(() => {
+          // Тихо игнорируем — пользователь начнёт вручную
+        });
+      } else if (isPlayingState && episodeData?.audio_url) {
+  
+        if (audioRef.current.src !== episodeData.audio_url) {
+           
            audioRef.current.src = episodeData.audio_url;
            audioRef.current.load();
         }
         if (audioRef.current.paused) {
-            console.log('usePlayerPlayback: Audio is paused, starting playback');
+  
             if (playPromiseRef.current) {
                 playPromiseRef.current.catch(() => {});
             }
             playPromiseRef.current = audioRef.current.play();
             playPromiseRef.current?.then(() => {
-              console.log('usePlayerPlayback: Playback started successfully');
+              // no-op
             }).catch(error => {
               if (error.name !== 'AbortError') {
                   console.error("Playback error:", error);
@@ -173,25 +160,14 @@ const usePlayerPlayback = ({
               setIsPlayingState(false);
               onPlayerStateChange?.({isPlaying: false});
             });
-        } else {
-          console.log('usePlayerPlayback: Audio is already playing');
         }
       } else {
         if (!audioRef.current.paused) {
-            console.log('usePlayerPlayback: Pausing audio, currentTime before pause:', audioRef.current.currentTime);
             audioRef.current.pause();
-            console.log('usePlayerPlayback: Audio paused, currentTime after pause:', audioRef.current.currentTime);
         }
       }
-    } else {
-      console.log('usePlayerPlayback: Skipping playback logic', {
-        hasAudioRef: !!audioRef.current,
-        isSeeking: isSeekingRef.current,
-        isPlayingState,
-        hasAudioUrl: !!episodeData?.audio_url
-      });
     }
-  }, [isPlayingState, episodeData?.audio_url]);
+  }, [isPlayingState, episodeData?.audio_url, jumpToTime]);
 
   // Синхронизация состояния с реальным состоянием аудио элемента
   useEffect(() => {

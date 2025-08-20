@@ -7,32 +7,23 @@ const ProgressBar = ({ currentTime, duration, sections, onProgressChange, onSect
   const progressBarRef = useRef(null);
 
   const handleProgressInteraction = useCallback((clientX) => {
-    console.log('ProgressBar: handleProgressInteraction called with clientX', clientX);
+
     if (progressBarRef.current && duration > 0) {
       const rect = progressBarRef.current.getBoundingClientRect();
       const clickPosition = (clientX - rect.left) / rect.width;
       const newTime = Math.max(0, Math.min(duration, clickPosition * duration));
-      console.log('ProgressBar: Calculated new time', { clickPosition, newTime, duration });
       if (typeof onProgressChange === 'function' && !isNaN(newTime)) {
-        console.log('ProgressBar: Calling onProgressChange with', newTime);
         onProgressChange(newTime);
       } else {
-        console.log('ProgressBar: onProgressChange is not a function or invalid time', { 
-          isFunction: typeof onProgressChange === 'function', 
-          newTime, 
-          isValid: !isNaN(newTime) 
-        });
+
       }
     } else {
-      console.log('ProgressBar: No progress bar ref or invalid duration', { 
-        hasRef: !!progressBarRef.current, 
-        duration 
-      });
+
     }
   }, [duration, onProgressChange]);
 
   const handleMouseClick = (e) => {
-    console.log('ProgressBar: Mouse click detected');
+
     handleProgressInteraction(e.clientX);
   };
 
