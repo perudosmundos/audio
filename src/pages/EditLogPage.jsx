@@ -61,7 +61,11 @@ const EditLogPage = ({ currentLanguage, user }) => {
 
   const handleRevert = async (logEntry) => {
     if (!user) {
-      toast({ title: "Authentication Error", description: "You must be logged in to revert changes.", variant: "destructive"});
+      toast({ 
+        title: getLocaleString('authenticationError', currentLanguage), 
+        description: getLocaleString('mustBeLoggedInToRevert', currentLanguage), 
+        variant: 'destructive'
+      });
       return;
     }
     setRevertingId(logEntry.id);
@@ -98,10 +102,10 @@ const EditLogPage = ({ currentLanguage, user }) => {
             <div className="flex flex-wrap justify-between items-start gap-2">
               <div>
                 <p className="font-semibold text-white">
-                  <span className="text-purple-300 font-bold">{log.action_type.toUpperCase()}</span> on {log.entity_type}
+                  <span className="text-purple-300 font-bold">{log.action_type.toUpperCase()}</span> {getLocaleString('onWord', currentLanguage)} {log.entity_type}
                 </p>
                 <p className="text-xs text-slate-400">
-                  <span className="font-medium text-slate-300">{log.user_email || 'N/A'}</span> at {format(new Date(log.created_at), 'Pp', { locale: dateLocales[currentLanguage] || enUS })}
+                  <span className="font-medium text-slate-300">{log.user_email || getLocaleString('notAvailableAbbr', currentLanguage)}</span> {getLocaleString('atWord', currentLanguage)} {format(new Date(log.created_at), 'Pp', { locale: dateLocales[currentLanguage] || enUS })}
                 </p>
                  <p className="text-xs text-slate-400">{getLocaleString('episodeTitle', currentLanguage)}: <span className="font-mono text-slate-300">{log.episode_slug}</span> | ID: <span className="font-mono text-slate-300">{log.entity_id}</span></p>
               </div>
@@ -118,7 +122,7 @@ const EditLogPage = ({ currentLanguage, user }) => {
                     disabled={revertingId === log.id || !user}
                     variant="destructive"
                     className="bg-red-600/80 hover:bg-red-600"
-                    title={!user ? "Login to revert" : ""}
+                    title={!user ? getLocaleString('loginToRevert', currentLanguage) : ''}
                   >
                     {revertingId === log.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                     {getLocaleString('revertButton', currentLanguage)}
