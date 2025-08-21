@@ -341,5 +341,12 @@
   "deleteSelected": "Eliminar seleccionados",
   "errorTranslatingTranscriptOpenAI": "Error al traducir la transcripción con OpenAI.",
   "errorTranslatingTranscriptOpenAIDesc": "Ocurrió un error al traducir la transcripción con OpenAI. Intenta dividir el texto en partes más pequeñas o reducir el tamaño.",
-  "errorTranslatingTextOpenAI": "Error al traducir el texto con OpenAI: {errorMessage}"
+  "errorTranslatingTextOpenAI": "Error al traducir el texto con OpenAI: {errorMessage}",
+
+  "authenticationError": "Error de autenticación",
+  "mustBeLoggedInToRevert": "Debes iniciar sesión para revertir cambios.",
+  "loginToRevert": "Iniciar sesión para revertir",
+  "onWord": "en",
+  "atWord": "a las",
+  "notAvailableAbbr": "N/D"
 }
