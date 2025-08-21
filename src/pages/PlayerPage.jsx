@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import PodcastPlayer from '@/components/PodcastPlayer'; 
@@ -33,7 +33,6 @@ const PlayerPage = ({ currentLanguage, user }) => {
     transcriptLoading,
     error,
     questionsUpdatedId,
-    fetchEpisodeDetails,
     fetchQuestionsForEpisode,
     fetchTranscriptForEpisode,
     setTranscript,
@@ -41,7 +40,6 @@ const PlayerPage = ({ currentLanguage, user }) => {
 
   const {
     jumpDetails,
-    showFloatingControls: playerShowFloatingControls,
     playerState,
     showTranscriptUI,
     handleSeekToTime,
@@ -49,8 +47,7 @@ const PlayerPage = ({ currentLanguage, user }) => {
     handleToggleShowTranscript,
     handleFloatingPlayerSkip,
     handleFloatingPlayPause,
-    setShowFloatingControls: setPlayerShowFloatingControls
-  } = usePlayerInteractions(audioRef, playerControlsContainerRef, episodeSlug, questions, true); 
+  } = usePlayerInteractions(audioRef, playerControlsContainerRef, episodeSlug, questions, true);
 
   useSupabaseSubscriptions(
     episodeSlug,
