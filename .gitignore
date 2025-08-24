@@ -79,3 +79,4 @@ AndroidStudioProjects/
 uploads/
 depcheck-result.json
 eslint-report.json
+.vercel
