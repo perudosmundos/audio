@@ -15,13 +15,13 @@
     "api/assemblyai.js": {
       "maxDuration": 60
     },
-    "api/audio-proxy/[...path].js": {
+    "api/s3-presign.js": {
       "maxDuration": 60
     },
-    "api/audio-secondary-proxy/[...path].js": {
+    "api/s3-presign-get.js": {
       "maxDuration": 60
     },
-    "api/direct-audio/[...path].js": {
+    "api/ia-upload.js": {
       "maxDuration": 60
     }
   },
@@ -31,69 +31,6 @@
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Cache-Control", "value": "no-store" }
-      ]
-    },
-    {
-      "source": "/api/direct-audio/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, HEAD, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
-    },
-    {
-      "source": "/api/audio-proxy/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, HEAD, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
-    },
-    {
-      "source": "/api/audio-secondary-proxy/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, HEAD, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Range, Accept-Ranges, Content-Range, If-Range"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
       ]
     }
   ]
