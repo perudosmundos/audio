@@ -17,24 +17,7 @@ const initializeAssemblyAI = async () => {
   try {
     logger.info("Initializing AssemblyAI API key...");
     
-    // 1) Prefer explicit env at build time
-    try {
-      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ASSEMBLYAI_API_KEY) {
-        assemblyAIApiKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
-        logger.info("AssemblyAI API key loaded from VITE environment variable");
-        return assemblyAIApiKey;
-      } else {
-        logger.debug("VITE_ASSEMBLYAI_API_KEY not found in import.meta.env", {
-          hasImportMeta: typeof import.meta !== 'undefined',
-          hasEnv: !!import.meta?.env,
-          envKeys: import.meta?.env ? Object.keys(import.meta.env) : []
-        });
-      }
-    } catch (err) {
-      logger.warn('Failed to read VITE_ASSEMBLYAI_API_KEY from env:', err?.message);
-    }
-
-    // 2) Try localStorage (user-provided in settings UI)
+    // 1) Try localStorage (user-provided in settings UI)
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const stored = window.localStorage.getItem('ASSEMBLYAI_API_KEY');
