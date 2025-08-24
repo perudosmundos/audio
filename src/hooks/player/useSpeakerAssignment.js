@@ -19,7 +19,7 @@ const useSpeakerAssignment = (episodeData, onTranscriptUpdate, toastInstance, cu
     setSegmentForSpeakerAssignment(null);
   }, []);
 
-  const handleSaveSpeakerAssignment = useCallback(async (targetSegment, oldSpeakerId, newSpeakerId) => {
+  const handleSaveSpeakerAssignment = useCallback(async (targetSegment, oldSpeakerId, newSpeakerId, isGlobalRename = false) => {
     if (!episodeData || !episodeData.transcript || !episodeData.transcript.utterances || !onTranscriptUpdate) {
       if (toast) {
         toast({ title: getLocaleString('errorGeneric', currentLanguage), description: getLocaleString('errorSavingSpeakerAssignment', currentLanguage), variant: "destructive" });
@@ -37,16 +37,18 @@ const useSpeakerAssignment = (episodeData, onTranscriptUpdate, toastInstance, cu
       let newUtt = { ...utt };
       const uttIdentifier = utt.id || utt.start;
 
-      if (targetSegment && uttIdentifier === targetSegmentIdentifier) {
+      if (isGlobalRename && oldSpeakerId !== undefined && oldSpeakerId !== null && currentUttSpeaker === String(oldSpeakerId)) {
+        // Глобальное переименование: меняем всех с таким же именем спикера
         if (currentUttSpeaker !== String(newSpeakerId)) {
           newUtt.speaker = newSpeakerId;
           hasChanged = true;
         }
-      } else if (oldSpeakerId !== undefined && oldSpeakerId !== null && currentUttSpeaker === String(oldSpeakerId)) {
-         if (currentUttSpeaker !== String(newSpeakerId)) {
-           newUtt.speaker = newSpeakerId;
-           hasChanged = true;
-         }
+      } else if (!isGlobalRename && targetSegment && uttIdentifier === targetSegmentIdentifier) {
+        // Локальное изменение: меняем только целевой сегмент
+        if (currentUttSpeaker !== String(newSpeakerId)) {
+          newUtt.speaker = newSpeakerId;
+          hasChanged = true;
+        }
       }
       return newUtt;
     });

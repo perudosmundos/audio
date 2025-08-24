@@ -102,19 +102,49 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
         let duration = 0;
         try {
             duration = await new Promise((resolve) => {
-                audioForDuration.onloadedmetadata = () => resolve(audioForDuration.duration);
+                audioForDuration.onloadedmetadata = () => {
+                    const audioDuration = audioForDuration.duration;
+                    console.log(`Audio duration for ${file.name}: ${audioDuration} seconds`);
+                    resolve(audioDuration);
+                };
                 audioForDuration.onerror = () => resolve(0); 
             });
         } catch (e) { console.error("Error getting duration",e); duration = 0; }
 
+        // Проверяем, что длительность получена корректно
+        if (duration <= 0) {
+            console.warn(`Warning: Invalid duration for ${file.name}: ${duration}`);
+            toast({ 
+                title: getLocaleString('warning', currentLanguage), 
+                description: `Не удалось определить длительность аудиофайла ${file.name}`, 
+                variant: "warning" 
+            });
+        }
+
         const { title: episodeTitle, lang: fileLang, parsedDate: episodeDate } = extractDetailsFromFilename(file.name);
         const episodeSlug = generateEpisodeSlug(episodeDate || new Date().toISOString().split('T')[0], fileLang);
         
-        const { data: episodeData, error: dbError } = await supabase
+        console.log(`Saving episode with duration: ${Math.round(duration || 0)} seconds for ${file.name}`);
+        
+        // Проверяем, существует ли уже эпизод с таким slug и lang
+        const { data: existingEpisode, error: checkError } = await supabase
           .from('episodes')
-          .insert([
-            { 
-              slug: episodeSlug,
+          .select('slug, lang, duration')
+          .eq('slug', episodeSlug)
+          .eq('lang', fileLang)
+          .maybeSingle();
+
+        if (checkError) {
+          console.warn(`Warning: Could not check existing episode ${episodeSlug} (${fileLang}): ${checkError.message}`);
+        }
+
+        let episodeData;
+        if (existingEpisode) {
+          // Обновляем существующий эпизод
+          console.log(`Updating existing episode ${episodeSlug} (${fileLang}) with new duration: ${Math.round(duration || 0)} seconds`);
+          const { data: updatedEpisode, error: updateError } = await supabase
+            .from('episodes')
+            .update({
               title: episodeTitle, 
               lang: fileLang,
               date: episodeDate || new Date().toISOString().split('T')[0],
@@ -122,53 +152,64 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
               r2_object_key: fileKey,
               r2_bucket_name: bucketName,
               duration: Math.round(duration || 0),
-            }
-          ])
-          .select('slug')
-          .maybeSingle();
-
-        if (dbError) {
-            if (dbError.code === '23505') { // Unique violation for slug
-                toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `Эпизод с slug ${episodeSlug} уже существует.`, variant: 'destructive'});
-            } else {
-                throw new Error(`Supabase error: ${dbError.message}`);
-            }
-            setIsUploading(false);
-            return;
+            })
+            .eq('slug', episodeSlug)
+            .eq('lang', fileLang)
+            .select('slug')
+            .maybeSingle();
+          
+          if (updateError) throw new Error(`Supabase error: ${updateError.message}`);
+          episodeData = updatedEpisode;
+        } else {
+          // Создаем новый эпизод
+          console.log(`Creating new episode ${episodeSlug} (${fileLang}) with duration: ${Math.round(duration || 0)} seconds`);
+          const { data: newEpisode, error: insertError } = await supabase
+            .from('episodes')
+            .insert([
+              { 
+                slug: episodeSlug,
+                title: episodeTitle, 
+                lang: fileLang,
+                date: episodeDate || new Date().toISOString().split('T')[0],
+                audio_url: workerFileUrl, 
+                r2_object_key: fileKey,
+                r2_bucket_name: bucketName,
+                duration: Math.round(duration || 0),
+              }
+            ])
+            .select('slug')
+            .maybeSingle();
+          
+          if (insertError) throw new Error(`Supabase error: ${insertError.message}`);
+          episodeData = newEpisode;
         }
-        toast({ title: getLocaleString('metadataSavedSuccess', currentLanguage), description: file.name });
         
-        if (episodeData && episodeData.slug) {
-          let assemblyLangCode;
-          let transcriptLangForDb;
+        toast({ title: getLocaleString('metadataSavedSuccess', currentLanguage), description: file.name });
 
+        if (episodeData && episodeData.slug) {
+          // Убираем автоматический запуск распознавания текста
+          // Теперь распознавание запускается только по запросу в manage
+          
+          let transcriptLangForDb;
           if (fileLang === 'all') {
-            assemblyLangCode = currentLanguage === 'ru' ? 'ru' : 'es'; 
             transcriptLangForDb = currentLanguage;
           } else {
-            assemblyLangCode = fileLang;
             transcriptLangForDb = fileLang;
           }
           
-          const transcriptJob = await assemblyAIService.submitTranscription(
-            workerFileUrl, 
-            assemblyLangCode, 
-            episodeData.slug, // Pass episode slug to webhook
-            currentLanguage 
-          );
-          
+          // Сохраняем базовую информацию о транскрипции без запуска
           const { error: transcriptDbError } = await supabase
             .from('transcripts')
             .insert([{
               episode_slug: episodeData.slug,
               lang: transcriptLangForDb, 
-              assemblyai_transcript_id: transcriptJob.id,
-              status: transcriptJob.status,
+              status: 'not_started',
+              updated_at: new Date().toISOString(),
             }]);
 
-          if (transcriptDbError) console.error("Error saving initial transcript job to DB:", transcriptDbError);
+          if (transcriptDbError) console.error("Error saving initial transcript record to DB:", transcriptDbError);
           
-          toast({ title: getLocaleString('transcriptionStarted', currentLanguage), description: `${file.name} (${assemblyLangCode})` });
+          toast({ title: getLocaleString('uploadSuccess', currentLanguage), description: `${file.name} - распознавание текста можно запустить в разделе "Управление"` });
         }
         
       } catch (error) {

@@ -89,35 +89,52 @@ const useSegmentEditing = (
         }
         const textBefore = textContent.substring(0, cursorPos).trim();
         const textAfter = textContent.substring(cursorPos).trim();
-        if (!textBefore || !textAfter || !segmentToModify.words || segmentToModify.words.length === 0) {
+        // Disallow only when resulting text parts are empty. If there are no word timings, we'll split proportionally by text length.
+        if (!textBefore || !textAfter) {
           toast({ title: getLocaleString('errorSplittingSegment', currentLanguage), description: getLocaleString('cannotSplitEmpty', currentLanguage), variant: 'destructive' });
           return;
         }
-        let splitWordIndex = -1;
-        let cumulativeLength = 0;
-        for (let i = 0; i < segmentToModify.words.length; i++) {
-          cumulativeLength += segmentToModify.words[i].text.length + (i > 0 ? 1 : 0);
-          if (cumulativeLength >= cursorPos) {
-            splitWordIndex = i;
-            break;
+        if (segmentToModify.words && Array.isArray(segmentToModify.words) && segmentToModify.words.length > 0) {
+          let splitWordIndex = -1;
+          let cumulativeLength = 0;
+          for (let i = 0; i < segmentToModify.words.length; i++) {
+            cumulativeLength += segmentToModify.words[i].text.length + (i > 0 ? 1 : 0);
+            if (cumulativeLength >= cursorPos) {
+              splitWordIndex = i;
+              break;
+            }
           }
+          if (splitWordIndex === -1 || splitWordIndex >= segmentToModify.words.length - 1) {
+            toast({ title: getLocaleString('errorSplittingSegment', currentLanguage), description: getLocaleString('cannotSplitAtPosition', currentLanguage), variant: 'destructive' });
+            return;
+          }
+          const wordsBefore = segmentToModify.words.slice(0, splitWordIndex + 1);
+          const wordsAfter = segmentToModify.words.slice(splitWordIndex + 1);
+          if (wordsBefore.length === 0 || wordsAfter.length === 0) {
+            toast({ title: getLocaleString('errorSplittingSegment', currentLanguage), description: getLocaleString('cannotSplitIntoEmpty', currentLanguage), variant: 'destructive' });
+            return;
+          }
+          const newSegment1 = { ...segmentToModify, text: textBefore, end: wordsBefore[wordsBefore.length - 1].end, words: wordsBefore, id: segmentToModify.id || `${segmentToModify.start}-split1-${Date.now()}` };
+          const newSegment2 = { ...segmentToModify, start: wordsAfter[0].start, text: textAfter, words: wordsAfter, id: `${segmentToModify.start}-split2-${Date.now()}` };
+          const segmentIndexInAllUtterances = utterances.findIndex(utt => (utt.id || utt.start) === (segmentToModify.id || segmentToModify.start));
+          if (segmentIndexInAllUtterances === -1) return;
+          newUtterances = [...utterances.slice(0, segmentIndexInAllUtterances), newSegment1, newSegment2, ...utterances.slice(segmentIndexInAllUtterances + 1)];
+          actionDetail = { splitAt: cursorPos, segment1: newSegment1, segment2: newSegment2 };
+        } else {
+          // Fallback: no word timings available, split proportionally by text length
+          const totalTrimmedLength = textBefore.length + textAfter.length;
+          const ratio = totalTrimmedLength > 0 ? (textBefore.length / totalTrimmedLength) : 0.5;
+          const duration = (segmentToModify.end || 0) - (segmentToModify.start || 0);
+          const splitOffset = Math.round(duration * ratio);
+          const splitTime = (segmentToModify.start || 0) + splitOffset;
+
+          const newSegment1 = { ...segmentToModify, text: textBefore, end: splitTime, words: [], id: segmentToModify.id || `${segmentToModify.start}-split1-${Date.now()}` };
+          const newSegment2 = { ...segmentToModify, start: splitTime, text: textAfter, words: [], id: `${segmentToModify.start}-split2-${Date.now()}` };
+          const segmentIndexInAllUtterances = utterances.findIndex(utt => (utt.id || utt.start) === (segmentToModify.id || segmentToModify.start));
+          if (segmentIndexInAllUtterances === -1) return;
+          newUtterances = [...utterances.slice(0, segmentIndexInAllUtterances), newSegment1, newSegment2, ...utterances.slice(segmentIndexInAllUtterances + 1)];
+          actionDetail = { splitAt: cursorPos, segment1: newSegment1, segment2: newSegment2, proportional: true };
         }
-        if (splitWordIndex === -1 || splitWordIndex >= segmentToModify.words.length - 1) {
-          toast({ title: getLocaleString('errorSplittingSegment', currentLanguage), description: getLocaleString('cannotSplitAtPosition', currentLanguage), variant: 'destructive' });
-          return;
-        }
-        const wordsBefore = segmentToModify.words.slice(0, splitWordIndex + 1);
-        const wordsAfter = segmentToModify.words.slice(splitWordIndex + 1);
-        if (wordsBefore.length === 0 || wordsAfter.length === 0) {
-          toast({ title: getLocaleString('errorSplittingSegment', currentLanguage), description: getLocaleString('cannotSplitIntoEmpty', currentLanguage), variant: 'destructive' });
-          return;
-        }
-        const newSegment1 = { ...segmentToModify, text: textBefore, end: wordsBefore[wordsBefore.length - 1].end, words: wordsBefore, id: segmentToModify.id || `${segmentToModify.start}-split1-${Date.now()}` };
-        const newSegment2 = { ...segmentToModify, start: wordsAfter[0].start, text: textAfter, words: wordsAfter, id: `${segmentToModify.start}-split2-${Date.now()}` };
-        const segmentIndexInAllUtterances = utterances.findIndex(utt => (utt.id || utt.start) === (segmentToModify.id || segmentToModify.start));
-        if (segmentIndexInAllUtterances === -1) return;
-        newUtterances = [...utterances.slice(0, segmentIndexInAllUtterances), newSegment1, newSegment2, ...utterances.slice(segmentIndexInAllUtterances + 1)];
-        actionDetail = { splitAt: cursorPos, segment1: newSegment1, segment2: newSegment2 };
         break;
       }
       case 'Merge': {
@@ -148,6 +165,39 @@ const useSegmentEditing = (
       restoreAudioState();
     }
   }, [utterances, onSaveEditedSegment, toast, currentLanguage, restoreAudioState, textareaRef, user, episodeSlug]);
+
+  const insertSegmentManually = useCallback(async (startSec, endSec, textContent) => {
+    try {
+      if (typeof startSec !== 'number' || typeof endSec !== 'number' || isNaN(startSec) || isNaN(endSec) || startSec < 0 || endSec <= startSec) {
+        toast({ title: getLocaleString('errorAddingSegment', currentLanguage), description: getLocaleString('invalidTimeRange', currentLanguage), variant: 'destructive' });
+        return;
+      }
+      const startMs = Math.round(startSec * 1000);
+      const endMs = Math.round(endSec * 1000);
+
+      // Prevent overlaps
+      const overlaps = utterances.some(u => typeof u.start === 'number' && typeof u.end === 'number' && !(endMs <= u.start || startMs >= u.end));
+      if (overlaps) {
+        toast({ title: getLocaleString('errorAddingSegment', currentLanguage), description: getLocaleString('segmentOverlaps', currentLanguage), variant: 'destructive' });
+        return;
+      }
+
+      const newSegment = {
+        id: `manual-${startMs}-${Date.now()}`,
+        start: startMs,
+        end: endMs,
+        text: (textContent || '').trim(),
+        speaker: null,
+        words: []
+      };
+
+      const newUtterances = [...utterances, newSegment].sort((a, b) => (a.start || 0) - (b.start || 0));
+      await onSaveEditedSegment(newUtterances, 'insert', null, newSegment, utterances);
+      toast({ title: getLocaleString('segmentAddedTitle', currentLanguage), description: getLocaleString('segmentAddedDesc', currentLanguage), className: "bg-green-600/80 border-green-500 text-white" });
+    } catch (error) {
+      toast({ title: getLocaleString('errorAddingSegment', currentLanguage), description: error.message, variant: 'destructive' });
+    }
+  }, [utterances, onSaveEditedSegment, toast, currentLanguage]);
 
   const performActionWithConfirmation = useCallback((actionType, segmentToModify, textContent, cursorPos) => {
     const dontAskAgainKey = `confirm${actionType}SegmentDisabled`;
@@ -194,6 +244,7 @@ const useSegmentEditing = (
     performActionWithConfirmation,
     setShowConfirmDialog,
     isSaving,
+    insertSegmentManually,
   };
 };
 

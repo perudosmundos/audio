@@ -10,6 +10,7 @@ const useSupabaseSubscriptions = (
 ) => {
   useEffect(() => {
     if (!episodeSlug) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
     const questionsChannel = supabase.channel(`db-questions-changes-for-${episodeSlug}`)
       .on('postgres_changes', 

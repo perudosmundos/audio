@@ -26,7 +26,9 @@ const FileUploadItem = ({
     transcriptionStatus,
     transcriptionError,
     isTranslatingTimings,
-    uploadProgressDetails
+    uploadProgressDetails,
+    translationProgress,
+    translationMessage
   } = itemData;
 
   const handleTimingsUpdate = (e) => {
@@ -59,9 +61,7 @@ const FileUploadItem = ({
 
   const statusText = getTranscriptionStatusText();
   
-  const langColor = lang === 'ru' ? 'rgba(59, 130, 246, 0.7)' : 
-                    lang === 'es' ? 'rgba(234, 179, 8, 0.7)' : 
-                    'rgba(34, 197, 94, 0.7)';
+
 
 
   return (
@@ -72,10 +72,7 @@ const FileUploadItem = ({
             <FileAudio className="h-6 w-6 text-purple-300 shrink-0" />
             <span className="text-sm font-medium text-slate-100 truncate" title={file.name}>{file.name}</span>
           </div>
-          <div className="px-2 py-0.5 text-xs font-semibold rounded-full text-white ml-2 shrink-0"
-               style={{backgroundColor: langColor }}>
-            {lang.toUpperCase()}
-          </div>
+
           {!isUploading && !uploadComplete && (
             <Button variant="ghost" size="icon_sm" onClick={() => onRemove(itemData.id)} className="text-red-400 hover:text-red-300 ml-2 shrink-0">
               <X className="h-4 w-4" />
@@ -151,6 +148,23 @@ const FileUploadItem = ({
           {transcriptionError && transcriptionStatus !== 'error' && <span className="ml-1 text-red-400">({getLocaleString('errorGeneric', currentLanguage)})</span>}
         </div>
       )}
+      
+      {/* Отображение прогресса перевода */}
+      {transcriptionStatus === 'translating_from_es' && translationProgress !== undefined && (
+        <div className="mt-2">
+          <div className="flex justify-between items-center text-xs text-blue-300 mb-1">
+            <span>{getLocaleString('transcriptionTranslating', currentLanguage)}</span>
+            <span>{translationProgress}%</span>
+          </div>
+          <Progress value={translationProgress} className="w-full [&>div]:bg-blue-400 h-2" />
+          {translationMessage && (
+            <div className="text-xs text-center mt-1 text-blue-200">
+              {translationMessage}
+            </div>
+          )}
+        </div>
+      )}
+      
        {transcriptionError && !statusText && (
          <p className="mt-2 text-xs text-red-300 text-center bg-red-800/40 p-2 rounded-md flex items-center justify-center">
             <AlertTriangle size={14} className="mr-1.5" />{transcriptionError}

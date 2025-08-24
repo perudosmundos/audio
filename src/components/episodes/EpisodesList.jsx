@@ -10,7 +10,11 @@ const EpisodesList = React.memo(({ episodes, currentLanguage, episodeQuestionsCo
     <ul className="space-y-4 animate-fade-in">
       {episodes.map((episode) => {
         const effectiveLang = episode.lang === 'all' ? currentLanguage : episode.lang;
-        const questionsForThisEpisode = allQuestions.filter(q => q.episode_slug === episode.slug && q.lang === effectiveLang) || [];
+        const questionsForThisEpisode = allQuestions.filter(q => 
+          q.episode_slug === episode.slug && 
+          q.lang === effectiveLang && 
+          (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''))
+        ) || [];
                                           
         return (
           <EpisodeListItem 

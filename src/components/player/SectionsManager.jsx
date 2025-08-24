@@ -5,16 +5,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { getLocaleString } from '@/lib/locales';
 
-const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJump, formatTime, episodeId }) => {
+const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJump, formatTime, episodeId, currentLanguage = 'ru' }) => {
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentSectionData, setCurrentSectionData] = useState(null);
   const [isAddingSection, setIsAddingSection] = useState(false);
+
   const { toast } = useToast();
 
   const handleAddSection = () => {
     setCurrentSectionData({
-      id: `temp-${Date.now()}`, 
+      id: `temp-${Date.now()}`,
       time: parseFloat(currentTime.toFixed(2)),
       title: '',
       description: ''
@@ -32,28 +35,27 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
   const handleSaveSection = () => {
     if (!currentSectionData.title.trim()) {
       toast({
-        title: "Ошибка",
-        description: "Название раздела не может быть пустым.",
+        title: getLocaleString('error', currentLanguage),
+        description: getLocaleString('sectionTitleEmpty', currentLanguage),
         variant: "destructive",
       });
       return;
     }
     if (isNaN(currentSectionData.time) || currentSectionData.time < 0) {
        toast({
-        title: "Ошибка",
-        description: "Время раздела указано неверно.",
+        title: getLocaleString('error', currentLanguage),
+        description: getLocaleString('sectionTimeInvalid', currentLanguage),
         variant: "destructive",
       });
       return;
     }
 
-
     let updatedSections;
     if (isAddingSection) {
-      const newSection = { ...currentSectionData, id: `${episodeId}-section-${Date.now()}`};
+      const newSection = { ...currentSectionData, id: `${episodeId}-section-${Date.now()}` };
       updatedSections = [...sections, newSection].sort((a, b) => a.time - b.time);
     } else {
-      updatedSections = sections.map(s => 
+      updatedSections = sections.map(s =>
         s.id === currentSectionData.id ? { ...currentSectionData } : s
       ).sort((a,b) => a.time - b.time);
     }
@@ -61,8 +63,8 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
     onSectionsChange(updatedSections);
     setIsEditDialogOpen(false);
     toast({
-      title: "Раздел сохранен",
-      description: `Раздел "${currentSectionData.title}" успешно сохранен.`,
+      title: getLocaleString('sectionSaved', currentLanguage),
+      description: getLocaleString('sectionSavedDescription', currentLanguage, { title: currentSectionData.title }),
     });
   };
 
@@ -71,11 +73,11 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
     onSectionsChange(updatedSections);
     setIsEditDialogOpen(false);
      toast({
-      title: "Раздел удален",
-      description: "Раздел успешно удален.",
+      title: getLocaleString('sectionDeleted', currentLanguage),
+      description: getLocaleString('sectionDeletedDescription', currentLanguage),
     });
   };
-  
+
   const activeSection = sections
     .filter(section => section.time <= currentTime)
     .sort((a, b) => b.time - a.time)[0] || null;
@@ -84,19 +86,19 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
     <>
       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 md:p-4 mt-4 md:mt-6">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="font-semibold text-sm md:text-base">Текущий раздел</h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <h3 className="font-semibold text-sm md:text-base">{getLocaleString('currentSection', currentLanguage)}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleAddSection}
             className="text-white hover:text-white/80 hover:bg-white/10 text-xs md:text-sm"
-            aria-label="Добавить новый раздел"
+            aria-label={getLocaleString('addNewSection', currentLanguage)}
           >
             <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1" />
-            Добавить
+            {getLocaleString('add', currentLanguage)}
           </Button>
         </div>
-        
+
         {activeSection ? (
           <div className="bg-white/5 rounded p-2 md:p-3">
             <div className="flex justify-between items-start">
@@ -107,32 +109,32 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
                   <p className="text-xs mt-1 line-clamp-2">{activeSection.description}</p>
                 )}
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => handleEditSection(activeSection)}
                 className="text-white hover:text-white/80 hover:bg-white/10 h-7 w-7 md:h-8 md:w-8"
-                aria-label="Редактировать текущий раздел"
+                aria-label={getLocaleString('editCurrentSection', currentLanguage)}
               >
                 <Edit className="h-3.5 w-3.5 md:h-4 md:w-4" />
               </Button>
             </div>
           </div>
         ) : (
-          <p className="text-white/70 text-xs md:text-sm">Нет активного раздела. Добавьте новый.</p>
+          <p className="text-white/70 text-xs md:text-sm">{getLocaleString('noActiveSection', currentLanguage)}</p>
         )}
       </div>
 
       <div className="mt-3 md:mt-4">
-        <h3 className="font-semibold text-sm md:text-base mb-2">Все разделы ({sections.length})</h3>
+        <h3 className="font-semibold text-sm md:text-base mb-2">{getLocaleString('allSections', currentLanguage)} ({sections.length})</h3>
         {sections.length > 0 ? (
           <div className="space-y-1.5 md:space-y-2 max-h-48 md:max-h-60 overflow-y-auto pr-1 md:pr-2">
             {sections.map((section) => (
-              <div 
+              <div
                 key={section.id}
                 className={`p-2 rounded flex justify-between items-center cursor-pointer text-xs md:text-sm ${
-                  activeSection?.id === section.id 
-                    ? 'bg-white/20' 
+                  activeSection?.id === section.id
+                    ? 'bg-white/20'
                     : 'bg-white/5 hover:bg-white/10'
                 }`}
                 onClick={() => onSectionJump(section.time)}
@@ -146,15 +148,15 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
                   </div>
                   <span className="font-medium line-clamp-1">{section.title}</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleEditSection(section);
                   }}
                   className="text-white/70 hover:text-white hover:bg-white/10 h-6 w-6 md:h-7 md:w-7"
-                  aria-label={`Редактировать раздел ${section.title}`}
+                  aria-label={getLocaleString('editSection', currentLanguage, { title: section.title })}
                 >
                   <Edit className="h-3 w-3 md:h-3.5 md:w-3.5" />
                 </Button>
@@ -162,19 +164,18 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
             ))}
           </div>
         ) : (
-          <p className="text-white/70 text-xs md:text-sm">Разделы еще не добавлены.</p>
+          <p className="text-white/70 text-xs md:text-sm">{getLocaleString('noSectionsYet', currentLanguage)}</p>
         )}
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{isAddingSection ? 'Добавить раздел' : 'Редактировать раздел'}</DialogTitle>
+            <DialogTitle>{isAddingSection ? getLocaleString('addSection', currentLanguage) : getLocaleString('editSection', currentLanguage)}</DialogTitle>
           </DialogHeader>
-          
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="section-time" className="text-right col-span-1">Время</Label>
+              <Label htmlFor="section-time" className="text-right col-span-1">{getLocaleString('time', currentLanguage)}</Label>
               <Input
                 id="section-time"
                 type="number"
@@ -187,9 +188,8 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
                 className="bg-gray-800 border-gray-700 col-span-3"
               />
             </div>
-            
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="section-title" className="text-right col-span-1">Название</Label>
+              <Label htmlFor="section-title" className="text-right col-span-1">{getLocaleString('title', currentLanguage)}</Label>
               <Input
                 id="section-title"
                 value={currentSectionData?.title || ''}
@@ -200,9 +200,8 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
                 className="bg-gray-800 border-gray-700 col-span-3"
               />
             </div>
-            
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="section-description" className="text-right col-span-1">Описание</Label>
+              <Label htmlFor="section-description" className="text-right col-span-1">{getLocaleString('description', currentLanguage)}</Label>
               <Input
                 id="section-description"
                 value={currentSectionData?.description || ''}
@@ -214,21 +213,20 @@ const SectionsManager = ({ sections, currentTime, onSectionsChange, onSectionJum
               />
             </div>
           </div>
-          
           <DialogFooter className="flex flex-col sm:flex-row justify-between mt-2">
             {!isAddingSection && currentSectionData && (
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={() => handleDeleteSection(currentSectionData.id)}
                 className="w-full sm:w-auto mb-2 sm:mb-0"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
-                Удалить
+                {getLocaleString('delete', currentLanguage)}
               </Button>
             )}
             <Button onClick={handleSaveSection} className="w-full sm:w-auto sm:ml-auto">
               <Save className="h-4 w-4 mr-1" />
-              Сохранить
+              {getLocaleString('save', currentLanguage)}
             </Button>
           </DialogFooter>
         </DialogContent>

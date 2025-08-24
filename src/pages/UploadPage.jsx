@@ -14,6 +14,14 @@ const UploadPage = ({ currentLanguage }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isTestingOpenAI, setIsTestingOpenAI] = useState(false);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [apiKey, setApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('ASSEMBLYAI_API_KEY') || '';
+    } catch {
+      return '';
+    }
+  });
   
   const {
     filesToProcess,
@@ -40,12 +48,12 @@ const UploadPage = ({ currentLanguage }) => {
       const result = await testOpenAIConnection();
       if (result.success) {
         toast({
-          title: "✅ OpenAI Тест Успешен",
+          title: "✅ DeepSeek Тест Успешен",
           description: `Все работает! Перевод: "${result.result}"`,
           duration: 5000
         });
       } else {
-        let title = "❌ OpenAI Тест Неудачен";
+        let title = "❌ DeepSeek Тест Неудачен";
         let description = result.error;
         
         // Provide specific guidance based on error step
@@ -109,6 +117,7 @@ const UploadPage = ({ currentLanguage }) => {
           <h1 className="text-3xl font-bold text-purple-300 mb-2">{getLocaleString('uploadAudioFiles', currentLanguage)}</h1>
           <p className="text-sm text-slate-400">{getLocaleString('uploadAudioDescription', currentLanguage)}</p>
         </div>
+        <div className="flex items-center gap-2">
         <Button
           onClick={handleTestOpenAI}
           disabled={isTestingOpenAI}
@@ -121,9 +130,45 @@ const UploadPage = ({ currentLanguage }) => {
           ) : (
             <TestTube className="mr-2 h-4 w-4" />
           )}
-          Тест OpenAI
+          Тест DeepSeek
         </Button>
+        <Button
+          onClick={() => setShowApiKeyInput((v) => !v)}
+          variant="outline"
+          size="sm"
+          className="bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-300"
+        >
+          API AssemblyAI
+        </Button>
+        </div>
       </div>
+
+      {showApiKeyInput && (
+        <div className="mb-4 p-3 rounded-lg bg-slate-700/50 border border-slate-600">
+          <label className="block text-xs text-slate-300 mb-1">AssemblyAI API Key</label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            onBlur={() => {
+              try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch {}
+            }}
+            placeholder="sk_..."
+            className="w-full h-9 px-3 rounded bg-slate-800 border border-slate-600 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-slate-400">Ключ хранится локально в браузере</span>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={() => {
+                try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch {}
+              }}
+            >Сохранить</Button>
+          </div>
+        </div>
+      )}
 
       <div {...getRootProps({ className: `p-6 border-2 border-dashed rounded-lg text-center cursor-pointer mb-6 ${isDragActive ? 'border-purple-500 bg-purple-500/10' : 'border-slate-600 hover:border-slate-500'}` })}>
         <input {...getInputProps()} style={{ display: 'none' }} />
@@ -184,7 +229,7 @@ const UploadPage = ({ currentLanguage }) => {
 
       <OverwriteDialog 
         isOpen={showOverwriteDialog}
-        onOpenChange={cancelOverwrite} 
+        onOpenChange={() => {}} 
         onConfirm={confirmOverwrite}
         onCancel={cancelOverwrite}
         slug={currentItemForOverwrite?.episodeSlug || ''}

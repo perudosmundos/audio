@@ -1,8 +1,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import logger from '@/lib/logger';
 import { getLocaleString } from '@/lib/locales';
 import r2Service from '@/lib/r2Service';
+import { getFullTextFromUtterances } from '@/hooks/transcript/transcriptProcessingUtils';
 
 // Utility function to check if a file exists on Archive.org
 export const checkEpisodeFileExists = async (episode) => {
@@ -37,10 +39,25 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
   const computeTranscriptVersionKey = useCallback((payload) => {
     if (!payload) return 'none';
     const { id, status, data } = payload;
-    const utterancesLen = data?.utterances?.length || 0;
+    const utterances = Array.isArray(data?.utterances) ? data.utterances : [];
+    const utterancesLen = utterances.length;
     const wordsLen = data?.words?.length || 0;
     const textLen = (data?.text || '').length || 0;
-    return `${id || 'noid'}:${status || 'nostatus'}:${utterancesLen}:${wordsLen}:${textLen}`;
+
+    // Include a lightweight checksum of speakers so renaming speakers invalidates cache
+    let speakersHash = 0;
+    for (let i = 0; i < utterances.length; i++) {
+      const u = utterances[i];
+      const idPart = String(u?.id ?? u?.start ?? i);
+      const speakerPart = String(u?.speaker ?? '');
+      const composite = idPart + ':' + speakerPart + '|';
+      for (let j = 0; j < composite.length; j++) {
+        speakersHash = ((speakersHash << 5) - speakersHash) + composite.charCodeAt(j);
+        speakersHash |= 0; // force 32-bit
+      }
+    }
+
+    return `${id || 'noid'}:${status || 'nostatus'}:${utterancesLen}:${wordsLen}:${textLen}:spk:${speakersHash}`;
   }, []);
 
   const readTranscriptCache = useCallback((epSlug, lang) => {
@@ -65,11 +82,49 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
     } catch {}
   }, [getTranscriptCacheKey]);
 
+  // Fallback: generate simple utterances from words when API did not return utterances
+  const generateUtterancesFromWords = useCallback((wordsArray) => {
+    if (!Array.isArray(wordsArray) || wordsArray.length === 0) return [];
+    const MAX_UTTERANCE_MS = 8000; // up to 8s per chunk
+    const MAX_WORDS_PER_UTTERANCE = 60;
+    const punctuationRegex = /[.!?]\s*$/;
+
+    const utterances = [];
+    let current = null;
+    for (let i = 0; i < wordsArray.length; i++) {
+      const w = wordsArray[i];
+      if (typeof w?.start !== 'number' || typeof w?.end !== 'number' || typeof w?.text !== 'string') {
+        continue;
+      }
+      if (!current) {
+        current = { id: `u-${utterances.length}`, start: w.start, end: w.end, text: w.text };
+        continue;
+      }
+      // Decide whether to continue current utterance or start a new one
+      const wouldBeText = current.text ? current.text + (w.text.match(/^['",.?!:;)]/) ? '' : ' ') + w.text : w.text;
+      const spanMs = Math.max(w.end, current.end) - current.start;
+      const wordCount = wouldBeText.split(/\s+/).filter(Boolean).length;
+      const shouldBreak = spanMs >= MAX_UTTERANCE_MS || wordCount >= MAX_WORDS_PER_UTTERANCE || punctuationRegex.test(current.text);
+      if (shouldBreak) {
+        utterances.push(current);
+        current = { id: `u-${utterances.length}`, start: w.start, end: w.end, text: w.text };
+      } else {
+        current.text = wouldBeText;
+        current.end = Math.max(current.end, w.end);
+      }
+    }
+    if (current) utterances.push(current);
+    return utterances;
+  }, []);
+
   const fetchTranscriptForEpisode = useCallback(async (epSlug, langForTranscript) => {
     try {
+      logger.debug('🔍 Fetching transcript for:', { epSlug, langForTranscript });
+      
       // Prefill from cache if available and fresh
       const cached = readTranscriptCache(epSlug, langForTranscript);
       if (cached?.isFresh && cached.value?.data) {
+        logger.debug('📦 Using cached transcript data');
         setTranscript({
           id: cached.value.meta?.id || null,
           utterances: cached.value.data.utterances || [],
@@ -81,28 +136,44 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
 
       const { data, error: transcriptError } = await supabase
         .from('transcripts')
-        .select('id, transcript_data, edited_transcript_data, status')
+        .select('id, edited_transcript_data, status')
         .eq('episode_slug', epSlug)
         .eq('lang', langForTranscript)
         .maybeSingle();
 
+      logger.debug('📊 Transcript query result:', { data, error: transcriptError, langForTranscript });
+
       if (transcriptError) throw transcriptError;
       
       if (data) {
-        const finalTranscriptData = data.edited_transcript_data || data.transcript_data;
+        const finalTranscriptData = data.edited_transcript_data;
+        logger.debug('📝 Raw transcript data received');
+        
+        // Ensure utterances exist for player rendering
+        let ensuredUtterances = Array.isArray(finalTranscriptData?.utterances) ? finalTranscriptData.utterances : [];
+        if (ensuredUtterances.length === 0 && Array.isArray(finalTranscriptData?.words) && finalTranscriptData.words.length > 0) {
+          logger.debug('🧩 Generating utterances from words as fallback');
+          ensuredUtterances = generateUtterancesFromWords(finalTranscriptData.words);
+        }
+
         const freshPayload = {
           id: data.id,
           status: data.status,
           data: {
-            utterances: finalTranscriptData?.utterances || [],
+            utterances: ensuredUtterances,
+            // Используем только edited_transcript_data
             words: finalTranscriptData?.words || [],
-            text: finalTranscriptData?.text || ''
+            text: finalTranscriptData?.text || getFullTextFromUtterances(finalTranscriptData?.utterances || [])
           }
         };
+        
+        logger.debug('🔄 Processed transcript payload');
+        
         const freshVersion = computeTranscriptVersionKey(freshPayload);
         const cachedVersion = cached?.value?.meta?.versionKey || 'none';
 
         if (freshVersion !== cachedVersion) {
+          logger.debug('✅ Updating transcript state and cache');
           // Update state and cache only if changed
           setTranscript({ 
             id: freshPayload.id,
@@ -115,8 +186,11 @@ const useEpisodeData = (episodeSlug, currentLanguage, toast) => {
             meta: { id: freshPayload.id, status: freshPayload.status, versionKey: freshVersion },
             data: freshPayload.data
           });
+        } else {
+          logger.debug('⏭️ Skipping update - transcript unchanged');
         }
       } else {
+        logger.debug('❌ No transcript data found in DB');
         setTranscript(null);
       }
     } catch (err) {

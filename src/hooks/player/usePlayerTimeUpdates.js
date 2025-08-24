@@ -10,26 +10,11 @@ const usePlayerTimeUpdates = ({
   setActiveQuestionTitleState,
   setDurationState,
   onPlayerStateChange,
-  skipEmptySegments,
-  transcript,
 }) => {
   const lastActiveQuestionTitleRef = useRef('');
-  const nextSegmentStartTimeRef = useRef(null);
-
-  const findNextSegmentStartTime = (currentTimeMs, utterances) => {
-    if (!utterances || utterances.length === 0) return null;
-    const sortedUtterances = [...utterances].sort((a, b) => a.start - b.start);
-    for (const utt of sortedUtterances) {
-      if (utt.start > currentTimeMs) {
-        return utt.start / 1000; // Convert to seconds
-      }
-    }
-    return null; // No segment after current time
-  };
 
   const handleTimeUpdate = useCallback(() => {
     if (!audioRef.current || isSeekingRef.current) {
-
       return;
     }
 
@@ -37,33 +22,17 @@ const usePlayerTimeUpdates = ({
 
     setCurrentTimeState(currentTime);
 
-    if (skipEmptySegments && transcript?.utterances && transcript.utterances.length > 0) {
-      const currentTimeMs = currentTime * 1000;
-      const currentSegment = transcript.utterances.find(utt => currentTimeMs >= utt.start && currentTimeMs <= utt.end);
-
-      if (!currentSegment) { // We are in a gap
-        if (nextSegmentStartTimeRef.current === null || currentTime >= nextSegmentStartTimeRef.current) {
-          // Find the start of the very next segment
-          const nextStartTime = findNextSegmentStartTime(currentTimeMs, transcript.utterances);
-          nextSegmentStartTimeRef.current = nextStartTime;
-        }
-        
-        if (nextSegmentStartTimeRef.current !== null && audioRef.current.duration > nextSegmentStartTimeRef.current) {
-          audioRef.current.currentTime = nextSegmentStartTimeRef.current;
-          // Reset ref so it recalculates on next gap
-          nextSegmentStartTimeRef.current = null; 
-          return; // Skip further processing for this update as we just jumped
-        }
-      } else {
-        // We are in a segment, reset the next jump target
-        nextSegmentStartTimeRef.current = null;
-      }
-    }
-
-
     let activeQuestion = null;
     if (internalQuestions && internalQuestions.length > 0) {
-      const sortedQuestions = [...internalQuestions].sort((a, b) => a.time - b.time);
+      // Фильтруем вопросы без заголовка, кроме специальных блоков
+      const filteredQuestions = internalQuestions.filter(q => {
+        if (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual') {
+          return true;
+        }
+        return q.title && q.title.trim() !== '';
+      });
+      
+      const sortedQuestions = [...filteredQuestions].sort((a, b) => a.time - b.time);
       for (let i = sortedQuestions.length - 1; i >= 0; i--) {
         if (currentTime >= sortedQuestions[i].time) {
           activeQuestion = sortedQuestions[i];
@@ -88,9 +57,7 @@ const usePlayerTimeUpdates = ({
     currentLanguage, 
     setCurrentTimeState, 
     setActiveQuestionTitleState, 
-    onPlayerStateChange,
-    skipEmptySegments,
-    transcript
+    onPlayerStateChange
   ]);
 
   const handleLoadedMetadata = useCallback(() => {

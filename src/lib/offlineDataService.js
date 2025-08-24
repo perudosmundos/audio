@@ -2,7 +2,7 @@
 class OfflineDataService {
   constructor() {
     this.dbName = 'PodcastAppDB';
-    this.version = 1;
+    this.version = 2;
     this.db = null;
   }
 
@@ -367,7 +367,7 @@ class OfflineDataService {
     
     for (const storeName of stores) {
       const transaction = this.getTransaction([storeName], 'readwrite');
-      const store = transaction.objectStore('store');
+      const store = transaction.objectStore(storeName);
       
       await new Promise((resolve, reject) => {
         const request = store.getAll();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Check, X, CornerLeftUp, DivideSquare, Trash2 } from 'lucide-react';
+import { Check, X, CornerLeftUp, DivideSquare, Trash2, PlusSquare } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const SegmentEditControls = ({
@@ -10,6 +10,7 @@ const SegmentEditControls = ({
   onSplit,
   onMerge,
   onDelete,
+  onAdd,
   isFirstOverallSegment,
   currentLanguage,
 }) => {
@@ -38,6 +39,16 @@ const SegmentEditControls = ({
           </TooltipTrigger>
           <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
             <p>{getLocaleString('splitSegmentAtCursor', currentLanguage)}</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button onClick={onAdd} variant="ghost" size="icon_sm" className="h-7 w-7 text-white hover:bg-slate-700/70">
+              <PlusSquare size={16} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="bg-slate-800 text-white border-slate-700">
+            <p>{getLocaleString('addSegment', currentLanguage)}</p>
           </TooltipContent>
         </Tooltip>
         <Tooltip>

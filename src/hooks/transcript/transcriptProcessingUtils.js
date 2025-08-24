@@ -1,4 +1,6 @@
 
+import logger from '@/lib/logger';
+
 const MAX_SEGMENT_DURATION_MS = 120000; 
 const PREFERRED_SPLIT_WINDOW_MS = 30000; 
 
@@ -202,39 +204,105 @@ export const splitTranscriptToSegments = (utterances, maxSegmentDurationMs = 120
 };
 
 
+// Efficiently assign words to utterances in a single pass (O(U + W))
+const mapWordsToUtterances = (utterances, words) => {
+  if (!Array.isArray(utterances) || !Array.isArray(words) || utterances.length === 0 || words.length === 0) {
+    return utterances.map(() => []);
+  }
+
+  // Assume input arrays are already sorted by start time (AssemblyAI usually provides sorted arrays)
+  const wordLists = new Array(utterances.length);
+  for (let i = 0; i < utterances.length; i++) wordLists[i] = [];
+
+  let wIdx = 0;
+  for (let uIdx = 0; uIdx < utterances.length; uIdx++) {
+    const u = utterances[uIdx];
+    const uStart = u.start;
+    const uEnd = u.end;
+
+    // Advance words until they reach current utterance window
+    while (wIdx < words.length && words[wIdx].end < uStart) {
+      wIdx++;
+    }
+    // Collect words inside utterance window
+    let tempIdx = wIdx;
+    while (tempIdx < words.length) {
+      const w = words[tempIdx];
+      if (w.start > uEnd) break;
+      if (w.confidence === undefined || w.confidence > 0) {
+        wordLists[uIdx].push(w);
+      }
+      tempIdx++;
+    }
+    // Prepare next search start position
+    wIdx = tempIdx;
+  }
+
+  return wordLists;
+};
+
 export const processTranscriptData = (data) => {
   if (!data || !Array.isArray(data.utterances)) {
     return { ...data, utterances: [] };
   }
 
-  // Debug: basic stats before processing
-  try {
-    console.log('[TranscriptProcessing] Incoming utterances:', data.utterances.length);
-  } catch (e) {}
+  const utterances = data.utterances;
+  const allWords = Array.isArray(data.words) ? data.words : [];
+  const wordsPerUtterance = mapWordsToUtterances(utterances, allWords);
 
-  const processedUtterances = data.utterances.flatMap(utt => {
+  const processedUtterances = utterances.flatMap((utt, idx) => {
     const utteranceWithWords = {
       ...utt,
-      words: data.words?.filter(w => w.start >= utt.start && w.end <= utt.end && w.confidence > 0) || utt.words || []
+      words: (wordsPerUtterance[idx] && wordsPerUtterance[idx].length > 0) ? wordsPerUtterance[idx] : (utt.words || [])
     };
     const splitted = splitLongUtterance(utteranceWithWords);
-    try {
-      if ((utt.end - utt.start) > 120000) {
-        console.log('[TranscriptProcessing] Long utterance detected:', {
-          start: utt.start,
-          end: utt.end,
-          durationMs: utt.end - utt.start,
-          originalTextLen: (utt.text || '').length,
-          splitCount: splitted.length
-        });
-      }
-    } catch (e) {}
+    // Log only extremely long utterances to reduce console spam
+    if ((utt.end - utt.start) > 300000) {
+      logger.debug('[TranscriptProcessing] Long utterance detected:', {
+        start: utt.start,
+        end: utt.end,
+        durationMs: utt.end - utt.start,
+        originalTextLen: (utt.text || '').length,
+        splitCount: splitted.length
+      });
+    }
     return splitted;
   }).filter(utt => utt.text && utt.text.trim() !== "");
   
-  try {
-    console.log('[TranscriptProcessing] Processed utterances:', processedUtterances.length);
-  } catch (e) {}
-
   return { ...data, utterances: processedUtterances, words: data.words };
+};
+
+// Build a compact payload for edited transcript data to store in DB
+// Keeps only essential fields to reduce size and speed up reads/writes
+export const buildEditedTranscriptData = (data) => {
+  if (!data) {
+    return { utterances: [] };
+  }
+
+  const sourceUtterances = Array.isArray(data.utterances) ? data.utterances : [];
+
+  const minimalUtterances = sourceUtterances
+    .filter(u => u && typeof u.start === 'number' && typeof u.end === 'number' && typeof u.text === 'string')
+    .map((u) => {
+      const out = {
+        start: u.start,
+        end: u.end,
+        text: u.text
+      };
+      if (u.id !== undefined) out.id = u.id;
+      if (u.speaker !== undefined && u.speaker !== null && String(u.speaker).trim() !== '') {
+        out.speaker = u.speaker;
+      }
+      return out;
+    });
+
+  return { utterances: minimalUtterances };
+};
+
+// Helper function to get full text from utterances when needed
+export const getFullTextFromUtterances = (utterances) => {
+  if (!Array.isArray(utterances) || utterances.length === 0) {
+    return '';
+  }
+  return utterances.map(u => u.text || '').join(' ');
 };

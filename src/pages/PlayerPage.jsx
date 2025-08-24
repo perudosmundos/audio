@@ -14,6 +14,9 @@ import usePlayerInteractions from '@/hooks/player_page/usePlayerInteractions';
 import useSupabaseSubscriptions from '@/hooks/player_page/useSupabaseSubscriptions';
 import useSpeakerAssignment from '@/hooks/player/useSpeakerAssignment'; 
 import SpeakerAssignmentDialog from '@/components/transcript/SpeakerAssignmentDialog';
+import useQuestionManagement from '@/hooks/useQuestionManagement';
+import AddQuestionFromSegmentDialog from '@/components/player/questions_manager_parts/AddQuestionFromSegmentDialog';
+import AddQuestionDialog from '@/components/transcript/AddQuestionDialog';
 
 const PlayerPage = ({ currentLanguage, user }) => {
   const { episodeSlug } = useParams(); 
@@ -23,6 +26,7 @@ const PlayerPage = ({ currentLanguage, user }) => {
   const audioRef = useRef(null); 
   const [showFloatingControls, setShowFloatingControls] = useState(false);
   const playerControlsContainerRef = useRef(null);
+  const [editingQuestion, setEditingQuestion] = useState(null);
 
   const {
     episodeData,
@@ -59,6 +63,22 @@ const PlayerPage = ({ currentLanguage, user }) => {
     fetchQuestionsForEpisode,
     fetchTranscriptForEpisode
   );
+
+  const {
+    isAddQuestionFromSegmentDialogOpen,
+    segmentForQuestion,
+    openAddQuestionFromSegmentDialog,
+    closeAddQuestionFromSegmentDialog
+  } = useQuestionManagement(
+    playerState.currentTime,
+    currentLanguage,
+    audioRef,
+    handleSeekToTime,
+    playerState.duration,
+    episodeData?.slug,
+    episodeData?.date,
+    episodeData?.lang
+  );
   
   useEffect(() => {
     const handleScroll = () => {
@@ -81,6 +101,55 @@ const PlayerPage = ({ currentLanguage, user }) => {
 
   const handleQuestionUpdate = useCallback(async (action, questionData) => {
     if (!episodeData || !episodeData.slug) return;
+    
+    // Special handling for virtual blocks
+    if (questionData.id === 'intro-virtual') {
+      // Create or update a real intro question (time locked to 0)
+      const langForQuestions = episodeData.lang === 'all' ? currentLanguage : episodeData.lang;
+      const { data: existingIntro, error: fetchErr } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('episode_slug', episodeData.slug)
+        .eq('lang', langForQuestions)
+        .eq('is_intro', true)
+        .eq('time', 0)
+        .maybeSingle();
+
+      if (fetchErr && fetchErr.code !== 'PGRST116') {
+        toast({ title: getLocaleString('errorGeneric', currentLanguage), description: fetchErr.message, variant: 'destructive' });
+        return;
+      }
+
+      const payload = {
+        episode_slug: episodeData.slug,
+        time: 0,
+        title: questionData.title,
+        lang: langForQuestions,
+        is_intro: true,
+        is_full_transcript: false
+      };
+
+      let dbError;
+      if (existingIntro && existingIntro.id) {
+        const { error } = await supabase.from('questions').update({ title: payload.title }).eq('id', existingIntro.id);
+        dbError = error;
+      } else {
+        const { error } = await supabase.from('questions').insert(payload).select().single();
+        dbError = error;
+      }
+
+      if (dbError) {
+        toast({ title: getLocaleString('errorGeneric', currentLanguage), description: dbError.message, variant: 'destructive' });
+      } else {
+        fetchQuestionsForEpisode(episodeData.slug, langForQuestions);
+      }
+      return;
+    }
+
+    if (questionData.id === 'full-transcript-virtual') {
+      console.warn('Attempted to modify virtual question:', questionData.id);
+      return;
+    }
     
     let dbError;
     const langForQuestions = episodeData.lang === 'all' ? currentLanguage : episodeData.lang;
@@ -118,22 +187,67 @@ const PlayerPage = ({ currentLanguage, user }) => {
     }
   }, [episodeData, currentLanguage, toast, fetchQuestionsForEpisode]);
 
+  const handleEditQuestion = useCallback((question) => {
+    if (question.id === 'full-transcript-virtual') {
+      console.warn('Attempted to edit virtual question:', question.id);
+      return;
+    }
+    setEditingQuestion(question);
+  }, []);
+
   const handleTranscriptUpdate = useCallback(async (newTranscriptData) => {
     if (!episodeData || !episodeData.slug) return;
     const langForContent = episodeData.lang === 'all' ? currentLanguage : episodeData.lang;
 
-    const { error: updateError } = await supabase
-      .from('transcripts')
-      .update({ edited_transcript_data: newTranscriptData, status: 'completed' })
-      .eq('episode_slug', episodeData.slug)
-      .eq('lang', langForContent);
+    // Split large payloads to avoid HTTP2 errors
+    const compactEdited = {
+      utterances: newTranscriptData.utterances || []
+    };
+    
+    // Retry logic for large payloads
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const { error: updateError } = await supabase
+          .from('transcripts')
+          .update({ edited_transcript_data: compactEdited, status: 'completed' })
+          .eq('episode_slug', episodeData.slug)
+          .eq('lang', langForContent);
 
-    if (updateError) {
-      toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `Failed to update transcript: ${updateError.message}`, variant: "destructive" });
-    } else {
-      setTranscript(newTranscriptData); 
+        if (updateError) {
+          console.error("Error updating transcript:", updateError);
+          toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `Failed to update transcript: ${updateError.message}`, variant: "destructive" });
+        } else {
+          setTranscript(newTranscriptData); 
+        }
+        break; // Success, exit retry loop
+      } catch (err) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `Failed to update transcript: ${err.message}`, variant: "destructive" });
+        } else {
+          console.warn(`Retry ${retryCount}/${maxRetries} for transcript update:`, err.message);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+        }
+      }
     }
   }, [episodeData, currentLanguage, toast, setTranscript]);
+
+  // Адаптер для совместимости с useSegmentEditing
+  const handleSegmentEdit = useCallback(async (newUtterances, actionType, originalSegment, updatedSegment) => {
+    if (!episodeData || !episodeData.slug || !transcript) return;
+    
+    // Создаем новый объект транскрипта с обновленными utterances
+    const newTranscriptData = {
+      ...transcript,
+      utterances: newUtterances,
+      text: newUtterances.map(u => u.text).join(' ')
+    };
+    
+    await handleTranscriptUpdate(newTranscriptData);
+  }, [episodeData, transcript, handleTranscriptUpdate]);
 
   const playerEpisodeDataMemo = useMemo(() => {
     if (!episodeData) return null;
@@ -292,6 +406,9 @@ const PlayerPage = ({ currentLanguage, user }) => {
             isLoading={Boolean(questionsLoading)}
             transcriptLoading={Boolean(transcriptLoading)}
             onTranscriptLocalUpdate={setTranscript}
+            onSaveEditedSegment={handleSegmentEdit}
+            onAddQuestionFromSegment={openAddQuestionFromSegmentDialog}
+            onEditQuestion={handleEditQuestion}
           />
         </div>
       </div>
@@ -300,9 +417,56 @@ const PlayerPage = ({ currentLanguage, user }) => {
           isOpen={isSpeakerAssignmentDialogOpen}
           onClose={handleCloseSpeakerAssignmentDialog}
           segment={segmentForSpeakerAssignment}
-          allUtterances={playerEpisodeDataMemo.transcript?.utterances || []}
+          allUtterances={playerEpisodeDataMemo?.transcript?.utterances || []}
           onSave={handleSaveSpeakerAssignment}
           currentLanguage={currentLanguage}
+        />
+      )}
+      {segmentForQuestion && (
+        <AddQuestionFromSegmentDialog
+          isOpen={isAddQuestionFromSegmentDialogOpen}
+          onClose={closeAddQuestionFromSegmentDialog}
+          segment={segmentForQuestion}
+          onSave={(title, time) => {
+            handleQuestionUpdate('add', { title, time, lang: currentLanguage });
+            closeAddQuestionFromSegmentDialog();
+          }}
+          currentLanguage={currentLanguage}
+          audioRef={audioRef}
+          mainPlayerIsPlaying={playerState.isPlaying}
+          mainPlayerTogglePlayPause={handleFloatingPlayPause}
+          mainPlayerSeekAudio={handleSeekToTime}
+          duration={playerState.duration}
+        />
+      )}
+      {editingQuestion && (
+        <AddQuestionDialog
+          isOpen={!!editingQuestion}
+          onClose={() => setEditingQuestion(null)}
+          initialTime={editingQuestion.time}
+          initialTitle={editingQuestion.title}
+          onSave={(title, time) => {
+            handleQuestionUpdate('update', { 
+              id: editingQuestion.id, 
+              title, 
+              time, 
+              lang: editingQuestion.lang || currentLanguage 
+            });
+            setEditingQuestion(null);
+          }}
+          onDelete={editingQuestion.id === 'intro-virtual' ? undefined : () => {
+            handleQuestionUpdate('delete', { id: editingQuestion.id });
+            setEditingQuestion(null);
+          }}
+          currentLanguage={currentLanguage}
+          audioRef={audioRef}
+          mainPlayerIsPlaying={playerState.isPlaying}
+          mainPlayerTogglePlayPause={handleFloatingPlayPause}
+          mainPlayerSeekAudio={handleSeekToTime}
+          duration={playerState.duration}
+          isEditing={true}
+          disableTimeEditing={editingQuestion.id === 'intro-virtual'}
+          hideDelete={editingQuestion.id === 'intro-virtual'}
         />
       )}
     </div>

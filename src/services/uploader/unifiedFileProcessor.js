@@ -181,7 +181,11 @@ export const processSingleItem = async ({
     let duration = 0;
     try {
       duration = await new Promise((resolve, reject) => {
-        audioForDuration.onloadedmetadata = () => resolve(audioForDuration.duration);
+        audioForDuration.onloadedmetadata = () => {
+          const audioDuration = audioForDuration.duration;
+          console.log(`Audio duration for ${file.name}: ${audioDuration} seconds`);
+          resolve(audioDuration);
+        };
         audioForDuration.onerror = (e) => {
           console.error("Audio metadata load error:", e);
           reject(new Error(getLocaleString('audioMetadataError', currentLanguage)));
@@ -196,6 +200,16 @@ export const processSingleItem = async ({
       URL.revokeObjectURL(audioForDuration.src);
     }
 
+    // Проверяем, что длительность получена корректно
+    if (duration <= 0) {
+      console.warn(`Warning: Invalid duration for ${file.name}: ${duration}`);
+      toast({ 
+        title: getLocaleString('warning', currentLanguage), 
+        description: `Не удалось определить длительность аудиофайла ${file.name}`, 
+        variant: "warning" 
+      });
+    }
+
     const episodePayload = {
       slug: episodeSlug,
       title: episodeTitle,
@@ -208,13 +222,46 @@ export const processSingleItem = async ({
       file_has_lang_suffix: itemData.fileHasLangSuffix,
     };
     
-    const { data: upsertedEpisode, error: episodeDbError } = await supabase
+    console.log(`Saving episode with duration: ${episodePayload.duration} seconds for ${file.name}`);
+
+    // Проверяем, существует ли уже эпизод с таким slug и lang
+    const { data: existingEpisode, error: checkError } = await supabase
       .from('episodes')
-      .upsert(episodePayload, { onConflict: 'slug' })
-      .select('slug')
+      .select('slug, lang, duration')
+      .eq('slug', episodeSlug)
+      .eq('lang', lang)
       .maybeSingle();
 
-    if (episodeDbError) throw new Error(getLocaleString('supabaseEpisodeError', currentLanguage, {errorMessage: episodeDbError.message}));
+    if (checkError) {
+      console.warn(`Warning: Could not check existing episode ${episodeSlug} (${lang}): ${checkError.message}`);
+    }
+
+    let upsertedEpisode;
+    if (existingEpisode) {
+      // Обновляем существующий эпизод
+      console.log(`Updating existing episode ${episodeSlug} (${lang}) with new duration: ${episodePayload.duration} seconds`);
+      const { data: updatedEpisode, error: updateError } = await supabase
+        .from('episodes')
+        .update(episodePayload)
+        .eq('slug', episodeSlug)
+        .eq('lang', lang)
+        .select('slug')
+        .maybeSingle();
+      
+      if (updateError) throw new Error(getLocaleString('supabaseEpisodeError', currentLanguage, {errorMessage: updateError.message}));
+      upsertedEpisode = updatedEpisode;
+    } else {
+      // Создаем новый эпизод
+      console.log(`Creating new episode ${episodeSlug} (${lang}) with duration: ${episodePayload.duration} seconds`);
+      const { data: newEpisode, error: insertError } = await supabase
+        .from('episodes')
+        .insert(episodePayload)
+        .select('slug')
+        .maybeSingle();
+      
+      if (insertError) throw new Error(getLocaleString('supabaseEpisodeError', currentLanguage, {errorMessage: insertError.message}));
+      upsertedEpisode = newEpisode;
+    }
     
     if (timingsText.trim() && upsertedEpisode.slug) {
       let questionsToInsert = parseQuestionsFromDescriptionString(timingsText, lang, upsertedEpisode.slug);
@@ -256,55 +303,27 @@ export const processSingleItem = async ({
 
     let finalTranscriptStatus = itemData.transcriptionStatus;
     if (upsertedEpisode.slug) {
-      updateItemState(itemData.id, { transcriptionStatus: getLocaleString('startingTranscription', currentLanguage) });
+      // Убираем автоматический запуск распознавания текста
+      // Теперь распознавание запускается только по запросу в manage
+      updateItemState(itemData.id, { transcriptionStatus: 'not_started' });
       
-      const { data: existingTranscript, error: transcriptCheckError } = await supabase
+      // Сохраняем базовую информацию о транскрипции без запуска
+      const transcriptPayload = {
+        episode_slug: upsertedEpisode.slug,
+        lang: lang,
+        status: 'not_started',
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: transcriptDbError } = await supabase
         .from('transcripts')
-        .select('status, assemblyai_transcript_id')
-        .eq('episode_slug', upsertedEpisode.slug)
-        .eq('lang', lang)
-        .maybeSingle();
+        .upsert(transcriptPayload, { onConflict: 'episode_slug,lang' });
 
-      if (transcriptCheckError && transcriptCheckError.code !== 'PGRST116') {
-        throw new Error(getLocaleString('supabaseTranscriptError', currentLanguage, { errorMessage: transcriptCheckError.message }));
+      if (transcriptDbError) {
+        console.warn(`Warning: Could not save transcript record for ${upsertedEpisode.slug} (${lang}): ${transcriptDbError.message}`);
       }
-
-      let shouldSubmitTranscription = true;
-      if (existingTranscript && !userConfirmedOverwriteGlobal) {
-        if (existingTranscript.status === 'completed') {
-          shouldSubmitTranscription = false;
-          finalTranscriptStatus = 'completed';
-        } else if (existingTranscript.status === 'processing' && existingTranscript.assemblyai_transcript_id) {
-          shouldSubmitTranscription = false;
-          startPollingForItem(itemData, updateItemState, currentLanguage, toast, pollingIntervalsRef);
-        }
-      }
-
-      if (shouldSubmitTranscription) {
-        try {
-          const { transcriptId, error: assemblyError } = await assemblyAIService.submitTranscription(workerFileUrl, lang);
-          if (assemblyError) throw assemblyError;
-
-          const transcriptPayload = {
-            episode_slug: upsertedEpisode.slug,
-            lang: lang,
-            assemblyai_transcript_id: transcriptId,
-            status: 'processing'
-          };
-
-          const { error: transcriptDbError } = await supabase
-            .from('transcripts')
-            .upsert(transcriptPayload, { onConflict: 'episode_slug,lang' });
-
-          if (transcriptDbError) throw new Error(getLocaleString('supabaseTranscriptError', currentLanguage, { errorMessage: transcriptDbError.message }));
-
-          startPollingForItem(itemData, updateItemState, currentLanguage, toast, pollingIntervalsRef);
-        } catch (transcriptionError) {
-          console.error("Transcription submission error:", transcriptionError);
-          updateItemState(itemData.id, { transcriptionError: transcriptionError.message });
-          toast({ title: getLocaleString('transcriptionErrorTitle', currentLanguage), description: getLocaleString('transcriptionErrorDesc', currentLanguage, { errorMessage: transcriptionError.message }), variant: "destructive" });
-        }
-      }
+      
+      finalTranscriptStatus = 'not_started';
     }
 
     updateItemState(itemData.id, { 

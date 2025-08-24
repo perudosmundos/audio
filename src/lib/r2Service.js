@@ -10,6 +10,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getLocaleString } from '@/lib/locales'; 
+import logger from './logger';
 
 // Helpers to get env from Vite or fallback to localStorage (dev only)
 const getEnv = (key) => {
@@ -17,19 +18,23 @@ const getEnv = (key) => {
     if (typeof import.meta !== 'undefined' && import.meta.env && key in import.meta.env) {
       return import.meta.env[key];
     }
-  } catch (_) {}
+  } catch (err) {
+    logger.warn('Failed to read env var from import.meta.env:', err?.message);
+  }
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       return window.localStorage.getItem(key) || null;
     }
-  } catch (_) {}
+  } catch (err) {
+    logger.warn('Failed to read env var from localStorage:', err?.message);
+  }
   return null;
 };
 
-// Primary storage: Selectel S3
+// Primary storage: Selectel S3 - now using srvstatic.kz
 const buildPublicBase = (bucket, endpoint) => {
-  const ep = (endpoint || '').replace(/^https?:\/\//, '');
-  return `https://${bucket}.${ep}`;
+  // Always use the new public domain for audio playback
+  return 'https://b2a9e188-93e4-4928-a636-2ad4c9e1094e.srvstatic.kz';
 };
 
 const R2_PRIMARY_CONFIG = {
@@ -39,7 +44,7 @@ const R2_PRIMARY_CONFIG = {
   ENDPOINT: getEnv('VITE_S3_ENDPOINT') || 'https://s3.kz-1.srvstorage.kz',
   REGION: getEnv('VITE_S3_REGION') || 'kz-1',
   FORCE_PATH_STYLE: false,
-  WORKER_PUBLIC_URL: getEnv('VITE_S3_PUBLIC_BASE') || buildPublicBase(getEnv('VITE_S3_BUCKET') || 'dosmundos-audio', getEnv('VITE_S3_ENDPOINT') || 'https://s3.kz-1.srvstorage.kz')
+  WORKER_PUBLIC_URL: 'https://b2a9e188-93e4-4928-a636-2ad4c9e1094e.srvstatic.kz'
 };
 
 // Secondary config disabled
@@ -116,7 +121,7 @@ const r2Service = {
           const base = proxyBaseEnv || (isProd ? '' : null);
           const proxyUrl = base !== null ? `${base}/api/ia-upload?key=${encodeURIComponent(fileKey)}&contentType=${encodeURIComponent(file.type || 'application/octet-stream')}` : null;
           if (proxyUrl) {
-            console.log(`[Upload] ${fileKey}: uploading via proxy ${proxyUrl}`);
+            logger.info(`[Upload] ${fileKey}: uploading via proxy ${proxyUrl}`);
             let proxyStatus = 0;
             let proxyErrorText = '';
             try {
@@ -144,10 +149,10 @@ const r2Service = {
               });
               if (onProgress) onProgress(100, { stage: 'finalizing', message: 'Отправка на archive.org…', uploadedMB: totalMB, totalMB });
               const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
-              console.log(`[Upload] ${fileKey}: completed via proxy. URL: ${fileUrl}`);
+              logger.info(`[Upload] ${fileKey}: completed via proxy. URL: ${fileUrl}`);
               return { fileUrl, fileKey, bucketName: config.BUCKET };
             } catch (proxyErr) {
-              console.warn(`[Upload] ${fileKey}: proxy failed (${proxyStatus}) ${proxyErrorText || proxyErr.message}. Falling back to direct upload.`);
+              logger.warn(`[Upload] ${fileKey}: proxy failed (${proxyStatus}) ${proxyErrorText || proxyErr.message}. Falling back to direct upload.`);
               // continue to direct upload below
             }
           }
@@ -199,11 +204,11 @@ const r2Service = {
         });
         if (onProgress) onProgress(100, { stage: 'done', message: 'Готово', uploadedMB: totalMB, totalMB });
         const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
-        console.log(`[Upload] ${fileKey}: completed via presigned PUT. URL: ${fileUrl}`);
+        logger.info(`[Upload] ${fileKey}: completed via presigned PUT. URL: ${fileUrl}`);
         return { fileUrl, fileKey, bucketName: config.BUCKET };
 
       } catch (error) {
-        console.error(`Error uploading to bucket ${config.BUCKET}:`, error);
+        logger.error(`Error uploading to bucket ${config.BUCKET}:`, error);
         if (isPrimaryAttempt) {
           console.warn(`Primary upload failed for ${fileKey}. Disabling secondary R2 fallback.`);
           // Вместо перехода на R2 secondary, пробросим ошибку — в РФ он недоступен
@@ -224,7 +229,7 @@ const r2Service = {
       await client.send(command);
       return { success: true };
     } catch (error) {
-      console.error(`Error deleting file ${fileKey} from R2 bucket ${config.BUCKET}:`, error);
+      logger.error(`Error deleting file ${fileKey} from R2 bucket ${config.BUCKET}:`, error);
       return { success: false, error: getLocaleString('errorDeletingR2File', currentLanguage, { fileName: fileKey, errorMessage: error.message }) };
     }
   },
@@ -237,19 +242,34 @@ const r2Service = {
   // Совместимая функция для генерации URL
   getCompatibleUrl: (audioUrl, r2ObjectKey, r2BucketName) => {
 
-    
-    // Если есть прямой URL, используем его как есть
-    if (audioUrl) {
-      return audioUrl;
-    }
-    
-    // Если есть ключ, генерируем прямой URL к воркеру
+    const base = R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL;
+
+    // 1) If we have explicit key, always prefer the public base
     if (r2ObjectKey) {
-      const base = R2_PRIMARY_CONFIG.WORKER_PUBLIC_URL;
       return `${base}/${r2ObjectKey}`;
     }
-    
-    
+
+    // 2) If we have audioUrl, try to normalize it to the public base
+    if (audioUrl) {
+      try {
+        const urlObj = new URL(audioUrl);
+        const isSelectelS3 = /s3\.kz-1\.srvstorage\.kz$/i.test(urlObj.hostname);
+        const keyGuess = urlObj.pathname.replace(/^\//, '');
+
+        // If it's coming from Selectel S3, rewrite to the public base
+        if (isSelectelS3 && keyGuess) {
+          return `${base}/${keyGuess}`;
+        }
+
+        // Otherwise, keep the original URL
+        return audioUrl;
+      } catch (_) {
+        // If parsing failed, keep original string
+        return audioUrl;
+      }
+    }
+
+    // 3) Nothing usable
     return null;
   },
 
@@ -284,13 +304,13 @@ const r2Service = {
           : `https://${R2_PRIMARY_CONFIG.ACCOUNT_ID}.${R2_PRIMARY_CONFIG.ENDPOINT_SUFFIX}`;
         await fetch(testUrl, { method: 'HEAD', mode: 'no-cors' });
       } catch (error) {
-        console.warn('R2: DNS resolution failed:', error.message);
+        logger.warn('R2: DNS resolution failed:', error.message);
       }
 
       return { success: true, message: 'R2 connection test completed' };
       
     } catch (error) {
-      console.error('R2: Connection test failed:', error);
+      logger.error('R2: Connection test failed:', error);
       return { success: false, error: error.message };
     }
   },

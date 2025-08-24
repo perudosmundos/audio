@@ -7,9 +7,7 @@ const AUDIO_CACHE = 'audio-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/vite.svg',
-  '/assets/index.css',
-  '/assets/index.js'
+  '/vite.svg'
 ];
 
 // Максимальный размер кеша аудио (100MB)

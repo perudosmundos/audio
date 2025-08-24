@@ -242,13 +242,7 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
                   {formatEpisodeTitle(episode.title, episode.date, episode.lang === 'all' ? currentLanguage : episode.lang)}
                 </h2>
                 <p className="text-xs text-slate-400">{episode.slug} 
-                {episode.file_has_lang_suffix && episode.lang !== 'all' && (
-                  <span className={`ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full ${
-                    episode.lang === 'ru' ? 'bg-blue-600/70 text-blue-100' : 'bg-yellow-600/70 text-yellow-100'
-                  }`}>
-                    {episode.lang.toUpperCase()}
-                  </span>
-                )}
+
                 </p>
               </div>
               <Button 

@@ -22,8 +22,6 @@ const PlayerUIControls = React.memo(({
   playerControlsContainerRef,
   showTranscript,
   onToggleShowTranscript,
-  skipEmptySegments,
-  onToggleSkipEmptySegments,
   onDownloadAudio,
   playbackRateOptions,
   currentPlaybackRateValue,
@@ -39,7 +37,7 @@ const PlayerUIControls = React.memo(({
           {activeQuestionTitle || (isPlaying ? getLocaleString('nowPlaying', currentLanguage) : getLocaleString('paused', currentLanguage))}
         </div>
         <div className="w-full flex flex-col items-center justify-center">
-          <ProgressBar 
+          <ProgressBar
             currentTime={currentTime}
             duration={duration}
             sections={questions}
@@ -58,8 +56,6 @@ const PlayerUIControls = React.memo(({
             currentLanguage={currentLanguage}
             showTranscript={showTranscript}
             onToggleShowTranscript={onToggleShowTranscript}
-            skipEmptySegments={skipEmptySegments}
-            onToggleSkipEmptySegments={onToggleSkipEmptySegments}
             onDownloadAudio={onDownloadAudio}
             playbackRateOptions={playbackRateOptions}
             currentPlaybackRateValue={currentPlaybackRateValue}

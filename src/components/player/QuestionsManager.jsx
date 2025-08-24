@@ -27,7 +27,10 @@ const QuestionsManager = ({
   segmentToHighlight,
   isLoading,
   transcriptLoading,
-  onTranscriptLocalUpdate
+  onTranscriptLocalUpdate,
+  onSaveEditedSegment,
+  onAddQuestionFromSegment,
+  onEditQuestion
 }) => {
   const [activeQuestionId, setActiveQuestionId] = useState(null);
   const [expandedById, setExpandedById] = useState({});
@@ -49,6 +52,18 @@ const QuestionsManager = ({
     });
     return map;
   }, [questions, utterances, duration, showTranscript]);
+
+  const questionEndTimeMsMap = useMemo(() => {
+    const map = {};
+    if (!Array.isArray(questions) || questions.length === 0) return map;
+    const sorted = [...questions].sort((a, b) => a.time - b.time);
+    sorted.forEach((q, idx) => {
+      const next = sorted[idx + 1];
+      const endSec = next ? next.time : (typeof duration === 'number' ? duration : Infinity);
+      map[q.id] = (endSec === Infinity) ? Infinity : endSec * 1000;
+    });
+    return map;
+  }, [questions, duration]);
 
   useEffect(() => {
     if (!disableAutomaticCollapse && Array.isArray(questions) && questions.length > 0) {
@@ -88,10 +103,21 @@ const QuestionsManager = ({
   const displayableQuestions = useMemo(() => {
     if (!Array.isArray(questions)) return [];
     const sorted = [...questions].sort((a, b) => a.time - b.time);
-    const fullTranscript = (!sorted.some(q => q.id !== 'intro-virtual') && utterances.length > 0 && showTranscript)
+    
+    // Фильтруем вопросы без заголовка, кроме специальных блоков
+    const filteredQuestions = sorted.filter(q => {
+      // Пропускаем специальные блоки (intro, full_transcript)
+      if (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual') {
+        return true;
+      }
+      // Пропускаем вопросы с заголовком (не пустой и не только пробелы)
+      return q.title && q.title.trim() !== '';
+    });
+    
+    const fullTranscript = (!filteredQuestions.some(q => q.id !== 'intro-virtual') && utterances.length > 0 && showTranscript)
       ? [{ id: 'full-transcript-virtual', title: '', time: 0, is_full_transcript: true, is_intro: false, lang: langForContent }]
       : [];
-    return [...fullTranscript, ...sorted];
+    return [...fullTranscript, ...filteredQuestions];
   }, [questions, utterances, showTranscript, langForContent]);
 
   return (
@@ -107,13 +133,13 @@ const QuestionsManager = ({
           isExpanded={!!expandedById[q.id]}
           onToggleExpansion={() => toggleQuestionExpansion(q.id)}
           onActivate={() => handleActivateQuestion(q)}
-          onEditQuestion={() => {}}
+          onEditQuestion={() => onEditQuestion(q)}
           currentLanguage={currentLanguage}
           onSegmentClick={handleSegmentClick}
           audioRef={audioRef}
-          onSaveEditedSegment={() => {}}
+          onSaveEditedSegment={onSaveEditedSegment}
           activeSegmentTime={currentTime * 1000}
-          onAddQuestionFromSegment={() => {}}
+          onAddQuestionFromSegment={onAddQuestionFromSegment}
           utterances={utterances}
           mainPlayerIsPlaying={mainPlayerIsPlaying}
           showTranscript={showTranscript}
@@ -125,6 +151,7 @@ const QuestionsManager = ({
           onOpenSpeakerAssignmentDialog={onOpenSpeakerAssignmentDialog}
           segmentToHighlight={segmentToHighlight}
           transcriptLoading={transcriptLoading}
+          questionRangeEndMs={questionEndTimeMsMap[q.id]}
         />
       ))}
     </div>

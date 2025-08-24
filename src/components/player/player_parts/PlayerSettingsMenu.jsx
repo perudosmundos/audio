@@ -12,15 +12,13 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
-import { Settings, ScrollText, Download, SkipForward, PlusCircle, Gauge } from 'lucide-react';
+import { Settings, ScrollText, Download, PlusCircle, Gauge } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const PlayerSettingsMenu = ({
   currentLanguage,
   showTranscript,
   onToggleShowTranscript,
-  skipEmptySegments,
-  onToggleSkipEmptySegments,
   onDownloadAudio,
   isCompact = false,
   playbackRateOptions,
@@ -50,15 +48,6 @@ const PlayerSettingsMenu = ({
         >
           <ScrollText className="mr-2 h-4 w-4 text-purple-300" />
           <span>{getLocaleString('showTranscript', currentLanguage)}</span>
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuCheckboxItem
-          checked={skipEmptySegments}
-          onCheckedChange={onToggleSkipEmptySegments}
-          className="focus:bg-slate-700 data-[state=checked]:bg-purple-600/30"
-        >
-          <SkipForward className="mr-2 h-4 w-4 text-purple-300" />
-          <span>{getLocaleString('skipEmptySegments', currentLanguage)}</span>
         </DropdownMenuCheckboxItem>
         
         <DropdownMenuSeparator className="bg-slate-700" />

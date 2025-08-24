@@ -34,7 +34,7 @@ const QuestionBlockHeader = ({
           </div>
         )}
       <span className={`font-medium flex-grow min-w-0 ${isReadingMode ? 'text-xl font-semibold text-slate-900 whitespace-normal' : 'text-sm text-slate-100 line-clamp-1'}`}>
-        {question.title || getLocaleString('untitledQuestion', currentLanguage)}
+        {question.title || ''}
       </span>
     </div>
     {!isReadingMode && (

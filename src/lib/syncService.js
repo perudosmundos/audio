@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient';
 import offlineDataService from './offlineDataService';
+import logger from './logger';
+import { getFullTextFromUtterances } from '@/hooks/transcript/transcriptProcessingUtils';
 
 class SyncService {
   constructor() {
@@ -18,14 +20,14 @@ class SyncService {
   // Инициализация слушателей сетевых событий
   initNetworkListeners() {
     window.addEventListener('online', () => {
-      console.log('[Sync] Network connection restored');
+      logger.info('[Sync] Network connection restored');
       this.isOnline = true;
       this.notifyNetworkListeners(true);
       this.syncOfflineChanges();
     });
 
     window.addEventListener('offline', () => {
-      console.log('[Sync] Network connection lost');
+      logger.warn('[Sync] Network connection lost');
       this.isOnline = false;
       this.notifyNetworkListeners(false);
     });
@@ -54,26 +56,29 @@ class SyncService {
   // Проверка соединения
   async checkConnection() {
     try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 5000);
       const response = await fetch('/ping', { 
         method: 'HEAD', 
         cache: 'no-cache',
-        timeout: 5000 
+        signal: controller.signal
       });
+      clearTimeout(id);
       
       const wasOnline = this.isOnline;
       this.isOnline = response.ok;
       
       if (!wasOnline && this.isOnline) {
-        console.log('[Sync] Connection restored via ping');
+        logger.info('[Sync] Connection restored via ping');
         this.notifyNetworkListeners(true);
         this.syncOfflineChanges();
       } else if (wasOnline && !this.isOnline) {
-        console.log('[Sync] Connection lost via ping');
+        logger.warn('[Sync] Connection lost via ping');
         this.notifyNetworkListeners(false);
       }
     } catch (error) {
       if (this.isOnline) {
-        console.log('[Sync] Connection lost via ping error');
+        logger.warn('[Sync] Connection lost via ping error');
         this.isOnline = false;
         this.notifyNetworkListeners(false);
       }
@@ -102,7 +107,7 @@ class SyncService {
       try {
         callback(isOnline);
       } catch (error) {
-        console.error('[Sync] Network listener error:', error);
+        logger.error('[Sync] Network listener error:', error);
       }
     });
   }
@@ -113,7 +118,7 @@ class SyncService {
       try {
         callback(event, data);
       } catch (error) {
-        console.error('[Sync] Sync listener error:', error);
+        logger.error('[Sync] Sync listener error:', error);
       }
     });
   }
@@ -149,7 +154,7 @@ class SyncService {
         try {
           await this.syncDataToServer(type, data, operation);
         } catch (error) {
-          console.log('[Sync] Immediate sync failed, adding to queue:', error);
+          logger.warn('[Sync] Immediate sync failed, adding to queue:', error);
           await offlineDataService.addToSyncQueue(type, data, operation);
         }
       } else {
@@ -159,7 +164,7 @@ class SyncService {
 
       return { success: true, offline: !this.isOnline };
     } catch (error) {
-      console.error('[Sync] Failed to save data:', error);
+      logger.error('[Sync] Failed to save data:', error);
       throw error;
     }
   }
@@ -193,7 +198,7 @@ class SyncService {
           
           return { data: serverData, source: 'server' };
         } catch (error) {
-          console.log('[Sync] Server load failed, trying cache:', error);
+          logger.warn('[Sync] Server load failed, trying cache:', error);
         }
       }
 
@@ -220,7 +225,7 @@ class SyncService {
 
       throw new Error(`No ${type} data available offline`);
     } catch (error) {
-      console.error(`[Sync] Failed to load ${type}:`, error);
+      logger.error(`[Sync] Failed to load ${type}:`, error);
       throw error;
     }
   }
@@ -294,18 +299,39 @@ class SyncService {
   async syncTranscriptToServer(data, operation) {
     switch (operation) {
       case 'update':
-        const { error: updateError } = await supabase
-          .from('transcripts')
-          .update({
-            edited_transcript_data: {
-              utterances: data.utterances,
-              words: data.words,
-              text: data.text
-            }
+        // Split large payloads to avoid HTTP2 errors
+        const compactEdited = {
+          utterances: (data.utterances || []).map(u => {
+            const out = { start: u.start, end: u.end, text: u.text };
+            if (u.id !== undefined) out.id = u.id;
+            if (u.speaker !== undefined && u.speaker !== null && String(u.speaker).trim() !== '') out.speaker = u.speaker;
+            return out;
           })
-          .eq('id', data.id);
+        };
         
-        if (updateError) throw updateError;
+        // Retry logic for large payloads
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            const { error: updateError } = await supabase
+              .from('transcripts')
+              .update({ edited_transcript_data: compactEdited })
+              .eq('id', data.id);
+            
+            if (updateError) throw updateError;
+            break; // Success, exit retry loop
+          } catch (err) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              throw err;
+            } else {
+              console.warn(`Retry ${retryCount}/${maxRetries} for transcript sync:`, err.message);
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+            }
+          }
+        }
         break;
 
       case 'create':
@@ -387,7 +413,7 @@ class SyncService {
       await offlineDataService.init();
       const syncQueue = await offlineDataService.getSyncQueue();
       
-      console.log(`[Sync] Processing ${syncQueue.length} offline changes`);
+      logger.info(`[Sync] Processing ${syncQueue.length} offline changes`);
 
       let successCount = 0;
       let errorCount = 0;
@@ -403,12 +429,12 @@ class SyncService {
             operation: item.operation
           });
         } catch (error) {
-          console.error(`[Sync] Failed to sync ${item.type}:`, error);
+          logger.error(`[Sync] Failed to sync ${item.type}:`, error);
           
           const updatedItem = await offlineDataService.incrementSyncAttempts(item.id);
           
           if (updatedItem && updatedItem.attempts >= updatedItem.max_attempts) {
-            console.log(`[Sync] Max attempts reached for ${item.type}, removing from queue`);
+            logger.warn(`[Sync] Max attempts reached for ${item.type}, removing from queue`);
             await offlineDataService.removeSyncItem(item.id);
           }
           
@@ -422,7 +448,7 @@ class SyncService {
         }
       }
 
-      console.log(`[Sync] Completed: ${successCount} success, ${errorCount} errors`);
+      logger.info(`[Sync] Completed: ${successCount} success, ${errorCount} errors`);
       
       this.notifySyncListeners('sync_complete', {
         successCount,
@@ -430,7 +456,7 @@ class SyncService {
         totalCount: syncQueue.length
       });
     } catch (error) {
-      console.error('[Sync] Sync process failed:', error);
+      logger.error('[Sync] Sync process failed:', error);
       this.notifySyncListeners('sync_error', { error: error.message });
     } finally {
       this.syncInProgress = false;

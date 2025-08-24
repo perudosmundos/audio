@@ -11,11 +11,10 @@
       "destination": "/index.html"
     }
   ],
-<<<<<<< HEAD
-  "functions": {},
-  "headers": []
-=======
   "functions": {
+    "api/assemblyai.js": {
+      "maxDuration": 60
+    },
     "api/audio-proxy/[...path].js": {
       "maxDuration": 60
     },
@@ -27,6 +26,13 @@
     }
   },
   "headers": [
+    {
+      "source": "/api/assemblyai",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
     {
       "source": "/api/direct-audio/(.*)",
       "headers": [
@@ -91,5 +97,4 @@
       ]
     }
   ]
->>>>>>> d893a2ca5552f100db9322aed24356182b821475
 } 

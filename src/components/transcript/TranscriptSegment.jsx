@@ -6,6 +6,8 @@ import { Edit3, HelpCircle } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import { formatFullTime } from '@/lib/utils';
 import SegmentEditControls from '@/components/player/questions_manager_parts/SegmentEditControls.jsx';
+import AddSegmentDialog from '@/components/player/questions_manager_parts/AddSegmentDialog.jsx';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 
 const speakerDisplayColors = [
   'text-sky-400', 'text-emerald-400', 'text-amber-400', 
@@ -76,12 +78,18 @@ const TranscriptSegment = ({
   setTextareaRef,
   isActiveQuestionBlock,
   isJumpTargetPreview,
-  onOpenSpeakerAssignmentDialog
+  onOpenSpeakerAssignmentDialog,
+  availableSpeakers = [],
+  onSetSegmentSpeaker,
+  onInsertManualSegment
 }) => {
   
   const [cursorPositionForSplit, setCursorPositionForSplit] = useState(null);
   const internalTextareaRef = useRef(null);
   const [textareaHeight, setTextareaHeight] = useState('auto');
+  const [isAddSegmentOpen, setIsAddSegmentOpen] = useState(false);
+  const [defaultAddStartSec, setDefaultAddStartSec] = useState(undefined);
+  const [defaultAddEndSec, setDefaultAddEndSec] = useState(undefined);
   
   useEffect(() => {
     if (setTextareaRef && internalTextareaRef.current) {
@@ -137,11 +145,12 @@ const TranscriptSegment = ({
   const segmentTextDisplay = highlightTextFn && segment?.text ? highlightTextFn(segment.text) : segment?.text;
 
   const attemptSplit = () => {
-    if (cursorPositionForSplit === null || cursorPositionForSplit < 0 || cursorPositionForSplit > (editedText || "").length) {
-      return; 
-    }
     if (onSplitSegment && segment) {
-        onSplitSegment(segment, editedText, cursorPositionForSplit);
+      // If cursorPositionForSplit is valid, pass it; otherwise let downstream read selection from textareaRef
+      const pos = (typeof cursorPositionForSplit === 'number' && cursorPositionForSplit >= 0 && cursorPositionForSplit <= (editedText || '').length)
+        ? cursorPositionForSplit
+        : undefined;
+      onSplitSegment(segment, editedText, pos);
     }
   };
 
@@ -155,6 +164,26 @@ const TranscriptSegment = ({
     if (onDeleteSegment && segment) {
         onDeleteSegment(segment);
     }
+  };
+
+  const openAddSegment = () => {
+    if (segment && typeof segment.end === 'number') {
+      const startSec = Math.round(segment.end / 1000);
+      setDefaultAddStartSec(startSec);
+      setDefaultAddEndSec(startSec + 1);
+    } else {
+      setDefaultAddStartSec(undefined);
+      setDefaultAddEndSec(undefined);
+    }
+    setIsAddSegmentOpen(true);
+  };
+  const closeAddSegment = () => setIsAddSegmentOpen(false);
+
+  const handleInlineSpeakerChange = (newSpeaker) => {
+    if (!onSetSegmentSpeaker) return;
+    const oldSpeakerId = segment?.speaker;
+    const finalSpeakerId = newSpeaker === '' ? null : newSpeaker;
+    onSetSegmentSpeaker(segment, oldSpeakerId, finalSpeakerId);
   };
 
   const handleTextareaChange = (e) => {
@@ -197,6 +226,7 @@ const TranscriptSegment = ({
   const timeColorClass = speakerInfo.color;
 
   return (
+    <>
     <div
       className={`${segmentBaseStyle} ${segmentDynamicStyle}`}
       id={`segment-${segment.start}`}
@@ -255,6 +285,29 @@ const TranscriptSegment = ({
           <div className="flex-grow min-w-0">
             {isEditingThisSegment ? (
               <>
+              <div className="mb-2 w-full max-w-xs">
+                <Select value={String(segment?.speaker || '') || '__none__'} onValueChange={(v) => handleInlineSpeakerChange(v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-200 h-8">
+                    <SelectValue placeholder={getLocaleString('selectSpeakerPlaceholder', currentLanguage)}>
+                      {segment?.speaker && (
+                        <span className={getSpeakerDisplay(segment.speaker, currentLanguage).color}>
+                          {getSpeakerDisplay(segment.speaker, currentLanguage).name}
+                        </span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                    <SelectItem value="__none__">
+                      <span className="text-slate-400">{getLocaleString('unknownSpeaker', currentLanguage)}</span>
+                    </SelectItem>
+                    {availableSpeakers.map(s => (
+                      <SelectItem key={s} value={s}>
+                        <span className={getSpeakerDisplay(s, currentLanguage).color}>{s}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Textarea
                 ref={internalTextareaRef}
                 value={editedText || ""}
@@ -284,12 +337,27 @@ const TranscriptSegment = ({
             onSplit={attemptSplit}
             onMerge={attemptMerge}
             onDelete={attemptDelete}
+            onAdd={(e) => { if (e) e.stopPropagation(); openAddSegment(); }}
             isFirstOverallSegment={isFirstOverallSegment}
             currentLanguage={currentLanguage}
           />
         )}
       </div>
     </div>
+    <AddSegmentDialog
+      isOpen={isAddSegmentOpen}
+      onClose={closeAddSegment}
+      onSave={({ startSec, endSec, text }) => {
+        if (typeof onInsertManualSegment === 'function') {
+          onInsertManualSegment(startSec, endSec, text);
+        }
+        closeAddSegment();
+      }}
+      currentLanguage={currentLanguage}
+      defaultStartSec={defaultAddStartSec}
+      defaultEndSec={defaultAddEndSec}
+    />
+    </>
   );
 };
 

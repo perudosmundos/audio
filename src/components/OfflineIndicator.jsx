@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Download, Sync, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Wifi, WifiOff, Download, RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import syncService from '@/lib/syncService';
 import audioCacheService from '@/lib/audioCacheService';
@@ -114,7 +114,7 @@ const OfflineIndicator = ({ currentLanguage = 'ru' }) => {
 
   const getSyncIcon = () => {
     if (syncStatus.isActive) {
-      return <Sync className="h-4 w-4 text-blue-500 animate-spin" />;
+      return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
     } else if (syncStatus.error) {
       return <AlertCircle className="h-4 w-4 text-red-500" />;
     } else if (syncStatus.pendingChanges > 0) {

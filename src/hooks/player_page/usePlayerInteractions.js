@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import logger from '@/lib/logger';
 
 const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug, questions, initialShowTranscript = false) => {
   const location = useLocation();
@@ -14,25 +15,25 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
 
   useEffect(() => {
     const hash = location.hash;
-    console.log('usePlayerInteractions: Processing hash', hash);
+    logger.debug('usePlayerInteractions: Processing hash', hash);
     if (hash) {
       // Обновленное регулярное выражение для поддержки &play=true без разделителя
       const segmentMatch = hash.match(/^#segment-(\d+(?:\.\d+)?)(?:&play=true)?$/);
       const questionMatch = hash.match(/^#question-([\w-]+)(?:&play=true)?$/);
 
-      console.log('usePlayerInteractions: segmentMatch', segmentMatch);
-      console.log('usePlayerInteractions: questionMatch', questionMatch);
+      logger.debug('usePlayerInteractions: segmentMatch', segmentMatch);
+      logger.debug('usePlayerInteractions: questionMatch', questionMatch);
 
       if (segmentMatch) {
         const time = parseFloat(segmentMatch[1]) / 1000; 
         const play = hash.includes('&play=true');
-        console.log('usePlayerInteractions: Setting segment jump details', { time, play, segmentId: segmentMatch[1] });
+        logger.debug('usePlayerInteractions: Setting segment jump details', { time, play, segmentId: segmentMatch[1] });
         setJumpDetails({ time: time, id: `segment-${segmentMatch[1]}`, questionId: null, playAfterJump: play, segmentToHighlight: parseFloat(segmentMatch[1]) });
       } else if (questionMatch) {
         const questionId = questionMatch[1];
         const play = hash.includes('&play=true');
         let question = questions.find(q => String(q.id) === questionId || q.slug === questionId);
-        console.log('usePlayerInteractions: Found question for jump', { questionId, question, play });
+        logger.debug('usePlayerInteractions: Found question for jump', { questionId, question, play });
         if (question) {
           setJumpDetails({ time: question.time, id: `question-${questionId}`, questionId: questionId, playAfterJump: play, segmentToHighlight: null });
         } else {
@@ -60,7 +61,7 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
   }, [location.hash, questions, episodeSlug]);
 
   const handleSeekToTime = useCallback((time, id = null, playAfterJump = false, questionId = null) => {
-    console.log('usePlayerInteractions: handleSeekToTime called', { time, id, playAfterJump, questionId });
+    logger.debug('usePlayerInteractions: handleSeekToTime called', { time, id, playAfterJump, questionId });
     const segmentStartTimeMs = Math.round(time * 1000);
     let newHash = '';
     if (id && typeof id === 'string' && id.startsWith('question-')) {
@@ -80,7 +81,7 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
   }, [navigate, location.pathname, location.hash, location.state]);
 
   const handlePlayerStateChange = useCallback((newState) => {
-    console.log('usePlayerInteractions: handlePlayerStateChange called', newState);
+    logger.debug('usePlayerInteractions: handlePlayerStateChange called', newState);
     setPlayerState(prevState => ({ ...prevState, ...newState }));
   }, []);
 

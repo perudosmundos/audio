@@ -3,6 +3,7 @@ import { getLocaleString } from '@/lib/locales';
 import syncService from '@/lib/syncService';
 import offlineDataService from '@/lib/offlineDataService';
 import audioCacheService from '@/lib/audioCacheService';
+import { getFullTextFromUtterances } from '@/hooks/transcript/transcriptProcessingUtils';
 
 const useOfflineEpisodeData = (episodeSlug, currentLanguage, toast) => {
   const [episodeData, setEpisodeData] = useState(null);
@@ -101,13 +102,13 @@ const useOfflineEpisodeData = (episodeSlug, currentLanguage, toast) => {
 
       if (result.data) {
         const transcriptData = result.data;
-        const finalData = transcriptData.edited_transcript_data || transcriptData.transcript_data;
+        const finalData = transcriptData.edited_transcript_data;
         
         setTranscript({
           id: transcriptData.id,
           utterances: finalData?.utterances || [],
           words: finalData?.words || [],
-          text: finalData?.text || '',
+          text: finalData?.text || getFullTextFromUtterances(finalData?.utterances || []),
           status: transcriptData.status
         });
 

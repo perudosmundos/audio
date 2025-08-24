@@ -37,7 +37,7 @@ const QuestionBlockHeader = ({
           </div>
         )}
       <span className={`font-medium line-clamp-1 flex-grow min-w-0 ${isReadingMode ? 'text-xl font-semibold text-slate-900' : 'text-sm text-slate-100'}`}>
-        {question.title || getLocaleString('untitledQuestion', currentLanguage)}
+        {question.title || ''}
       </span>
     </div>
     {!isReadingMode && (
@@ -98,7 +98,8 @@ const QuestionBlock = React.memo(({
   setReadingModeEditingSegmentRef,
   onOpenSpeakerAssignmentDialog,
   segmentToHighlight,
-  transcriptLoading
+  transcriptLoading,
+  questionRangeEndMs
 }) => {
   const [visibleSegmentsCount, setVisibleSegmentsCount] = useState(isReadingMode ? Infinity : 5);
 
@@ -117,6 +118,7 @@ const QuestionBlock = React.memo(({
     performActionWithConfirmation,
     setShowConfirmDialog,
     isSaving,
+    insertSegmentManually,
   } = useSegmentEditing(utterances || [], onSaveEditedSegment, audioRef, currentLanguage, user, episodeSlug);
 
   useEffect(() => {
@@ -144,17 +146,19 @@ const QuestionBlock = React.memo(({
   }, []);
 
   const isFullTranscriptBlock = Boolean(question?.is_full_transcript) || question?.id === 'full-transcript-virtual';
-  const isActiveBySegment = (
+  const questionStartMs = (question?.time || 0) * 1000;
+  const isActiveByTimeRange = (
     !isReadingMode &&
     !isFullTranscriptBlock &&
     typeof activeSegmentTime === 'number' &&
-    Array.isArray(segments) &&
-    segments.some(s => typeof s.start === 'number' && typeof s.end === 'number' && activeSegmentTime >= s.start && activeSegmentTime < s.end)
+    activeSegmentTime >= questionStartMs &&
+    (questionRangeEndMs === Infinity || typeof questionRangeEndMs === 'number') &&
+    activeSegmentTime < (questionRangeEndMs === Infinity ? Number.POSITIVE_INFINITY : questionRangeEndMs)
   );
 
-  // Highlight rules: when playing, highlight only the block that contains the current segment;
+  // Highlight rules: when playing, highlight the question by time range [question.time, nextQuestion.time);
   // when paused/stopped, highlight the clicked/active question
-  const shouldHighlight = !isReadingMode && ((mainPlayerIsPlaying && isActiveBySegment) || (!mainPlayerIsPlaying && isActiveQuestion));
+  const shouldHighlight = !isReadingMode && ((mainPlayerIsPlaying && isActiveByTimeRange) || (!mainPlayerIsPlaying && isActiveQuestion));
 
   const blockHighlightClass = shouldHighlight && !isReadingMode
     ? (isJumpTarget && isExpanded ? 'ring-1 ring-purple-500/30' : 'bg-purple-600/10 ring-1 ring-purple-500/20')
@@ -164,7 +168,30 @@ const QuestionBlock = React.memo(({
   const displaySegments = segments; 
   const displayVisibleCount = (editingSegment || (isReadingMode && readingModeEditingActive)) ? (segments ? segments.length : 0) : visibleSegmentsCount;
 
+  const availableSpeakers = React.useMemo(() => {
+    const set = new Set();
+    (utterances || []).forEach(u => {
+      const s = (u && u.speaker !== undefined && u.speaker !== null) ? String(u.speaker).trim() : '';
+      if (s) set.add(s);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [utterances]);
 
+  const handleSetSegmentSpeaker = useCallback(async (segment, oldSpeakerId, newSpeakerId) => {
+    if (!Array.isArray(utterances) || !onSaveEditedSegment) return;
+    const targetId = segment?.id || segment?.start;
+    const newUtterances = (utterances || []).map(u => {
+      if ((u.id || u.start) === targetId) {
+        if (String(u.speaker || '') !== String(newSpeakerId || '')) {
+          return { ...u, speaker: newSpeakerId };
+        }
+      }
+      return u;
+    });
+    await onSaveEditedSegment(newUtterances, 'update', segment, { ...segment, speaker: newSpeakerId });
+  }, [utterances, onSaveEditedSegment]);
+
+  
   const handleEditSegmentInternal = useCallback((segment) => {
     if (isReadingMode && readingModeEditingActive) {
       handleEditSegment(segment);
@@ -239,21 +266,22 @@ const QuestionBlock = React.memo(({
                 isReadingMode={isReadingMode}
                 readingModeEditingActive={readingModeEditingActive}
                 onOpenSpeakerAssignmentDialog={onOpenSpeakerAssignmentDialog}
+                onInsertManualSegment={insertSegmentManually}
+                availableSpeakers={availableSpeakers}
+                onSetSegmentSpeaker={handleSetSegmentSpeaker}
              />
            </div>
         )}
-           {(isExpanded || editingSegment) && (!displaySegments || displaySegments.length === 0) && showTranscript && (
-             <div 
-               className={`text-xs pt-1.5 pl-1.5 mt-1 rounded-b-md pb-2 ${isReadingMode ? 'text-slate-600' : 'text-slate-400 border-t border-slate-700/20'}`}
-             >
-               <span className="inline-flex items-center gap-1.5">
-                 {transcriptLoading && (
-                   <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-400" />
-                 )}
-                 {getLocaleString('noTranscriptData', currentLanguage)}
-               </span>
-             </div>
-           )}
+          {(isExpanded || editingSegment) && showTranscript && transcriptLoading && (
+            <div 
+              className={`text-xs pt-1.5 pl-1.5 mt-1 rounded-b-md pb-2 ${isReadingMode ? 'text-slate-600' : 'text-slate-400 border-t border-slate-700/20'}`}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-400" />
+                {getLocaleString('loadingTranscript', currentLanguage)}
+              </span>
+            </div>
+          )}
       </div>
 
       {showConfirmDialog && (

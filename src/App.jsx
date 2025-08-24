@@ -11,8 +11,12 @@ import PlayerPage from '@/pages/PlayerPage';
 import ManagePage from '@/pages/ManagePage'; 
 import NotFoundPage from '@/pages/NotFoundPage';
 import DeepSearchPage from '@/pages/DeepSearchPage';
+import OfflineSettingsPage from '@/pages/OfflineSettingsPage';
 import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import syncService from '@/lib/syncService';
+import enhancedCacheService from '@/lib/enhancedCacheService';
+import { useToast } from '@/components/ui/use-toast';
 
 
 const FooterContent = ({ currentLanguage, onLanguageSelect }) => {
@@ -86,6 +90,28 @@ function App() {
   const [showLangModal, setShowLangModal] = useState(!currentLanguage);
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [offlineServicesReady, setOfflineServicesReady] = useState(false);
+  const { toast } = useToast();
+
+  // Инициализация офлайн сервисов (временно отключено для отладки)
+  useEffect(() => {
+    const initOfflineServices = async () => {
+      try {
+        console.log('[App] Initializing offline services...');
+        
+        // Временно отключаем инициализацию для отладки
+        // await enhancedCacheService.init();
+        
+        setOfflineServicesReady(true);
+        console.log('[App] Offline services initialized successfully (minimal mode)');
+      } catch (error) {
+        console.error('[App] Failed to initialize offline services:', error);
+        setOfflineServicesReady(true);
+      }
+    };
+
+    initOfflineServices();
+  }, [currentLanguage, toast]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -151,6 +177,12 @@ function App() {
                 <Route path="/episode/:episodeSlug" element={<PlayerPage currentLanguage={currentLanguage} user={user} />} />
                 <Route path="/manage" element={<ManagePage currentLanguage={currentLanguage} />} />
                 <Route path="/deep-search" element={<DeepSearchPage currentLanguage={currentLanguage} />} />
+                <Route path="/offline-settings" element={
+                  <OfflineSettingsPage 
+                    currentLanguage={currentLanguage} 
+                    onBack={() => window.history.back()} 
+                  />
+                } />
                 <Route path="*" element={<NotFoundPage currentLanguage={currentLanguage} />} />
               </Routes>
             </main>

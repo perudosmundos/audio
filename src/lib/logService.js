@@ -62,15 +62,32 @@ const logService = {
         }
     } else if (logEntry.entity_type === 'transcript') {
         const { data: currentData, error: fetchError } = await supabase.from('transcripts').select('edited_transcript_data').eq('id', logEntry.entity_id).single();
-         if (fetchError) {
-          return { error: new Error(`Failed to fetch current transcript state for revert: ${fetchError.message}`) };
-        }
+        if (fetchError) throw fetchError;
+        
         beforeRevertValue = currentData.edited_transcript_data;
-
-        const { error } = await supabase.from('transcripts').update({
-            edited_transcript_data: logEntry.before_value
-        }).eq('id', logEntry.entity_id);
-        revertError = error;
+        
+        // Retry logic for large payloads
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            const { error: revertError } = await supabase
+              .from('transcripts')
+              .update({ edited_transcript_data: logEntry.before_value })
+              .eq('id', logEntry.entity_id);
+            if (revertError) throw revertError;
+            break; // Success, exit retry loop
+          } catch (err) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              throw err;
+            } else {
+              console.warn(`Retry ${retryCount}/${maxRetries} for transcript revert:`, err.message);
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+            }
+          }
+        }
     }
 
     if (revertError) {

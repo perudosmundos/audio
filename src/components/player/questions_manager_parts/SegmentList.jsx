@@ -30,7 +30,10 @@ const SegmentList = ({
   isExpanded,
   isReadingMode,
   readingModeEditingActive,
-  onOpenSpeakerAssignmentDialog
+  onOpenSpeakerAssignmentDialog,
+  onInsertManualSegment,
+  availableSpeakers = [],
+  onSetSegmentSpeaker
 }) => {
   
   const segmentsToDisplay = segments.slice(0, visibleSegmentsCount);
@@ -47,7 +50,14 @@ const SegmentList = ({
         <TranscriptSegment
           key={segmentItem.id || `${segmentItem.start}-${index}`}
           segment={segmentItem}
-          isActive={!isReadingMode && activeSegmentTime === segmentItem.start}
+          isActive={
+            !isReadingMode &&
+            typeof activeSegmentTime === 'number' &&
+            typeof segmentItem.start === 'number' &&
+            typeof segmentItem.end === 'number' &&
+            activeSegmentTime >= segmentItem.start &&
+            activeSegmentTime < segmentItem.end
+          }
           isEditingThisSegment={ (isReadingMode && readingModeEditingActive && editingSegment?.id === segmentItem.id) || 
                                  (!isReadingMode && editingSegment && (editingSegment.id || editingSegment.start) === (segmentItem.id || segmentItem.start))}
           editedText={editedText}
@@ -74,6 +84,9 @@ const SegmentList = ({
           isReadingMode={isReadingMode}
           readingModeEditingActive={readingModeEditingActive}
           onOpenSpeakerAssignmentDialog={onOpenSpeakerAssignmentDialog}
+          onInsertManualSegment={onInsertManualSegment}
+          availableSpeakers={availableSpeakers}
+          onSetSegmentSpeaker={onSetSegmentSpeaker}
         />
       ))}
       {!isReadingMode && (

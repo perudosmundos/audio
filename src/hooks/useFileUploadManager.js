@@ -6,6 +6,7 @@ import { generateInitialItemData } from '@/services/uploader/fileDetailsExtracto
 import { processSingleItem as processSingleItemService } from '@/services/uploader/fileProcessor';
 import { startPollingForItem as startPollingForItemService } from '@/services/uploader/transcriptPoller';
 import { translateTextOpenAI } from '@/lib/openAIService';
+import logger from '@/lib/logger';
 
 
 const useFileUploadManager = (currentLanguage) => {
@@ -44,7 +45,6 @@ const useFileUploadManager = (currentLanguage) => {
     isDialogOpen.current = false;
     setShowOverwriteDialog(false);
     setCurrentItemForOverwrite(null);
-    overwritePromiseResolve.current = null;
   };
 
   const startPollingForItem = useCallback((itemData) => {
@@ -52,14 +52,13 @@ const useFileUploadManager = (currentLanguage) => {
   }, [updateItemState, currentLanguage, toast]);
 
   const handleTranslateTimings = useCallback(async (esItemId) => {
-    console.log("🔄 Starting translation process for esItemId:", esItemId);
+    logger.debug("🔄 Starting translation process for esItemId:", esItemId);
     
     const currentFiles = filesToProcess;
     const esItem = currentFiles.find(item => item.id === esItemId && item.lang === 'es');
     
-    console.log("📝 ES Item found:", esItem ? "✅" : "❌");
-    console.log("📄 ES timingsText length:", esItem?.timingsText?.length || 0);
-    console.log("📄 ES timingsText preview:", esItem?.timingsText?.substring(0, 100) || "empty");
+    logger.debug("📝 ES Item found:", esItem ? "✅" : "❌");
+    logger.debug("📄 ES timingsText length:", esItem?.timingsText?.length || 0);
     
     if (!esItem || !esItem.timingsText) {
       console.error("❌ No ES item or timingsText found");
@@ -70,7 +69,7 @@ const useFileUploadManager = (currentLanguage) => {
     // Check if timingsText has meaningful content (not just whitespace or very short)
     const trimmedText = esItem.timingsText.trim();
     if (trimmedText.length < 3) {
-      console.warn("⚠️ TimingsText too short, skipping translation:", trimmedText.length);
+      logger.warn("⚠️ TimingsText too short, skipping translation:", trimmedText.length);
       toast({ title: getLocaleString('errorGeneric', currentLanguage), description: "Текст таймингов слишком короткий для перевода.", variant: "destructive" });
       return;
     }
@@ -78,15 +77,14 @@ const useFileUploadManager = (currentLanguage) => {
     // Check if text looks like it contains timing information (basic format check)
     const hasTimingPattern = /\d{1,2}:\d{2}/.test(trimmedText) || /\d{1,2}\.\d{2}/.test(trimmedText);
     if (!hasTimingPattern) {
-      console.warn("⚠️ TimingsText doesn't appear to contain timing patterns");
-      console.log("📄 Full timingsText for analysis:", trimmedText);
+      logger.warn("⚠️ TimingsText doesn't appear to contain timing patterns");
     }
 
     const enItem = currentFiles.find(item => item.originalFileId === esItem.originalFileId && item.lang === 'en');
-    console.log("📝 EN Item found:", enItem ? "✅" : "❌");
+    logger.debug("📝 EN Item found:", enItem ? "✅" : "❌");
     
     if (!enItem) {
-      console.error("❌ No EN item found for originalFileId:", esItem.originalFileId);
+      logger.error("❌ No EN item found for originalFileId:", esItem.originalFileId);
       toast({ title: getLocaleString('errorGeneric', currentLanguage), description: "Не найден соответствующий английский элемент для сохранения перевода.", variant: "destructive" });
       return;
     }
@@ -94,21 +92,20 @@ const useFileUploadManager = (currentLanguage) => {
     updateItemState(enItem.id, { isTranslatingTimings: true, timingsText: getLocaleString('timingsTranslating', currentLanguage) });
 
     try {
-      console.log("🤖 Calling translateTextOpenAI with text length:", esItem.timingsText.length);
+      logger.debug("🤖 Calling translateTextOpenAI with text length:", esItem.timingsText.length);
       const translatedText = await translateTextOpenAI(esItem.timingsText, 'en', currentLanguage);
-      console.log("✅ Translation completed, result length:", translatedText?.length || 0);
-      console.log("📄 Translated text preview:", translatedText?.substring(0, 100) || "empty");
+      logger.debug("✅ Translation completed, result length:", translatedText?.length || 0);
       
       if (translatedText && translatedText.trim() !== '') {
         updateItemState(enItem.id, { timingsText: translatedText, isTranslatingTimings: false });
         toast({ title: getLocaleString('translateTimingsSuccessTitle', currentLanguage), description: getLocaleString('translateTimingsSuccessDesc', currentLanguage) });
-        console.log("✅ Translation process completed successfully");
+        logger.debug("✅ Translation process completed successfully");
       } else {
         throw new Error("Перевод вернул пустой текст.");
       }
     } catch (error) {
-      console.error("❌ Error translating timings text:", error);
-      console.error("❌ Error details:", {
+      logger.error("❌ Error translating timings text:", error);
+      logger.error("❌ Error details:", {
         name: error.name,
         message: error.message,
         stack: error.stack?.substring(0, 300)
@@ -120,16 +117,16 @@ const useFileUploadManager = (currentLanguage) => {
       
       if (error.message.includes('API key')) {
         errorTitle = "🔑 Ошибка API Ключа";
-        errorDescription = "OpenAI API ключ недоступен или недействителен. Проверьте настройки сервера.";
+        errorDescription = "DeepSeek API ключ недоступен или недействителен. Проверьте настройки сервера.";
       } else if (error.message.includes('quota') || error.message.includes('limit')) {
         errorTitle = "💳 Превышен Лимит";
-        errorDescription = "Превышен лимит использования OpenAI API. Попробуйте позже.";
+        errorDescription = "Превышен лимит использования DeepSeek API. Попробуйте позже.";
       } else if (error.message.includes('network') || error.message.includes('fetch')) {
         errorTitle = "🌐 Сетевая Ошибка";
-        errorDescription = "Проблема с подключением к OpenAI. Проверьте интернет-соединение.";
+        errorDescription = "Проблема с подключением к DeepSeek. Проверьте интернет-соединение.";
       } else if (error.message.includes('timeout')) {
         errorTitle = "⏱️ Таймаут";
-        errorDescription = "Запрос к OpenAI занял слишком много времени. Попробуйте снова.";
+        errorDescription = "Запрос к DeepSeek занял слишком много времени. Попробуйте снова.";
       }
       
       updateItemState(enItem.id, { 
@@ -195,7 +192,7 @@ const useFileUploadManager = (currentLanguage) => {
     setFilesToProcess(prev => [...prev, ...newItemsFlat.filter(item => item !== null)]);
   }, [currentLanguage, toast]);
 
-  const processSingleItem = useCallback(async (itemData, forceOverwrite = false) => {
+  const processSingleItem = useCallback(async (itemData, forceOverwrite = false, overwriteOptions = null) => {
     return processSingleItemService({
         itemData,
         forceOverwrite,
@@ -204,7 +201,8 @@ const useFileUploadManager = (currentLanguage) => {
         toast,
         openOverwriteDialog,
         pollingIntervalsRef: pollingIntervals,
-        getAllItems: () => filesToProcess 
+        getAllItems: () => filesToProcess,
+        overwriteOptions,
     });
   }, [updateItemState, currentLanguage, toast, openOverwriteDialog, filesToProcess]);
 
@@ -276,43 +274,21 @@ const useFileUploadManager = (currentLanguage) => {
      });
   };
 
-  const confirmOverwrite = async () => {
-    const itemToProcess = currentItemForOverwrite;
+  const confirmOverwrite = async (options) => {
     const resolvePromise = overwritePromiseResolve.current;
-    
     closeOverwriteDialog();
-
-    if (itemToProcess && resolvePromise) {
-      updateItemState(itemToProcess.id, { uploadError: null, isUploading: true, uploadProgress: 0, uploadComplete: false, transcriptionStatus: null, transcriptionError: null }); 
-      const result = await processSingleItem(itemToProcess, true);
-      if (typeof resolvePromise === 'function') {
-        resolvePromise(result.success);
-      }
-      
-      if (isProcessingAll) {
-         setIsProcessingAll(false); 
-         handleProcessAllFiles(); 
-      }
-    } else if (isProcessingAll) {
-        setIsProcessingAll(false); 
+    if (typeof resolvePromise === 'function') {
+      overwritePromiseResolve.current = null;
+      resolvePromise(options || true);
     }
   };
 
   const cancelOverwrite = () => {
-    const itemToCancel = currentItemForOverwrite;
     const resolvePromise = overwritePromiseResolve.current;
-
     closeOverwriteDialog();
-
-    if (itemToCancel) {
-      updateItemState(itemToCancel.id, { isUploading: false, uploadError: getLocaleString('uploadCancelledEpisodeExists', currentLanguage) });
-    }
     if (resolvePromise && typeof resolvePromise === 'function') {
-        resolvePromise(false);
-    }
-    
-    if (isProcessingAll) {
-        setIsProcessingAll(false);
+      overwritePromiseResolve.current = null;
+      resolvePromise(false);
     }
   };
 

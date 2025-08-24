@@ -56,7 +56,11 @@ const EpisodesPage = ({ currentLanguage }) => {
         }
         counts[ep.slug] = counts[ep.slug] || {};
         ['ru', 'es', 'en'].forEach(lang => {
-           counts[ep.slug][lang] = (questionsData || []).filter(q => q.episode_slug === ep.slug && q.lang === lang).length;
+           counts[ep.slug][lang] = (questionsData || []).filter(q => 
+             q.episode_slug === ep.slug && 
+             q.lang === lang && 
+             (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''))
+           ).length;
         });
       });
       

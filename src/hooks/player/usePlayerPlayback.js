@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getLocaleString } from '@/lib/locales';
+import logger from '@/lib/logger';
 
 const usePlayerPlayback = ({
   episodeData,
@@ -103,14 +104,14 @@ const usePlayerPlayback = ({
       // Fallback timeout to clear seeking flag if seeked event doesn't fire
       setTimeout(() => {
         if (isSeekingRef.current) {
-          console.log('usePlayerPlayback: Fallback timeout - clearing seeking flag');
+          logger.debug('usePlayerPlayback: Fallback timeout - clearing seeking flag');
           isSeekingRef.current = false;
         }
       }, 2000);
     };
 
     performSeek().catch(error => {
-      console.error("Error in performSeek:", error);
+      logger.error("Error in performSeek:", error);
       isSeekingRef.current = false;
     });
 
@@ -175,7 +176,7 @@ const usePlayerPlayback = ({
     if (!audioElement) return;
 
     const handlePlay = () => {
-      console.log('usePlayerPlayback: Audio play event, syncing state');
+      logger.debug('usePlayerPlayback: Audio play event, syncing state');
       if (!isPlayingState) {
         setIsPlayingState(true);
         onPlayerStateChange?.({ isPlaying: true });
@@ -183,7 +184,7 @@ const usePlayerPlayback = ({
     };
 
     const handlePause = () => {
-      console.log('usePlayerPlayback: Audio pause event, syncing state');
+      logger.debug('usePlayerPlayback: Audio pause event, syncing state');
       if (isPlayingState) {
         setIsPlayingState(false);
         onPlayerStateChange?.({ isPlaying: false });
@@ -191,7 +192,7 @@ const usePlayerPlayback = ({
     };
 
     const handleEnded = () => {
-      console.log('usePlayerPlayback: Audio ended event, syncing state');
+      logger.debug('usePlayerPlayback: Audio ended event, syncing state');
       if (isPlayingState) {
         setIsPlayingState(false);
         onPlayerStateChange?.({ isPlaying: false });
@@ -220,18 +221,18 @@ const usePlayerPlayback = ({
         // Ждем загрузки метаданных перед воспроизведением
         const handleCanPlay = () => {
           audioRef.current?.removeEventListener('canplay', handleCanPlay);
-          console.log('usePlayerPlayback: canplay event fired, checking for jump', { jumpToTime, playAfterJump });
+          logger.debug('usePlayerPlayback: canplay event fired, checking for jump', { jumpToTime, playAfterJump });
           
           // Если есть активный переход, выполняем его после загрузки
           if (jumpToTime !== null && jumpToTime !== undefined && !lastJumpIdProcessedRef?.current) {
-            console.log('usePlayerPlayback: Performing delayed jump after canplay', { jumpToTime, playAfterJump });
+            logger.debug('usePlayerPlayback: Performing delayed jump after canplay', { jumpToTime, playAfterJump });
             const time = parseFloat(jumpToTime);
             if (!isNaN(time)) {
               audioRef.current.currentTime = time;
               if (playAfterJump && audioRef.current.paused) {
                 playPromiseRef.current = audioRef.current.play();
                 playPromiseRef.current?.then(() => {
-                  console.log('usePlayerPlayback: Delayed jump playback started');
+                  logger.debug('usePlayerPlayback: Delayed jump playback started');
                   setIsPlayingState(true);
                   onPlayerStateChange?.({ isPlaying: true });
                 }).catch(error => {

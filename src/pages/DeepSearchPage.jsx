@@ -138,7 +138,7 @@ const DeepSearchPage = ({ currentLanguage }) => {
 
       const { data: dbTranscripts, error: transcriptsError } = await supabase
         .from('transcripts')
-        .select('episode_slug, lang, edited_transcript_data, transcript_data')
+        .select('episode_slug, lang, edited_transcript_data')
         .or(`lang.eq.${currentLanguage},lang.eq.all`);
       if (transcriptsError) throw transcriptsError;
 
@@ -151,7 +151,9 @@ const DeepSearchPage = ({ currentLanguage }) => {
       };
       const fuseQuestions = new Fuse(dbQuestions.filter(q => {
           const episode = dbEpisodes.find(ep => ep.slug === q.episode_slug);
-          return episode && (episode.lang === 'all' ? q.lang === currentLanguage : q.lang === episode.lang);
+          return episode && 
+                 (episode.lang === 'all' ? q.lang === currentLanguage : q.lang === episode.lang) &&
+                 (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''));
       }), fuseOptionsQuestions);
       
       const questionResults = fuseQuestions.search(query);
@@ -178,7 +180,7 @@ const DeepSearchPage = ({ currentLanguage }) => {
         const episode = dbEpisodes.find(ep => ep.slug === transcript.episode_slug);
         if (!episode || (episode.lang !== 'all' && episode.lang !== currentLanguage)) return;
 
-        const utterances = transcript.edited_transcript_data?.utterances || transcript.transcript_data?.utterances || [];
+        const utterances = transcript.edited_transcript_data?.utterances || [];
         utterances.forEach(utt => {
             allUtterancesForSearch.push({
                 text: utt.text,
@@ -207,6 +209,7 @@ const DeepSearchPage = ({ currentLanguage }) => {
         const questionContext = dbQuestions.find(q => 
             q.episode_slug === segment.episodeSlug &&
             (episode.lang === 'all' ? q.lang === currentLanguage : q.lang === episode.lang) &&
+            (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== '')) &&
             segment.start >= (q.time * 1000) &&
             (dbQuestions.filter(nq => nq.episode_slug === segment.episodeSlug && (episode.lang === 'all' ? nq.lang === currentLanguage : nq.lang === episode.lang) && nq.time > q.time).sort((a,b) => a.time - b.time)[0]?.time * 1000 || Infinity) > segment.start
         )?.title;

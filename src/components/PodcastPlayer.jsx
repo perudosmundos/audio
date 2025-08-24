@@ -60,7 +60,6 @@ const PodcastPlayer = ({
   const playPromiseRef = useRef(null);
   const isSeekingRef = useRef(false);
   const lastJumpIdProcessedRef = useRef(null);
-  const [skipEmptySegments, setSkipEmptySegments] = useState(false);
 
   const langForContent = episodeData?.lang === 'all' ? currentLanguage : episodeData?.lang;
 
@@ -91,7 +90,7 @@ const PodcastPlayer = ({
   const { handleTimeUpdate, handleLoadedMetadata } = usePlayerTimeUpdates({
     audioRef, isSeekingRef, internalQuestions, currentLanguage,
     setCurrentTimeState, setActiveQuestionTitleState, setDurationState,
-    onPlayerStateChange, skipEmptySegments, transcript: episodeData?.transcript, 
+    onPlayerStateChange,
   });
 
   const { 
@@ -160,7 +159,6 @@ const PodcastPlayer = ({
     setIsAddQuestionPlayerDialogOpen(true);
   }, [currentTimeState, setAddQuestionDialogInitialTime, setIsAddQuestionPlayerDialogOpen]);
 
-
   if (!episodeData) return <div className="p-4 text-center">{getLocaleString('selectAnEpisode', currentLanguage)}</div>;
 
   return (
@@ -207,8 +205,6 @@ const PodcastPlayer = ({
           playerControlsContainerRef={playerControlsContainerRef}
           showTranscript={showTranscript}
           onToggleShowTranscript={onToggleShowTranscript}
-          skipEmptySegments={skipEmptySegments}
-          onToggleSkipEmptySegments={() => setSkipEmptySegments(prev => !prev)}
           onDownloadAudio={handleDownloadAudio}
           playbackRateOptions={playbackRateOptions}
           currentPlaybackRateValue={playbackRate}

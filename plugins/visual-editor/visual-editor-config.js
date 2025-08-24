@@ -116,7 +116,7 @@ export const EDIT_MODE_STYLES = `
     display: none; 
     opacity: 0; 
     position: absolute;
-    background-color: #1D1E20;
+    background-color: #1D1D20;
     color: white;
     padding: 4px 8px;
     border-radius: 8px;
