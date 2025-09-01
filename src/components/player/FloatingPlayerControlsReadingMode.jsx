@@ -1,8 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCw, RotateCcw, X } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const FloatingPlayerControlsReadingMode = ({ 
   episodeTitle, 
@@ -51,72 +48,38 @@ const FloatingPlayerControlsReadingMode = ({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => handleSkip(-10)} 
-                  className="text-slate-700 hover:text-purple-700 hover:bg-purple-100 h-9 w-9"
-                  aria-label={getLocaleString('skipBackward10', currentLanguage) || "Skip backward 10s"}
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700">
-                  <p>{getLocaleString('skipBackward10Tooltip', currentLanguage)}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={handlePlayPause} 
-                  className="text-slate-800 hover:text-purple-700 bg-purple-500/20 hover:bg-purple-500/30 rounded-full h-10 w-10"
-                  aria-label={isPlaying ? getLocaleString('pause', currentLanguage) : getLocaleString('play', currentLanguage)}
-                >
-                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700">
-                  <p>{isPlaying ? getLocaleString('pauseTooltip', currentLanguage) : getLocaleString('playTooltip', currentLanguage)}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => handleSkip(10)} 
-                  className="text-slate-700 hover:text-purple-700 hover:bg-purple-100 h-9 w-9"
-                  aria-label={getLocaleString('skipForward10', currentLanguage) || "Skip forward 10s"}
-                >
-                  <RotateCw className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700">
-                  <p>{getLocaleString('skipForward10Tooltip', currentLanguage)}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={onClose}
-                  className="text-slate-700 hover:text-red-600 hover:bg-red-100 h-9 w-9 ml-2"
-                  aria-label={getLocaleString('exitReadingMode', currentLanguage)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-slate-800 text-white border-slate-700">
-                  <p>{getLocaleString('exitReadingModeTooltip', currentLanguage)}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <button 
+            onClick={() => handleSkip(-10)} 
+            className="text-slate-700 hover:text-purple-700 hover:bg-purple-100 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
+            aria-label={getLocaleString('skipBackward10', currentLanguage) || "Skip backward 10s"}
+            title={getLocaleString('skipBackward10Tooltip', currentLanguage)}
+          >
+            <div className="h-5 w-5">⏪</div>
+          </button>
+          <button 
+            onClick={handlePlayPause} 
+            className="text-slate-800 hover:text-purple-700 bg-purple-500/20 hover:bg-purple-500/30 rounded-full h-10 w-10 bg-transparent border-none cursor-pointer"
+            aria-label={isPlaying ? getLocaleString('pause', currentLanguage) : getLocaleString('play', currentLanguage)}
+            title={isPlaying ? getLocaleString('pauseTooltip', currentLanguage) : getLocaleString('playTooltip', currentLanguage)}
+          >
+            {isPlaying ? <div className="h-5 w-5">⏸️</div> : <div className="h-5 w-5">▶️</div>}
+          </button>
+          <button 
+            onClick={() => handleSkip(10)} 
+            className="text-slate-700 hover:text-purple-700 hover:bg-purple-100 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
+            aria-label={getLocaleString('skipForward10', currentLanguage) || "Skip forward 10s"}
+            title={getLocaleString('skipForward10Tooltip', currentLanguage)}
+          >
+            <div className="h-5 w-5">⏩</div>
+          </button>
+          <button 
+            onClick={onClose}
+            className="text-slate-700 hover:text-red-600 hover:bg-red-100 h-9 w-9 bg-transparent border-none cursor-pointer rounded ml-2"
+            aria-label={getLocaleString('exitReadingMode', currentLanguage)}
+            title={getLocaleString('exitReadingModeTooltip', currentLanguage)}
+          >
+            <div className="h-5 w-5">❌</div>
+          </button>
         </div>
       </div>
     </div>

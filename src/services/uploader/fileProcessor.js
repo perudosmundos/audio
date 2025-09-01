@@ -246,8 +246,25 @@ export const processSingleItem = async ({
       
       const logTranslatedQuestions = async (questions, currentSlug, enSlug) => {
         try {
-          const translatedTimingsText = await translateTextOpenAI(timingsText, 'en');
-          const translatedQuestionsForEn = parseQuestionsFromDescriptionString(translatedTimingsText, 'en', enSlug);
+          console.log(`[logTranslatedQuestions] Starting translation for ${questions.length} questions from ${currentSlug} to ${enSlug}`);
+          
+          // Переводим только заголовки вопросов, сохраняя исходное время
+          const translatedQuestionsForEn = await Promise.all(questions.map(async (q) => {
+            const prompt = `Переведи следующий заголовок вопроса с испанского на английский язык. Верни только переведенный текст без кавычек и дополнительных символов: "${q.title}"`;
+            const translatedTitle = await translateTextOpenAI(prompt, 'en');
+            
+            console.log(`[logTranslatedQuestions] Question translation:`, {
+              original: { title: q.title, time: q.time },
+              translated: { title: translatedTitle.trim(), time: q.time }
+            });
+            
+            return {
+              episode_slug: enSlug,
+              lang: 'en',
+              title: translatedTitle.trim(),
+              time: q.time // Сохраняем исходное время без изменений
+            };
+          }));
 
           if (translatedQuestionsForEn.length > 0) {
             const { error: enQDelError } = await supabase.from('questions').delete().eq('episode_slug', enSlug).eq('lang', 'en');

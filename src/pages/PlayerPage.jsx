@@ -9,7 +9,7 @@ import { getLocaleString } from '@/lib/locales';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { formatShortDate } from '@/lib/utils';
-import useEpisodeData from '@/hooks/player_page/useEpisodeData';
+import useOfflineEpisodeData from '@/hooks/useOfflineEpisodeData';
 import usePlayerInteractions from '@/hooks/player_page/usePlayerInteractions';
 import useSupabaseSubscriptions from '@/hooks/player_page/useSupabaseSubscriptions';
 import useSpeakerAssignment from '@/hooks/player/useSpeakerAssignment'; 
@@ -17,6 +17,7 @@ import SpeakerAssignmentDialog from '@/components/transcript/SpeakerAssignmentDi
 import useQuestionManagement from '@/hooks/useQuestionManagement';
 import AddQuestionFromSegmentDialog from '@/components/player/questions_manager_parts/AddQuestionFromSegmentDialog';
 import AddQuestionDialog from '@/components/transcript/AddQuestionDialog';
+import OfflineStatusIndicator from '@/components/OfflineStatusIndicator';
 
 const PlayerPage = ({ currentLanguage, user }) => {
   const { episodeSlug } = useParams(); 
@@ -37,11 +38,15 @@ const PlayerPage = ({ currentLanguage, user }) => {
     transcriptLoading,
     error,
     questionsUpdatedId,
-    fetchEpisodeDetails,
-    fetchQuestionsForEpisode,
+    isOfflineMode,
+    saveEditedTranscript,
+    saveQuestions,
+    refreshAllData,
+    preloadAudio,
     fetchTranscriptForEpisode,
+    fetchQuestionsForEpisode,
     setTranscript,
-  } = useEpisodeData(episodeSlug, currentLanguage, toast);
+  } = useOfflineEpisodeData(episodeSlug, currentLanguage, toast);
 
   const {
     jumpDetails,
@@ -239,15 +244,18 @@ const PlayerPage = ({ currentLanguage, user }) => {
   const handleSegmentEdit = useCallback(async (newUtterances, actionType, originalSegment, updatedSegment) => {
     if (!episodeData || !episodeData.slug || !transcript) return;
     
-    // Создаем новый объект транскрипта с обновленными utterances
-    const newTranscriptData = {
-      ...transcript,
-      utterances: newUtterances,
-      text: newUtterances.map(u => u.text).join(' ')
-    };
-    
-    await handleTranscriptUpdate(newTranscriptData);
-  }, [episodeData, transcript, handleTranscriptUpdate]);
+    try {
+      // Используем оффлайн-совместимый метод сохранения
+      await saveEditedTranscript(newUtterances);
+    } catch (error) {
+      console.error('Error saving segment edit:', error);
+      toast({
+        title: getLocaleString('saveError', currentLanguage) || 'Ошибка сохранения',
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  }, [episodeData, transcript, saveEditedTranscript, currentLanguage, toast]);
 
   const playerEpisodeDataMemo = useMemo(() => {
     if (!episodeData) return null;
@@ -347,6 +355,14 @@ const PlayerPage = ({ currentLanguage, user }) => {
         />
       )}
       <div className="w-full max-w-3xl">
+        {/* Индикатор оффлайн статуса */}
+        <div className="mb-4 flex justify-center">
+          <OfflineStatusIndicator 
+            isOffline={isOfflineMode}
+            syncStatus={isOfflineMode ? 'offline' : 'synced'}
+          />
+        </div>
+        
         <div ref={playerControlsContainerRef} className="mb-4">
           {playerEpisodeDataMemo && (
             <PodcastPlayer

@@ -26,13 +26,8 @@ const handleSpanishTranscriptCompletion = async (esTranscriptPayload, episodeSlu
     });
     toast({ title: "Spanish Transcript Complete", description: `Starting English translation for ${episodeSlug}.`, variant: "info" });
     
-    updateItemState((itemId) => {
-      const fileOriginalIdPart = itemOriginalId.split('-').slice(0, 2).join('-');
-      if(itemId.startsWith(fileOriginalIdPart) && itemId.includes('-en-')) {
-        return { transcriptionStatus: 'translating_from_es' };
-      }
-      return {};
-    });
+    // Note: We can't update the English item state here because it may not exist in the UI yet
+    // The state will be updated when the English item is created and starts polling
 
     logger.debug('[pollTranscriptStatus] Starting ES->EN translation via OpenAI', { 
       episodeSlug,
@@ -54,18 +49,7 @@ const handleSpanishTranscriptCompletion = async (esTranscriptPayload, episodeSlu
         message
       });
       
-      // Обновляем состояние элемента для отображения прогресса
-      updateItemState((itemId) => {
-        const fileOriginalIdPart = itemOriginalId.split('-').slice(0, 2).join('-');
-        if(itemId.startsWith(fileOriginalIdPart) && itemId.includes('-en-')) {
-          return { 
-            transcriptionStatus: 'translating_from_es',
-            translationProgress: progress,
-            translationMessage: message
-          };
-        }
-        return {};
-      });
+      // Note: Progress updates can't be sent here because the English item may not exist in UI yet
     };
     
           const translatedTranscriptPayload = await translateTranscriptFast(esTranscriptPayload, 'en', 'en', onTranslationProgress);
@@ -169,24 +153,12 @@ const handleSpanishTranscriptCompletion = async (esTranscriptPayload, episodeSlu
 
     toast({ title: "English Translation Complete", description: `English transcript for ${episodeSlug} is ready.`, variant: "default" });
 
-    updateItemState((itemId) => {
-      const fileOriginalIdPart = itemOriginalId.split('-').slice(0, 2).join('-');
-      if(itemId.startsWith(fileOriginalIdPart) && itemId.includes('-en-')) {
-        return { transcriptionStatus: 'completed' };
-      }
-      return {};
-    }); 
+    updateItemState(itemOriginalId, { transcriptionStatus: 'completed' }); 
 
   } catch (translationError) {
     console.error(`Error during English translation process for ${episodeSlug}:`, translationError);
     toast({ title: "English Translation Error", description: translationError.message, variant: "destructive" });
-    updateItemState((itemId) => {
-      const fileOriginalIdPart = itemOriginalId.split('-').slice(0, 2).join('-');
-      if(itemId.startsWith(fileOriginalIdPart) && itemId.includes('-en-')) {
-        return { transcriptionStatus: 'error', transcriptionError: translationError.message };
-      }
-      return {};
-    });
+    updateItemState(itemOriginalId, { transcriptionStatus: 'error', transcriptionError: translationError.message });
   }
 };
 

@@ -298,26 +298,37 @@ export const translateTranscriptOpenAI = async (transcriptData, targetLanguage, 
       translatedUtterances.push(...batchResults);
       
       // Показываем прогресс каждые 10 сегментов или для последнего
-      if (translatedUtterances.length % 10 === 0 || translatedUtterances.length === totalSegments) {
-        const progress = Math.round((translatedUtterances.length / totalSegments) * 100);
-        logger.info(`📊 Translation progress: ${progress}% (${translatedUtterances.length}/${totalSegments} segments completed)`);
+      if (onProgress && (i + batchSize >= totalSegments || (i + batchSize) % 10 === 0)) {
+        const progress = Math.round(((i + batchSize) / totalSegments) * 100);
+        onProgress(progress, totalSegments, `Translated ${Math.min(i + batchSize, totalSegments)}/${totalSegments} segments...`);
       }
     }
-    
-    // Уведомляем о завершении
+
+    // Финальное обновление прогресса
     if (onProgress) {
       onProgress(100, totalSegments, 'Translation completed!');
     }
-    
-    logger.info(`🎉 Translation completed! ${totalSegments} segments translated to ${targetLangFullName}`);
-    
-    return {
+
+    const result = {
       ...transcriptData,
       utterances: translatedUtterances,
     };
+
+    logger.info(`✅ Translation completed successfully. Translated ${translatedUtterances.length} segments to ${targetLangFullName}`);
+    
+    // Применяем разбиение длинных сегментов к переведенному транскрипту
+    const { processTranscriptData } = await import('@/hooks/transcript/transcriptProcessingUtils');
+    const processedResult = processTranscriptData(result);
+    
+    logger.info(`🔀 Applied segment splitting to translated transcript. Original: ${translatedUtterances.length} segments, After splitting: ${processedResult.utterances.length} segments`);
+    
+    return processedResult;
+
   } catch (error) {
-    logger.error("❌ Error translating transcript with DeepSeek:", error);
-    throw new Error(getLocaleString('errorTranslatingTranscriptOpenAI', currentInterfaceLanguage, { errorMessage: error.message }));
+    logger.error(`❌ Translation failed:`, error);
+    
+    // Возвращаем оригинальные данные в случае ошибки
+    return transcriptData;
   }
 };
 

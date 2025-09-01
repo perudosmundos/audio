@@ -936,18 +936,19 @@ const ManageEpisodesList = ({ currentLanguage }) => {
       }));
       
       const translatedQuestions = await Promise.all(validatedQuestionsData.map(async (q) => {
-        const prompt = `Переведи следующий заголовок вопроса с ${srcLabel} на английский: "${q.title}". Верни JSON с полями title,time.`;
-        const pEn = await translateTextOpenAI(prompt, 'en', currentLanguage);
-        const resp = await translateTextOpenAI(pEn, 'en', currentLanguage);
-        try {
-          const obj = JSON.parse(resp);
-          return {
-            title: obj.title || q.title,
-            time: Number(obj.time ?? q.time ?? 0)
-          };
-        } catch {
-          return { title: q.title, time: Number(q.time ?? 0) };
-        }
+        // Переводим только заголовок вопроса, время оставляем неизменным
+        const prompt = `Переведи следующий заголовок вопроса с ${srcLabel} на английский язык. Верни только переведенный текст без кавычек и дополнительных символов: "${q.title}"`;
+        const translatedTitle = await translateTextOpenAI(prompt, 'en', currentLanguage);
+        
+        logger.debug('[Translate Questions -> EN] Question translation', {
+          original: { title: q.title, time: q.time },
+          translated: { title: translatedTitle.trim(), time: q.time }
+        });
+        
+        return {
+          title: translatedTitle.trim(),
+          time: q.time // Сохраняем исходное время без изменений
+        };
       }));
 
       // Обеспечиваем, что английский эпизод существует

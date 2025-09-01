@@ -44,7 +44,9 @@ const R2_PRIMARY_CONFIG = {
   ENDPOINT: getEnv('VITE_S3_ENDPOINT') || 'https://s3.kz-1.srvstorage.kz',
   REGION: getEnv('VITE_S3_REGION') || 'kz-1',
   FORCE_PATH_STYLE: false,
-  WORKER_PUBLIC_URL: 'https://b2a9e188-93e4-4928-a636-2ad4c9e1094e.srvstatic.kz'
+  WORKER_PUBLIC_URL: 'https://b2a9e188-93e4-4928-a636-2ad4c9e1094e.srvstatic.kz',
+  // Force HTTP/1.1 to avoid HTTP/2 protocol errors
+  FORCE_HTTP_1_1: getEnv('VITE_FORCE_HTTP_1_1') !== 'false'
 };
 
 // Secondary config disabled
@@ -73,6 +75,17 @@ const createS3Client = (config) => {
       }
     },
     customUserAgent: 'DosMundosPodcast/1.0',
+    // Force HTTP/1.1 to avoid HTTP/2 protocol errors if configured
+    ...(config.FORCE_HTTP_1_1 && {
+      requestHandler: {
+        httpOptions: {
+          timeout: 30000,
+          connectTimeout: 10000,
+          // Force HTTP/1.1
+          httpVersion: '1.1'
+        }
+      }
+    }),
   });
 };
 
@@ -184,24 +197,66 @@ const r2Service = {
           }), { expiresIn: 3600 });
         }
         if (!presignedUrl) throw new Error('Empty presigned URL');
-        // Use XHR to report progress during upload
-        await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', presignedUrl);
-          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-          xhr.upload.onprogress = (e) => {
-            const loaded = e.lengthComputable ? e.loaded : 0;
-            const percent = Math.floor((loaded / Math.max(totalBytes || 1, 1)) * 100);
-            const uploadedMBNow = (loaded / (1024 * 1024)).toFixed(2);
-            if (onProgress) onProgress(percent, { stage: 'uploading', message: 'Загрузка файла…', uploadedMB: uploadedMBNow, totalMB });
-          };
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) return resolve();
-            reject(new Error(`PUT failed: ${xhr.status}`));
-          };
-          xhr.onerror = () => reject(new Error('Network error during PUT'));
-          xhr.send(file);
-        });
+        // Use XHR to report progress during upload with retry logic
+        const attemptUpload = async (retryCount = 0, maxRetries = 3) => {
+          try {
+            // Try XHR first (better progress reporting)
+            try {
+              await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', presignedUrl);
+                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                // Force HTTP/1.1 to avoid protocol errors
+                xhr.setRequestHeader('Connection', 'keep-alive');
+                xhr.upload.onprogress = (e) => {
+                  const loaded = e.lengthComputable ? e.loaded : 0;
+                  const percent = Math.floor((loaded / Math.max(totalBytes || 1, 1)) * 100);
+                  const uploadedMBNow = (loaded / (1024 * 1024)).toFixed(2);
+                  if (onProgress) onProgress(percent, { stage: 'uploading', message: 'Загрузка файла…', uploadedMB: uploadedMBNow, totalMB });
+                };
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) return resolve();
+                  reject(new Error(`PUT failed: ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error('Network error during PUT'));
+                xhr.send(file);
+              });
+            } catch (xhrError) {
+              // If XHR fails with HTTP/2 error, fall back to fetch
+              if (xhrError.message.includes('Network error') || xhrError.message.includes('HTTP/2') || xhrError.message.includes('protocol')) {
+                logger.warn(`[Upload] ${fileKey}: XHR failed, trying fetch fallback...`);
+                
+                // Use fetch as fallback (often more reliable with HTTP/2)
+                const response = await fetch(presignedUrl, {
+                  method: 'PUT',
+                  body: file,
+                  headers: {
+                    'Content-Type': file.type || 'application/octet-stream',
+                  },
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`Fetch PUT failed: ${response.status}`);
+                }
+                
+                // Report progress for fetch (approximate)
+                if (onProgress) onProgress(100, { stage: 'uploading', message: 'Загрузка файла…', uploadedMB: totalMB, totalMB });
+              } else {
+                throw xhrError;
+              }
+            }
+          } catch (error) {
+            if (retryCount < maxRetries && (error.message.includes('Network error') || error.message.includes('HTTP/2') || error.message.includes('protocol') || error.message.includes('Fetch PUT failed'))) {
+              logger.warn(`[Upload] ${fileKey}: Upload error, retrying (${retryCount + 1}/${maxRetries})...`);
+              // Wait before retry with exponential backoff
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+              return attemptUpload(retryCount + 1, maxRetries);
+            }
+            throw error;
+          }
+        };
+        
+        await attemptUpload();
         if (onProgress) onProgress(100, { stage: 'done', message: 'Готово', uploadedMB: totalMB, totalMB });
         const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         logger.info(`[Upload] ${fileKey}: completed via presigned PUT. URL: ${fileUrl}`);

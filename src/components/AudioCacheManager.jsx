@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Trash2, HardDrive, Wifi, WifiOff, CheckCircle, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { getLocaleString } from '@/lib/locales';
 import audioCacheService from '@/lib/audioCacheService';
 
@@ -126,44 +123,42 @@ const AudioCacheManager = ({
       <div className={`flex items-center gap-2 ${className}`}>
         {isDownloading ? (
           <div className="flex items-center gap-2">
-            <Download className="h-4 w-4 text-blue-500 animate-pulse" />
+            <div className="h-4 w-4 text-blue-500 animate-pulse">⬇️</div>
             <div className="flex flex-col gap-1 min-w-[100px]">
               <div className="text-xs text-slate-400">
                 {downloadProgress.progress || 0}%
               </div>
-              <Progress 
-                value={downloadProgress.progress || 0} 
-                className="h-1"
-              />
+              <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${downloadProgress.progress || 0}%` }}
+                />
+              </div>
             </div>
           </div>
         ) : isCached ? (
           <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <div className="h-4 w-4 text-green-500">✅</div>
             <span className="text-xs text-green-400">
               {getLocaleString('cached', currentLanguage) || 'Кешировано'}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={handleRemoveEpisode}
-              className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+              className="h-6 w-6 p-0 text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer"
             >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+              🗑️
+            </button>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={handleDownloadEpisode}
-            className="flex items-center gap-1 h-6 px-2 text-blue-400 hover:text-blue-300"
+            className="flex items-center gap-1 h-6 px-2 text-blue-400 hover:text-blue-300 bg-transparent border-none cursor-pointer"
           >
-            <Download className="h-3 w-3" />
+            <div className="h-3 w-3">⬇️</div>
             <span className="text-xs">
               {getLocaleString('cache', currentLanguage) || 'Кешировать'}
             </span>
-          </Button>
+          </button>
         )}
       </div>
     );
@@ -187,14 +182,14 @@ const AudioCacheManager = ({
       {/* Заголовок */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-white flex items-center gap-2">
-          <HardDrive className="h-5 w-5" />
+          <div className="h-5 w-5">💾</div>
           {getLocaleString('audioCache', currentLanguage) || 'Кеш аудио'}
         </h3>
         <div className="flex items-center gap-2">
           {navigator.onLine ? (
-            <Wifi className="h-4 w-4 text-green-500" />
+            <div className="h-4 w-4 text-green-500">📶</div>
           ) : (
-            <WifiOff className="h-4 w-4 text-red-500" />
+            <div className="h-4 w-4 text-red-500">❌</div>
           )}
         </div>
       </div>
@@ -211,10 +206,12 @@ const AudioCacheManager = ({
             </span>
           </div>
           
-          <Progress 
-            value={cacheStats.usagePercentage} 
-            className="h-2"
-          />
+          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${cacheStats.usagePercentage}%` }}
+            />
+          </div>
           
           <div className="flex justify-between text-xs text-slate-500">
             <span>
@@ -241,9 +238,9 @@ const AudioCacheManager = ({
             </div>
             <div className="flex items-center gap-1">
               {isCached ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
+                <div className="h-4 w-4 text-green-500">✅</div>
               ) : (
-                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                <div className="h-4 w-4 text-yellow-500">⚠️</div>
               )}
             </div>
           </div>
@@ -258,10 +255,12 @@ const AudioCacheManager = ({
                   {downloadProgress.progress || 0}%
                 </span>
               </div>
-              <Progress 
-                value={downloadProgress.progress || 0} 
-                className="h-2"
-              />
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${downloadProgress.progress || 0}%` }}
+                />
+              </div>
               {downloadProgress.total > 0 && (
                 <div className="text-xs text-slate-500 text-center">
                   {formatBytes(downloadProgress.loaded)} / {formatBytes(downloadProgress.total)}
@@ -271,26 +270,20 @@ const AudioCacheManager = ({
           ) : (
             <div className="flex gap-2">
               {isCached ? (
-                <Button
-                  variant="destructive"
-                  size="sm"
+                <button
                   onClick={handleRemoveEpisode}
-                  className="flex-1"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {getLocaleString('removeFromCache', currentLanguage) || 'Удалить из кеша'}
-                </Button>
+                  🗑️ {getLocaleString('removeFromCache', currentLanguage) || 'Удалить из кеша'}
+                </button>
               ) : (
-                <Button
-                  variant="default"
-                  size="sm"
+                <button
                   onClick={handleDownloadEpisode}
-                  className="flex-1"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors disabled:opacity-50"
                   disabled={!navigator.onLine}
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  {getLocaleString('cacheForOffline', currentLanguage) || 'Кешировать для офлайн'}
-                </Button>
+                  ⬇️ {getLocaleString('cacheForOffline', currentLanguage) || 'Кешировать для офлайн'}
+                </button>
               )}
             </div>
           )}
@@ -308,16 +301,13 @@ const AudioCacheManager = ({
               {getLocaleString('manageStoredAudio', currentLanguage) || 'Управление сохраненными аудиофайлами'}
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleClearCache}
             disabled={!cacheStats || cacheStats.fileCount === 0}
-            className="text-red-400 border-red-400/30 hover:bg-red-400/10"
+            className="text-red-400 border-red-400/30 hover:bg-red-400/10 px-3 py-2 rounded text-sm border transition-colors disabled:opacity-50"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            {getLocaleString('clearAll', currentLanguage) || 'Очистить все'}
-          </Button>
+            🗑️ {getLocaleString('clearAll', currentLanguage) || 'Очистить все'}
+          </button>
         </div>
       </div>
 
@@ -338,14 +328,12 @@ const AudioCacheManager = ({
                     {formatBytes(file.size)}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={() => audioCacheService.removeAudioFromCache(file.url)}
-                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer"
                 >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                  🗑️
+                </button>
               </div>
             ))}
           </div>

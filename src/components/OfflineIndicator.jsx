@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Download, RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import syncService from '@/lib/syncService';
 import audioCacheService from '@/lib/audioCacheService';
@@ -106,21 +105,21 @@ const OfflineIndicator = ({ currentLanguage = 'ru' }) => {
 
   const getNetworkIcon = () => {
     if (networkStatus.isOnline) {
-      return <Wifi className="h-4 w-4 text-green-500" />;
+      return <div className="h-4 w-4 text-green-500">📶</div>;
     } else {
-      return <WifiOff className="h-4 w-4 text-red-500" />;
+      return <div className="h-4 w-4 text-red-500">❌</div>;
     }
   };
 
   const getSyncIcon = () => {
     if (syncStatus.isActive) {
-      return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
+      return <div className="h-4 w-4 text-blue-500 animate-spin">🔄</div>;
     } else if (syncStatus.error) {
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
+      return <div className="h-4 w-4 text-red-500">⚠️</div>;
     } else if (syncStatus.pendingChanges > 0) {
-      return <Clock className="h-4 w-4 text-yellow-500" />;
+      return <div className="h-4 w-4 text-yellow-500">⏰</div>;
     } else {
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return <div className="h-4 w-4 text-green-500">✅</div>;
     }
   };
 
@@ -201,7 +200,7 @@ const OfflineIndicator = ({ currentLanguage = 'ru' }) => {
         <>
           <div className="h-4 w-px bg-slate-600" />
           <div className="flex items-center gap-1">
-            <Download className="h-4 w-4 text-blue-500" />
+            <div className="h-4 w-4 text-blue-500">⬇️</div>
             <span className="text-xs text-blue-400">
               {downloadStatus.progress}%
             </span>

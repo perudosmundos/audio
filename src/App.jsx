@@ -11,6 +11,8 @@ import PlayerPage from '@/pages/PlayerPage';
 import ManagePage from '@/pages/ManagePage'; 
 import NotFoundPage from '@/pages/NotFoundPage';
 import DeepSearchPage from '@/pages/DeepSearchPage';
+import UploadPage from '@/pages/UploadPage';
+import SpotifyUploadPage from '@/pages/SpotifyUploadPage';
 import OfflineSettingsPage from '@/pages/OfflineSettingsPage';
 import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -176,7 +178,9 @@ function App() {
                 <Route path="/episodes" element={<EpisodesPage currentLanguage={currentLanguage} />} />
                 <Route path="/episode/:episodeSlug" element={<PlayerPage currentLanguage={currentLanguage} user={user} />} />
                 <Route path="/manage" element={<ManagePage currentLanguage={currentLanguage} />} />
+                <Route path="/upload" element={<UploadPage currentLanguage={currentLanguage} />} />
                 <Route path="/deep-search" element={<DeepSearchPage currentLanguage={currentLanguage} />} />
+                <Route path="/spotify-upload" element={<SpotifyUploadPage currentLanguage={currentLanguage} />} />
                 <Route path="/offline-settings" element={
                   <OfflineSettingsPage 
                     currentLanguage={currentLanguage} 

@@ -107,6 +107,7 @@ export const splitLongUtterance = (utterance) => {
       });
     }
   } else { 
+    // Для случаев без words (например, переведенные сегменты) - разбиваем по времени
     const numChunks = Math.ceil(utteranceDuration / MAX_SEGMENT_DURATION_MS);
     let textOffset = 0;
 
@@ -250,12 +251,26 @@ export const processTranscriptData = (data) => {
   const allWords = Array.isArray(data.words) ? data.words : [];
   const wordsPerUtterance = mapWordsToUtterances(utterances, allWords);
 
+  let totalSplitCount = 0;
   const processedUtterances = utterances.flatMap((utt, idx) => {
     const utteranceWithWords = {
       ...utt,
       words: (wordsPerUtterance[idx] && wordsPerUtterance[idx].length > 0) ? wordsPerUtterance[idx] : (utt.words || [])
     };
     const splitted = splitLongUtterance(utteranceWithWords);
+    
+    // Логируем разбиение длинных сегментов
+    if (splitted.length > 1) {
+      totalSplitCount += splitted.length - 1;
+      logger.debug('[TranscriptProcessing] Long utterance split:', {
+        originalId: utt.id || utt.start,
+        originalDuration: utt.end - utt.start,
+        originalTextLength: (utt.text || '').length,
+        splitCount: splitted.length,
+        hasWords: !!(utteranceWithWords.words && utteranceWithWords.words.length > 0)
+      });
+    }
+    
     // Log only extremely long utterances to reduce console spam
     if ((utt.end - utt.start) > 300000) {
       logger.debug('[TranscriptProcessing] Long utterance detected:', {
@@ -268,6 +283,14 @@ export const processTranscriptData = (data) => {
     }
     return splitted;
   }).filter(utt => utt.text && utt.text.trim() !== "");
+  
+  if (totalSplitCount > 0) {
+    logger.info('[TranscriptProcessing] Segment splitting completed:', {
+      originalCount: utterances.length,
+      finalCount: processedUtterances.length,
+      totalSplits: totalSplitCount
+    });
+  }
   
   return { ...data, utterances: processedUtterances, words: data.words };
 };

@@ -1,65 +1,114 @@
+import { sanitizeTranscriptForSave } from './transcriptValidator.js';
+
 // Сервис для управления офлайн данными с IndexedDB
 class OfflineDataService {
   constructor() {
     this.dbName = 'PodcastAppDB';
     this.version = 2;
     this.db = null;
+    this.fallbackStorage = new Map(); // Fallback для случаев, когда IndexedDB недоступен
+    this.useFallback = false;
   }
 
   // Инициализация базы данных
   async init() {
+    // Проверяем, поддерживается ли IndexedDB
+    if (!window.indexedDB) {
+      console.warn('IndexedDB не поддерживается, используем fallback хранилище');
+      this.useFallback = true;
+      return null;
+    }
+
+    // Если база уже инициализирована, возвращаем её
+    if (this.db) {
+      return this.db;
+    }
+
     return new Promise((resolve, reject) => {
+      // Добавляем таймаут для предотвращения зависания
+      const timeoutId = setTimeout(() => {
+        console.warn('IndexedDB timeout, switching to fallback storage');
+        this.useFallback = true;
+        resolve(null);
+      }, 10000); // 10 секунд таймаут
+
       const request = indexedDB.open(this.dbName, this.version);
 
-      request.onerror = () => reject(request.error);
+      request.onerror = (event) => {
+        clearTimeout(timeoutId);
+        console.warn('IndexedDB error, switching to fallback storage:', event.target.error);
+        this.useFallback = true;
+        resolve(null);
+      };
+
+      request.onblocked = (event) => {
+        clearTimeout(timeoutId);
+        console.warn('IndexedDB blocked, switching to fallback storage:', event);
+        this.useFallback = true;
+        resolve(null);
+      };
 
       request.onupgradeneeded = (event) => {
-        const db = event.target.result;
+        try {
+          const db = event.target.result;
 
-        // Хранилище эпизодов
-        if (!db.objectStoreNames.contains('episodes')) {
-          const episodeStore = db.createObjectStore('episodes', { keyPath: 'slug' });
-          episodeStore.createIndex('date', 'date');
-          episodeStore.createIndex('lang', 'lang');
-        }
+          // Хранилище эпизодов
+          if (!db.objectStoreNames.contains('episodes')) {
+            const episodeStore = db.createObjectStore('episodes', { keyPath: 'slug' });
+            episodeStore.createIndex('date', 'date');
+            episodeStore.createIndex('lang', 'lang');
+          }
 
-        // Хранилище транскриптов
-        if (!db.objectStoreNames.contains('transcripts')) {
-          const transcriptStore = db.createObjectStore('transcripts', { keyPath: 'id', autoIncrement: true });
-          transcriptStore.createIndex('episode_slug', 'episode_slug');
-          transcriptStore.createIndex('lang', 'lang');
-        }
+          // Хранилище транскриптов
+          if (!db.objectStoreNames.contains('transcripts')) {
+            const transcriptStore = db.createObjectStore('transcripts', { keyPath: 'id', autoIncrement: true });
+            transcriptStore.createIndex('episode_slug', 'episode_slug');
+            transcriptStore.createIndex('lang', 'lang');
+          }
 
-        // Хранилище вопросов
-        if (!db.objectStoreNames.contains('questions')) {
-          const questionStore = db.createObjectStore('questions', { keyPath: 'id', autoIncrement: true });
-          questionStore.createIndex('episode_slug', 'episode_slug');
-          questionStore.createIndex('lang', 'lang');
-          questionStore.createIndex('time', 'time');
-        }
+          // Хранилище вопросов
+          if (!db.objectStoreNames.contains('questions')) {
+            const questionStore = db.createObjectStore('questions', { keyPath: 'id', autoIncrement: true });
+            questionStore.createIndex('episode_slug', 'episode_slug');
+            questionStore.createIndex('lang', 'lang');
+            questionStore.createIndex('time', 'time');
+          }
 
-        // Хранилище аудиофайлов (метаданные)
-        if (!db.objectStoreNames.contains('audioFiles')) {
-          const audioStore = db.createObjectStore('audioFiles', { keyPath: 'url' });
-          audioStore.createIndex('episode_slug', 'episode_slug');
-          audioStore.createIndex('cached_at', 'cached_at');
-        }
+          // Хранилище аудиофайлов (метаданные)
+          if (!db.objectStoreNames.contains('audioFiles')) {
+            const audioStore = db.createObjectStore('audioFiles', { keyPath: 'url' });
+            audioStore.createIndex('episode_slug', 'episode_slug');
+            audioStore.createIndex('cached_at', 'cached_at');
+          }
 
-        // Очередь синхронизации
-        if (!db.objectStoreNames.contains('syncQueue')) {
-          const syncStore = db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
-          syncStore.createIndex('type', 'type');
-          syncStore.createIndex('timestamp', 'timestamp');
-        }
+          // Очередь синхронизации
+          if (!db.objectStoreNames.contains('syncQueue')) {
+            const syncStore = db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+            syncStore.createIndex('type', 'type');
+            syncStore.createIndex('timestamp', 'timestamp');
+          }
 
-        // Настройки кеша
-        if (!db.objectStoreNames.contains('cacheSettings')) {
-          const settingsStore = db.createObjectStore('cacheSettings', { keyPath: 'key' });
+          // Настройки кеша
+          if (!db.objectStoreNames.contains('cacheSettings')) {
+            const settingsStore = db.createObjectStore('cacheSettings', { keyPath: 'key' });
+          }
+        } catch (error) {
+          clearTimeout(timeoutId);
+          console.error('Error during IndexedDB upgrade:', error);
+          this.useFallback = true;
+          resolve(null);
         }
       };
 
       request.onsuccess = (event) => {
+        clearTimeout(timeoutId);
         this.db = event.target.result;
+        
+        // Добавляем обработчик ошибок для базы данных
+        this.db.onerror = (event) => {
+          console.error('IndexedDB database error:', event.target.error);
+        };
+        
         resolve(this.db);
       };
     });
@@ -67,8 +116,48 @@ class OfflineDataService {
 
   // Получение транзакции
   getTransaction(storeNames, mode = 'readonly') {
-    if (!this.db) throw new Error('Database not initialized');
-    return this.db.transaction(storeNames, mode);
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+    
+    // Проверяем, что все хранилища существуют
+    for (const storeName of storeNames) {
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        throw new Error(`Object store '${storeName}' does not exist`);
+      }
+    }
+    
+    try {
+      const transaction = this.db.transaction(storeNames, mode);
+      
+      // Добавляем обработчики ошибок для транзакции
+      transaction.onerror = (event) => {
+        console.error('Transaction error:', event.target.error);
+      };
+      
+      transaction.onabort = (event) => {
+        console.warn('Transaction aborted:', event.target.error);
+      };
+      
+      // Добавляем таймаут для предотвращения зависания
+      const timeoutId = setTimeout(() => {
+        try {
+          transaction.abort();
+        } catch (e) {
+          console.warn('Could not abort transaction:', e);
+        }
+      }, 15000); // 15 секунд таймаут
+      
+      // Очищаем таймаут при завершении транзакции
+      transaction.oncomplete = () => clearTimeout(timeoutId);
+      transaction.onerror = () => clearTimeout(timeoutId);
+      transaction.onabort = () => clearTimeout(timeoutId);
+      
+      return transaction;
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      throw new Error(`Ошибка создания транзакции: ${error.message}`);
+    }
   }
 
   // --- ЭПИЗОДЫ ---
@@ -115,102 +204,238 @@ class OfflineDataService {
   // --- ТРАНСКРИПТЫ ---
   
   async saveTranscript(transcript) {
-    const transaction = this.getTransaction(['transcripts'], 'readwrite');
-    const store = transaction.objectStore('transcripts');
-    
-    const transcriptData = {
-      ...transcript,
-      cached_at: Date.now(),
-      last_updated: Date.now()
-    };
-    
-    return new Promise((resolve, reject) => {
-      const request = store.put(transcriptData);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
+    if (!transcript) {
+      throw new Error('Transcript data is required');
+    }
 
-  async getTranscript(episodeSlug, lang) {
-    const transaction = this.getTransaction(['transcripts']);
-    const store = transaction.objectStore('transcripts');
-    const index = store.index('episode_slug');
+    // Валидируем и очищаем данные перед сохранением
+    const sanitizedTranscript = sanitizeTranscriptForSave(transcript);
     
-    return new Promise((resolve, reject) => {
-      const request = index.getAll(episodeSlug);
-      request.onsuccess = () => {
-        const transcripts = request.result.filter(t => t.lang === lang);
-        resolve(transcripts.length > 0 ? transcripts[0] : null);
+    // Проверяем корректность ID для IndexedDB
+    if (!this.useFallback && sanitizedTranscript.id !== undefined) {
+      const transcriptId = Number(sanitizedTranscript.id);
+      if (isNaN(transcriptId)) {
+        console.warn('Invalid transcript ID, using timestamp instead:', sanitizedTranscript.id);
+        sanitizedTranscript.id = Date.now();
+      }
+    }
+
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `transcript_${sanitizedTranscript.episode_slug}_${sanitizedTranscript.lang}`;
+      const transcriptData = {
+        ...sanitizedTranscript,
+        cached_at: Date.now(),
+        last_updated: Date.now()
       };
-      request.onerror = () => reject(request.error);
-    });
-  }
+      this.fallbackStorage.set(key, transcriptData);
+      return Date.now(); // Возвращаем timestamp как ID
+    }
 
-  // --- ВОПРОСЫ ---
-  
-  async saveQuestions(questions, episodeSlug, lang) {
-    const transaction = this.getTransaction(['questions'], 'readwrite');
-    const store = transaction.objectStore('questions');
-    
-    // Сначала удаляем существующие вопросы для этого эпизода и языка
-    await this.deleteQuestions(episodeSlug, lang);
-    
-    const promises = questions.map(question => {
-      const questionData = {
-        ...question,
-        episode_slug: episodeSlug,
-        lang: lang,
+    try {
+      const transaction = this.getTransaction(['transcripts'], 'readwrite');
+      const store = transaction.objectStore('transcripts');
+      
+      const transcriptData = {
+        ...sanitizedTranscript,
         cached_at: Date.now(),
         last_updated: Date.now()
       };
       
       return new Promise((resolve, reject) => {
-        const request = store.add(questionData);
-        request.onsuccess = () => resolve(request.result);
+        // Добавляем таймаут для предотвращения зависания
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Timeout: Сохранение транскрипта заняло слишком много времени'));
+        }, 10000); // 10 секунд таймаут
+
+        const request = store.put(transcriptData);
+        
+        request.onsuccess = () => {
+          clearTimeout(timeoutId);
+          resolve(request.result);
+        };
+        
+        request.onerror = (event) => {
+          clearTimeout(timeoutId);
+          console.error('Error saving transcript:', event.target.error);
+          reject(new Error(`Ошибка сохранения транскрипта: ${event.target.error?.message || 'Неизвестная ошибка'}`));
+        };
+
+        // Добавляем обработчик завершения транзакции
+        transaction.oncomplete = () => {
+          clearTimeout(timeoutId);
+        };
+
+        transaction.onerror = (event) => {
+          clearTimeout(timeoutId);
+          reject(new Error(`Transaction error: ${event.target.error?.message || 'Transaction failed'}`));
+        };
+      });
+    } catch (error) {
+      console.error('Error in saveTranscript:', error);
+      throw error;
+    }
+  }
+
+  async getTranscript(episodeSlug, lang) {
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `transcript_${episodeSlug}_${lang}`;
+      return this.fallbackStorage.get(key) || null;
+    }
+
+    try {
+      const transaction = this.getTransaction(['transcripts']);
+      const store = transaction.objectStore('transcripts');
+      const index = store.index('episode_slug');
+      
+      return new Promise((resolve, reject) => {
+        const request = index.getAll(episodeSlug);
+        request.onsuccess = () => {
+          const transcripts = request.result.filter(t => t.lang === lang);
+          resolve(transcripts.length > 0 ? transcripts[0] : null);
+        };
         request.onerror = () => reject(request.error);
       });
-    });
-    
-    return Promise.all(promises);
+    } catch (error) {
+      console.error('Error in getTranscript:', error);
+      return null;
+    }
+  }
+
+  // --- ВОПРОСЫ ---
+  
+  async saveQuestions(questions, episodeSlug, lang) {
+    if (!Array.isArray(questions)) {
+      console.warn('Questions must be an array, received:', typeof questions);
+      questions = [];
+    }
+
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `questions_${episodeSlug}_${lang}`;
+      const questionsData = {
+        questions: questions,
+        episode_slug: episodeSlug,
+        lang: lang,
+        cached_at: Date.now(),
+        last_updated: Date.now()
+      };
+      this.fallbackStorage.set(key, questionsData);
+      return questions.length;
+    }
+
+    try {
+      // Сначала удаляем существующие вопросы для этого эпизода и языка
+      await this.deleteQuestions(episodeSlug, lang);
+      
+      if (questions.length === 0) {
+        return 0; // Нет вопросов для сохранения
+      }
+
+      const transaction = this.getTransaction(['questions'], 'readwrite');
+      const store = transaction.objectStore('questions');
+      
+      // Создаем все промисы сразу, чтобы транзакция не завершилась
+      const promises = questions.map(question => {
+        const questionData = {
+          ...question,
+          episode_slug: episodeSlug,
+          lang: lang,
+          cached_at: Date.now(),
+          last_updated: Date.now()
+        };
+        
+        return new Promise((resolve, reject) => {
+          const request = store.add(questionData);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      });
+      
+      // Выполняем все операции в рамках одной транзакции
+      const results = await Promise.all(promises);
+      
+      // Ждем завершения транзакции
+      return new Promise((resolve, reject) => {
+        transaction.oncomplete = () => resolve(results.length);
+        transaction.onerror = (event) => reject(new Error(`Transaction error: ${event.target.error?.message || 'Transaction failed'}`));
+      });
+    } catch (error) {
+      console.error('Error in saveQuestions:', error);
+      throw error;
+    }
   }
 
   async getQuestions(episodeSlug, lang) {
-    const transaction = this.getTransaction(['questions']);
-    const store = transaction.objectStore('questions');
-    const index = store.index('episode_slug');
-    
-    return new Promise((resolve, reject) => {
-      const request = index.getAll(episodeSlug);
-      request.onsuccess = () => {
-        const questions = request.result
-          .filter(q => q.lang === lang)
-          .sort((a, b) => a.time - b.time);
-        resolve(questions);
-      };
-      request.onerror = () => reject(request.error);
-    });
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `questions_${episodeSlug}_${lang}`;
+      const questionsData = this.fallbackStorage.get(key);
+      if (questionsData && questionsData.questions) {
+        return questionsData.questions.sort((a, b) => (a.time || 0) - (b.time || 0));
+      }
+      return [];
+    }
+
+    try {
+      const transaction = this.getTransaction(['questions']);
+      const store = transaction.objectStore('questions');
+      const index = store.index('episode_slug');
+      
+      return new Promise((resolve, reject) => {
+        const request = index.getAll(episodeSlug);
+        request.onsuccess = () => {
+          const questions = request.result
+            .filter(q => q.lang === lang)
+            .sort((a, b) => (a.time || 0) - (b.time || 0));
+          resolve(questions);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error('Error in getQuestions:', error);
+      return [];
+    }
   }
 
   async deleteQuestions(episodeSlug, lang) {
-    const transaction = this.getTransaction(['questions'], 'readwrite');
-    const store = transaction.objectStore('questions');
-    const index = store.index('episode_slug');
-    
-    return new Promise((resolve, reject) => {
-      const request = index.getAll(episodeSlug);
-      request.onsuccess = () => {
-        const questions = request.result.filter(q => q.lang === lang);
-        const deletePromises = questions.map(q => {
-          return new Promise((deleteResolve, deleteReject) => {
-            const deleteRequest = store.delete(q.id);
-            deleteRequest.onsuccess = () => deleteResolve();
-            deleteRequest.onerror = () => deleteReject(deleteRequest.error);
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `questions_${episodeSlug}_${lang}`;
+      this.fallbackStorage.delete(key);
+      return true;
+    }
+
+    try {
+      const transaction = this.getTransaction(['questions'], 'readwrite');
+      const store = transaction.objectStore('questions');
+      const index = store.index('episode_slug');
+      
+      return new Promise((resolve, reject) => {
+        const request = index.getAll(episodeSlug);
+        request.onsuccess = () => {
+          const questions = request.result.filter(q => q.lang === lang);
+          if (questions.length === 0) {
+            resolve(true);
+            return;
+          }
+          
+          const deletePromises = questions.map(q => {
+            return new Promise((deleteResolve, deleteReject) => {
+              const deleteRequest = store.delete(q.id);
+              deleteRequest.onsuccess = () => deleteResolve();
+              deleteRequest.onerror = () => deleteReject(deleteRequest.error);
+            });
           });
-        });
-        Promise.all(deletePromises).then(resolve).catch(reject);
-      };
-      request.onerror = () => reject(request.error);
-    });
+          Promise.all(deletePromises).then(resolve).catch(reject);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error('Error in deleteQuestions:', error);
+      return false;
+    }
   }
 
   // --- АУДИОФАЙЛЫ ---
@@ -269,34 +494,71 @@ class OfflineDataService {
   // --- ОЧЕРЕДЬ СИНХРОНИЗАЦИИ ---
   
   async addToSyncQueue(type, data, operation = 'update') {
-    const transaction = this.getTransaction(['syncQueue'], 'readwrite');
-    const store = transaction.objectStore('syncQueue');
-    
-    const syncItem = {
-      type, // 'transcript', 'question', 'episode'
-      operation, // 'create', 'update', 'delete'
-      data,
-      timestamp: Date.now(),
-      attempts: 0,
-      max_attempts: 3
-    };
-    
-    return new Promise((resolve, reject) => {
-      const request = store.add(syncItem);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `sync_${Date.now()}_${Math.random()}`;
+      const syncItem = {
+        id: key,
+        type, // 'transcript', 'question', 'episode'
+        operation, // 'create', 'update', 'delete'
+        data,
+        timestamp: Date.now(),
+        attempts: 0,
+        max_attempts: 3
+      };
+      this.fallbackStorage.set(key, syncItem);
+      return key;
+    }
+
+    try {
+      const transaction = this.getTransaction(['syncQueue'], 'readwrite');
+      const store = transaction.objectStore('syncQueue');
+      
+      const syncItem = {
+        type, // 'transcript', 'question', 'episode'
+        operation, // 'create', 'update', 'delete'
+        data,
+        timestamp: Date.now(),
+        attempts: 0,
+        max_attempts: 3
+      };
+      
+      return new Promise((resolve, reject) => {
+        const request = store.add(syncItem);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error('Error in addToSyncQueue:', error);
+      throw error;
+    }
   }
 
   async getSyncQueue() {
-    const transaction = this.getTransaction(['syncQueue']);
-    const store = transaction.objectStore('syncQueue');
-    
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const queue = [];
+      for (const [key, value] of this.fallbackStorage.entries()) {
+        if (key.startsWith('sync_')) {
+          queue.push(value);
+        }
+      }
+      return queue.sort((a, b) => a.timestamp - b.timestamp);
+    }
+
+    try {
+      const transaction = this.getTransaction(['syncQueue']);
+      const store = transaction.objectStore('syncQueue');
+      
+      return new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error('Error in getSyncQueue:', error);
+      return [];
+    }
   }
 
   async removeSyncItem(id) {
@@ -393,10 +655,114 @@ class OfflineDataService {
   }
 
   async getStorageUsage() {
-    if ('storage' in navigator && 'estimate' in navigator.storage) {
-      return await navigator.storage.estimate();
+    try {
+      if (this.useFallback) {
+        // В fallback режиме возвращаем базовую статистику
+        return {
+          audioSize: 0,
+          dataSize: 0,
+          episodeCount: this.fallbackStorage.size,
+          transcriptCount: 0,
+          questionCount: 0,
+          syncQueueCount: 0
+        };
+      }
+
+      const stats = {
+        audioSize: 0,
+        dataSize: 0,
+        episodeCount: 0,
+        transcriptCount: 0,
+        questionCount: 0,
+        syncQueueCount: 0
+      };
+
+      // Подсчитываем количество эпизодов
+      try {
+        const episodeTransaction = this.getTransaction(['episodes']);
+        const episodeStore = episodeTransaction.objectStore('episodes');
+        const episodeRequest = episodeStore.count();
+        episodeRequest.onsuccess = () => {
+          stats.episodeCount = episodeRequest.result;
+        };
+      } catch (error) {
+        console.warn('Error counting episodes:', error);
+      }
+
+      // Подсчитываем количество транскриптов
+      try {
+        const transcriptTransaction = this.getTransaction(['transcripts']);
+        const transcriptStore = transcriptTransaction.objectStore('transcripts');
+        const transcriptRequest = transcriptStore.count();
+        transcriptRequest.onsuccess = () => {
+          stats.transcriptCount = transcriptRequest.result;
+        };
+      } catch (error) {
+        console.warn('Error counting transcripts:', error);
+      }
+
+      // Подсчитываем количество вопросов
+      try {
+        const questionTransaction = this.getTransaction(['questions']);
+        const questionStore = questionTransaction.objectStore('questions');
+        const questionRequest = questionStore.count();
+        questionRequest.onsuccess = () => {
+          stats.questionCount = questionRequest.result;
+        };
+      } catch (error) {
+        console.warn('Error counting questions:', error);
+      }
+
+      // Подсчитываем количество элементов в очереди синхронизации
+      try {
+        const syncTransaction = this.getTransaction(['syncQueue']);
+        const syncStore = syncTransaction.objectStore('syncQueue');
+        const syncRequest = syncStore.count();
+        syncRequest.onsuccess = () => {
+          stats.syncQueueCount = syncRequest.result;
+        };
+      } catch (error) {
+        console.warn('Error counting sync queue:', error);
+      }
+
+      // Оцениваем размер данных (примерно)
+      stats.dataSize = (stats.episodeCount * 1024) + (stats.transcriptCount * 5120) + (stats.questionCount * 512);
+
+      return stats;
+    } catch (error) {
+      console.error('Error getting storage usage:', error);
+      return {
+        audioSize: 0,
+        dataSize: 0,
+        episodeCount: 0,
+        transcriptCount: 0,
+        questionCount: 0,
+        syncQueueCount: 0
+      };
     }
-    return { usage: 0, quota: 0 };
+  }
+
+  // Удаление эпизода
+  async deleteEpisode(slug) {
+    if (this.useFallback) {
+      const key = `episode_${slug}`;
+      this.fallbackStorage.delete(key);
+      return true;
+    }
+
+    try {
+      const transaction = this.getTransaction(['episodes'], 'readwrite');
+      const store = transaction.objectStore('episodes');
+      
+      return new Promise((resolve, reject) => {
+        const request = store.delete(slug);
+        request.onsuccess = () => resolve(true);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error('Error deleting episode:', error);
+      throw error;
+    }
   }
 
   // Закрытие соединения с базой данных

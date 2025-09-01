@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { getLocaleString } from '@/lib/locales';
 import { useTelegram } from '@/contexts/TelegramContext';
 
@@ -22,12 +21,15 @@ const EpisodesPageHeader = ({ currentLanguage }) => {
         </h1>
       </div>
       {showManageButton && (
-        <Button onClick={() => navigate('/manage')} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 py-2 px-5">
+        <button 
+          onClick={() => navigate('/manage')} 
+          className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 py-2 px-5 rounded-lg"
+        >
           {getLocaleString('manageAndUploadTitle', currentLanguage)}
-        </Button>
+        </button>
       )}
     </div>
   );
-};
+}
 
 export default EpisodesPageHeader;

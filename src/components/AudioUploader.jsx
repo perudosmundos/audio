@@ -1,10 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '@/lib/supabaseClient';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress'; 
-import { UploadCloud, FileAudio, X, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { getLocaleString } from '@/lib/locales';
 import r2Service from '@/lib/r2Service'; 
@@ -73,7 +69,6 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
     return { title, lang, parsedDate };
   };
 
-
   const handleUpload = async () => {
     if (files.length === 0) return;
 
@@ -102,49 +97,19 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
         let duration = 0;
         try {
             duration = await new Promise((resolve) => {
-                audioForDuration.onloadedmetadata = () => {
-                    const audioDuration = audioForDuration.duration;
-                    console.log(`Audio duration for ${file.name}: ${audioDuration} seconds`);
-                    resolve(audioDuration);
-                };
+                audioForDuration.onloadedmetadata = () => resolve(audioForDuration.duration);
                 audioForDuration.onerror = () => resolve(0); 
             });
         } catch (e) { console.error("Error getting duration",e); duration = 0; }
 
-        // Проверяем, что длительность получена корректно
-        if (duration <= 0) {
-            console.warn(`Warning: Invalid duration for ${file.name}: ${duration}`);
-            toast({ 
-                title: getLocaleString('warning', currentLanguage), 
-                description: `Не удалось определить длительность аудиофайла ${file.name}`, 
-                variant: "warning" 
-            });
-        }
-
         const { title: episodeTitle, lang: fileLang, parsedDate: episodeDate } = extractDetailsFromFilename(file.name);
         const episodeSlug = generateEpisodeSlug(episodeDate || new Date().toISOString().split('T')[0], fileLang);
         
-        console.log(`Saving episode with duration: ${Math.round(duration || 0)} seconds for ${file.name}`);
-        
-        // Проверяем, существует ли уже эпизод с таким slug и lang
-        const { data: existingEpisode, error: checkError } = await supabase
+        const { data: episodeData, error: dbError } = await supabase
           .from('episodes')
-          .select('slug, lang, duration')
-          .eq('slug', episodeSlug)
-          .eq('lang', fileLang)
-          .maybeSingle();
-
-        if (checkError) {
-          console.warn(`Warning: Could not check existing episode ${episodeSlug} (${fileLang}): ${checkError.message}`);
-        }
-
-        let episodeData;
-        if (existingEpisode) {
-          // Обновляем существующий эпизод
-          console.log(`Updating existing episode ${episodeSlug} (${fileLang}) with new duration: ${Math.round(duration || 0)} seconds`);
-          const { data: updatedEpisode, error: updateError } = await supabase
-            .from('episodes')
-            .update({
+          .insert([
+            { 
+              slug: episodeSlug,
               title: episodeTitle, 
               lang: fileLang,
               date: episodeDate || new Date().toISOString().split('T')[0],
@@ -152,64 +117,53 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
               r2_object_key: fileKey,
               r2_bucket_name: bucketName,
               duration: Math.round(duration || 0),
-            })
-            .eq('slug', episodeSlug)
-            .eq('lang', fileLang)
-            .select('slug')
-            .maybeSingle();
-          
-          if (updateError) throw new Error(`Supabase error: ${updateError.message}`);
-          episodeData = updatedEpisode;
-        } else {
-          // Создаем новый эпизод
-          console.log(`Creating new episode ${episodeSlug} (${fileLang}) with duration: ${Math.round(duration || 0)} seconds`);
-          const { data: newEpisode, error: insertError } = await supabase
-            .from('episodes')
-            .insert([
-              { 
-                slug: episodeSlug,
-                title: episodeTitle, 
-                lang: fileLang,
-                date: episodeDate || new Date().toISOString().split('T')[0],
-                audio_url: workerFileUrl, 
-                r2_object_key: fileKey,
-                r2_bucket_name: bucketName,
-                duration: Math.round(duration || 0),
-              }
-            ])
-            .select('slug')
-            .maybeSingle();
-          
-          if (insertError) throw new Error(`Supabase error: ${insertError.message}`);
-          episodeData = newEpisode;
-        }
-        
-        toast({ title: getLocaleString('metadataSavedSuccess', currentLanguage), description: file.name });
+            }
+          ])
+          .select('slug')
+          .maybeSingle();
 
+        if (dbError) {
+            if (dbError.code === '23505') { // Unique violation for slug
+                toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `Эпизод с slug ${episodeSlug} уже существует.`, variant: 'destructive'});
+            } else {
+                throw new Error(`Supabase error: ${dbError.message}`);
+            }
+            setIsUploading(false);
+            return;
+        }
+        toast({ title: getLocaleString('metadataSavedSuccess', currentLanguage), description: file.name });
+        
         if (episodeData && episodeData.slug) {
-          // Убираем автоматический запуск распознавания текста
-          // Теперь распознавание запускается только по запросу в manage
-          
+          let assemblyLangCode;
           let transcriptLangForDb;
+
           if (fileLang === 'all') {
+            assemblyLangCode = currentLanguage === 'ru' ? 'ru' : 'es'; 
             transcriptLangForDb = currentLanguage;
           } else {
+            assemblyLangCode = fileLang;
             transcriptLangForDb = fileLang;
           }
           
-          // Сохраняем базовую информацию о транскрипции без запуска
+          const transcriptJob = await assemblyAIService.submitTranscription(
+            workerFileUrl, 
+            assemblyLangCode, 
+            episodeData.slug, // Pass episode slug to webhook
+            currentLanguage 
+          );
+          
           const { error: transcriptDbError } = await supabase
             .from('transcripts')
             .insert([{
               episode_slug: episodeData.slug,
               lang: transcriptLangForDb, 
-              status: 'not_started',
-              updated_at: new Date().toISOString(),
+              assemblyai_transcript_id: transcriptJob.id,
+              status: transcriptJob.status,
             }]);
 
-          if (transcriptDbError) console.error("Error saving initial transcript record to DB:", transcriptDbError);
+          if (transcriptDbError) console.error("Error saving initial transcript job to DB:", transcriptDbError);
           
-          toast({ title: getLocaleString('uploadSuccess', currentLanguage), description: `${file.name} - распознавание текста можно запустить в разделе "Управление"` });
+          toast({ title: getLocaleString('transcriptionStarted', currentLanguage), description: `${file.name} (${assemblyLangCode})` });
         }
         
       } catch (error) {
@@ -237,20 +191,24 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg bg-slate-800 border-slate-700 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-purple-300">{getLocaleString('uploadAudioFiles', currentLanguage)}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700 max-w-lg w-full text-white">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-purple-300 mb-2">
+            {getLocaleString('uploadAudioFiles', currentLanguage)}
+          </h2>
+          <p className="text-slate-400 text-sm">
             {getLocaleString('uploadAudioDescription', currentLanguage)}
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
 
         <div {...getRootProps()} className={`mt-4 p-8 border-2 border-dashed rounded-lg text-center cursor-pointer
           ${isDragActive ? 'border-purple-500 bg-purple-500/10' : 'border-slate-600 hover:border-slate-500'}`}>
           <input {...getInputProps()} />
-          <UploadCloud className="mx-auto h-12 w-12 text-slate-500 mb-2" />
+          <div className="mx-auto h-12 w-12 text-slate-500 mb-2 text-4xl">☁️</div>
           {isDragActive ? (
             <p className="text-purple-400">{getLocaleString('dropFilesHere', currentLanguage)}</p>
           ) : (
@@ -264,13 +222,13 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
             {files.map((file, index) => (
               <div key={index} className="flex items-center justify-between p-2 bg-slate-700 rounded">
                 <div className="flex items-center gap-2">
-                  <FileAudio className="h-5 w-5 text-purple-400" />
+                  <div className="h-5 w-5 text-purple-400">🎵</div>
                   <span className="text-sm truncate" title={file.name}>{file.name}</span>
                 </div>
                 {!isUploading && (
-                  <Button variant="ghost" size="icon_sm" onClick={() => removeFile(file)} className="text-red-400 hover:text-red-300">
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <button onClick={() => removeFile(file)} className="text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer">
+                    ❌
+                  </button>
                 )}
               </div>
             ))}
@@ -279,7 +237,12 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
 
         {isUploading && (
           <div className="mt-4">
-            <Progress value={uploadProgress} className="w-full [&>div]:bg-purple-500" />
+            <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-purple-500 transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
             <div className="text-sm text-center mt-2 text-purple-300">
               {uploadProgressDetails?.message || getLocaleString('uploading', currentLanguage)} {uploadProgress}%
               {uploadProgressDetails && (
@@ -297,28 +260,36 @@ const AudioUploader = ({ isOpen, onClose, onUploadSuccess, currentLanguage }) =>
         
         {uploadComplete && !uploadError && (
            <div className="mt-4 text-center text-green-400 flex items-center justify-center">
-             <CheckCircle className="h-5 w-5 mr-2"/>
+             <div className="h-5 w-5 mr-2">✅</div>
              <p>{getLocaleString('allFilesUploadedSuccessfully', currentLanguage)}</p>
            </div>
         )}
 
-        <DialogFooter className="mt-6">
-          <Button variant="outline" onClick={handleClose} disabled={isUploading} className="border-slate-600 hover:bg-slate-700">
+        <div className="mt-6 flex gap-3">
+          <button 
+            onClick={handleClose} 
+            disabled={isUploading} 
+            className="flex-1 px-4 py-2 border border-slate-600 hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
+          >
             {getLocaleString('close', currentLanguage)}
-          </Button>
-          <Button onClick={handleUpload} disabled={isUploading || files.length === 0} className="bg-purple-600 hover:bg-purple-700">
+          </button>
+          <button 
+            onClick={handleUpload} 
+            disabled={isUploading || files.length === 0} 
+            className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+          >
             {isUploading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <div className="inline-block h-4 w-4 animate-spin mr-2">⏳</div>
                 {getLocaleString('uploadingInProgress', currentLanguage)}
               </>
             ) : (
               getLocaleString('startUpload', currentLanguage)
             )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

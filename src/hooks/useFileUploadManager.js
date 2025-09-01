@@ -7,6 +7,7 @@ import { processSingleItem as processSingleItemService } from '@/services/upload
 import { startPollingForItem as startPollingForItemService } from '@/services/uploader/transcriptPoller';
 import { translateTextOpenAI } from '@/lib/openAIService';
 import logger from '@/lib/logger';
+import useEpisodePublishing from './useEpisodePublishing';
 
 
 const useFileUploadManager = (currentLanguage) => {
@@ -19,6 +20,8 @@ const useFileUploadManager = (currentLanguage) => {
   const pollingIntervals = useRef({});
   const overwritePromiseResolve = useRef(null);
   const isDialogOpen = useRef(false);
+  
+  const { publishEpisode, isEpisodePublished } = useEpisodePublishing(currentLanguage);
 
   const updateItemState = useCallback((itemUniqueIdOrPredicate, updates) => {
     setFilesToProcess(prev => {
@@ -304,6 +307,8 @@ const useFileUploadManager = (currentLanguage) => {
     handleRemoveItem,
     confirmOverwrite,
     cancelOverwrite,
+    publishEpisode,
+    isEpisodePublished,
   };
 };
 

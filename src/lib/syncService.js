@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import offlineDataService from './offlineDataService';
 import logger from './logger';
 import { getFullTextFromUtterances } from '@/hooks/transcript/transcriptProcessingUtils';
+import { sanitizeTranscriptForSave, isCompatibleWithDatabase } from './transcriptValidator.js';
 
 class SyncService {
   constructor() {
@@ -9,6 +10,7 @@ class SyncService {
     this.syncInProgress = false;
     this.syncListeners = [];
     this.networkListeners = [];
+    this.lastNetworkCheck = Date.now();
     
     // Инициализация слушателей сетевых событий
     this.initNetworkListeners();
@@ -22,6 +24,7 @@ class SyncService {
     window.addEventListener('online', () => {
       logger.info('[Sync] Network connection restored');
       this.isOnline = true;
+      this.lastNetworkCheck = Date.now();
       this.notifyNetworkListeners(true);
       this.syncOfflineChanges();
     });
@@ -29,6 +32,7 @@ class SyncService {
     window.addEventListener('offline', () => {
       logger.warn('[Sync] Network connection lost');
       this.isOnline = false;
+      this.lastNetworkCheck = Date.now();
       this.notifyNetworkListeners(false);
     });
 
@@ -67,6 +71,7 @@ class SyncService {
       
       const wasOnline = this.isOnline;
       this.isOnline = response.ok;
+      this.lastNetworkCheck = Date.now();
       
       if (!wasOnline && this.isOnline) {
         logger.info('[Sync] Connection restored via ping');
@@ -82,6 +87,7 @@ class SyncService {
         this.isOnline = false;
         this.notifyNetworkListeners(false);
       }
+      this.lastNetworkCheck = Date.now();
     }
   }
 
@@ -99,6 +105,28 @@ class SyncService {
     return () => {
       this.syncListeners = this.syncListeners.filter(cb => cb !== callback);
     };
+  }
+
+  // Уведомление слушателей сетевых событий
+  notifyNetworkListeners(isOnline) {
+    this.networkListeners.forEach(callback => {
+      try {
+        callback(isOnline);
+      } catch (error) {
+        console.error('Error in network listener:', error);
+      }
+    });
+  }
+
+  // Уведомление слушателей синхронизации
+  notifySyncListeners(event, data = null) {
+    this.syncListeners.forEach(callback => {
+      try {
+        callback(event, data);
+      } catch (error) {
+        console.error('Error in sync listener:', error);
+      }
+    });
   }
 
   // Уведомление слушателей о изменении сети
@@ -133,7 +161,12 @@ class SyncService {
 
   // Сохранение данных с автоматической синхронизацией
   async saveData(type, data, operation = 'update') {
-    await offlineDataService.init();
+    try {
+      await offlineDataService.init();
+    } catch (error) {
+      logger.error('[Sync] Failed to initialize offline service:', error);
+      throw new Error(`Не удалось инициализировать оффлайн сервис: ${error.message}`);
+    }
 
     try {
       // Сохраняем локально
@@ -147,6 +180,8 @@ class SyncService {
         case 'questions':
           await offlineDataService.saveQuestions(data.questions, data.episodeSlug, data.lang);
           break;
+        default:
+          throw new Error(`Неизвестный тип данных: ${type}`);
       }
 
       // Если онлайн, пытаемся синхронизировать сразу
@@ -165,6 +200,20 @@ class SyncService {
       return { success: true, offline: !this.isOnline };
     } catch (error) {
       logger.error('[Sync] Failed to save data:', error);
+      
+      // Если не удалось сохранить локально, проверяем корректность данных перед добавлением в очередь
+      if (type === 'transcript' && !isCompatibleWithDatabase(data)) {
+        logger.error('[Sync] Cannot add invalid transcript to sync queue:', data.id);
+        throw new Error(`Invalid transcript ID: ${data.id}. Cannot sync invalid data.`);
+      }
+      
+      try {
+        await offlineDataService.addToSyncQueue(type, data, operation);
+        logger.info('[Sync] Data added to sync queue after local save failure');
+      } catch (queueError) {
+        logger.error('[Sync] Failed to add to sync queue:', queueError);
+      }
+      
       throw error;
     }
   }
@@ -182,17 +231,47 @@ class SyncService {
           // Сохраняем в локальный кеш
           switch (type) {
             case 'episode':
-              await offlineDataService.saveEpisode(serverData);
+              // Проверяем, что данные эпизода корректны
+              if (serverData && typeof serverData === 'object' && serverData.slug) {
+                await offlineDataService.saveEpisode(serverData);
+              } else {
+                console.warn('[Sync] Invalid episode data:', serverData);
+              }
               break;
             case 'transcript':
-              await offlineDataService.saveTranscript(serverData);
+              // Проверяем и исправляем данные транскрипта перед сохранением
+              if (serverData && typeof serverData === 'object') {
+                // Убеждаемся, что у транскрипта есть необходимые поля
+                const validTranscript = {
+                  id: serverData.id,
+                  episode_slug: serverData.episode_slug || params.episodeSlug,
+                  lang: serverData.lang || params.lang,
+                  utterances: Array.isArray(serverData.utterances) ? serverData.utterances : [],
+                  words: Array.isArray(serverData.words) ? serverData.words : [],
+                  text: serverData.text || '',
+                  status: serverData.status || 'completed',
+                  created_at: serverData.created_at || new Date().toISOString(),
+                  updated_at: serverData.updated_at || new Date().toISOString()
+                };
+                await offlineDataService.saveTranscript(validTranscript);
+              }
               break;
             case 'questions':
-              await offlineDataService.saveQuestions(
-                serverData, 
-                params.episodeSlug, 
-                params.lang
-              );
+              // Проверяем, что вопросы - это массив
+              if (Array.isArray(serverData)) {
+                await offlineDataService.saveQuestions(
+                  serverData, 
+                  params.episodeSlug, 
+                  params.lang
+                );
+              } else {
+                console.warn('[Sync] Questions data is not an array:', serverData);
+                await offlineDataService.saveQuestions(
+                  [], 
+                  params.episodeSlug, 
+                  params.lang
+                );
+              }
               break;
           }
           
@@ -204,19 +283,24 @@ class SyncService {
 
       // Загружаем из локального кеша
       let cachedData;
-      switch (type) {
-        case 'episode':
-          cachedData = await offlineDataService.getEpisode(params.slug);
-          break;
-        case 'transcript':
-          cachedData = await offlineDataService.getTranscript(params.episodeSlug, params.lang);
-          break;
-        case 'questions':
-          cachedData = await offlineDataService.getQuestions(params.episodeSlug, params.lang);
-          break;
-        case 'episodes':
-          cachedData = await offlineDataService.getAllEpisodes();
-          break;
+      try {
+        switch (type) {
+          case 'episode':
+            cachedData = await offlineDataService.getEpisode(params.slug);
+            break;
+          case 'transcript':
+            cachedData = await offlineDataService.getTranscript(params.episodeSlug, params.lang);
+            break;
+          case 'questions':
+            cachedData = await offlineDataService.getQuestions(params.episodeSlug, params.lang);
+            break;
+          case 'episodes':
+            cachedData = await offlineDataService.getAllEpisodes();
+            break;
+        }
+      } catch (cacheError) {
+        logger.warn(`[Sync] Cache load failed for ${type}:`, cacheError);
+        cachedData = null;
       }
 
       if (cachedData) {
@@ -255,7 +339,13 @@ class SyncService {
           .single();
         
         if (episodeError) throw episodeError;
-        return episodeData;
+        
+        // Проверяем, что данные эпизода корректны
+        if (episodeData && typeof episodeData === 'object' && episodeData.slug) {
+          return episodeData;
+        } else {
+          throw new Error('Invalid episode data received from server');
+        }
 
       case 'transcript':
         const { data: transcriptData, error: transcriptError } = await supabase
@@ -268,6 +358,24 @@ class SyncService {
           .maybeSingle();
         
         if (transcriptError) throw transcriptError;
+        
+        // Проверяем, что данные транскрипта корректны
+        if (transcriptData && typeof transcriptData === 'object') {
+          // Убеждаемся, что у транскрипта есть необходимые поля
+          return {
+            id: transcriptData.id,
+            episode_slug: transcriptData.episode_slug || params.episodeSlug,
+            lang: transcriptData.lang || params.lang,
+            utterances: Array.isArray(transcriptData.utterances) ? transcriptData.utterances : [],
+            words: Array.isArray(transcriptData.words) ? transcriptData.words : [],
+            text: transcriptData.text || '',
+            status: transcriptData.status || 'completed',
+            created_at: transcriptData.created_at || new Date().toISOString(),
+            updated_at: transcriptData.updated_at || new Date().toISOString(),
+            edited_transcript_data: transcriptData.edited_transcript_data || null
+          };
+        }
+        
         return transcriptData;
 
       case 'questions':
@@ -279,7 +387,17 @@ class SyncService {
           .order('time', { ascending: true });
         
         if (questionsError) throw questionsError;
-        return questionsData;
+        
+        // Проверяем, что данные вопросов корректны
+        if (Array.isArray(questionsData)) {
+          return questionsData.filter(q => 
+            q && typeof q === 'object' && 
+            (q.id || q.time !== undefined) && 
+            q.lang === params.lang
+          );
+        }
+        
+        return questionsData || [];
 
       case 'episodes':
         const { data: episodesData, error: episodesError } = await supabase
@@ -288,7 +406,15 @@ class SyncService {
           .order('date', { ascending: false });
         
         if (episodesError) throw episodesError;
-        return episodesData;
+        
+        // Проверяем, что данные эпизодов корректны
+        if (Array.isArray(episodesData)) {
+          return episodesData.filter(ep => 
+            ep && typeof ep === 'object' && ep.slug
+          );
+        }
+        
+        return episodesData || [];
 
       default:
         throw new Error(`Unknown load type: ${type}`);
@@ -299,6 +425,11 @@ class SyncService {
   async syncTranscriptToServer(data, operation) {
     switch (operation) {
       case 'update':
+        // Проверяем корректность ID
+        if (!isCompatibleWithDatabase(data)) {
+          throw new Error(`Invalid transcript ID: ${data.id}. ID must be a valid integer.`);
+        }
+        
         // Split large payloads to avoid HTTP2 errors
         const compactEdited = {
           utterances: (data.utterances || []).map(u => {
@@ -318,7 +449,7 @@ class SyncService {
             const { error: updateError } = await supabase
               .from('transcripts')
               .update({ edited_transcript_data: compactEdited })
-              .eq('id', data.id);
+              .eq('id', Number(data.id)); // Убеждаемся, что ID - число
             
             if (updateError) throw updateError;
             break; // Success, exit retry loop
@@ -490,6 +621,41 @@ class SyncService {
   async getStorageStats() {
     await offlineDataService.init();
     return await offlineDataService.getStorageUsage();
+  }
+
+  // Получение статуса сети
+  getNetworkStatus() {
+    return {
+      isOnline: this.isOnline,
+      lastCheck: this.lastNetworkCheck,
+      connectionType: navigator.connection?.type || 'unknown'
+    };
+  }
+
+  // Подписка на изменения сетевого состояния
+  onNetworkChange(callback) {
+    this.networkListeners.push(callback);
+    
+    // Возвращаем функцию для отписки
+    return () => {
+      const index = this.networkListeners.indexOf(callback);
+      if (index > -1) {
+        this.networkListeners.splice(index, 1);
+      }
+    };
+  }
+
+  // Подписка на изменения статуса синхронизации
+  onSyncChange(callback) {
+    this.syncListeners.push(callback);
+    
+    // Возвращаем функцию для отписки
+    return () => {
+      const index = this.syncListeners.indexOf(callback);
+      if (index > -1) {
+        this.syncListeners.splice(index, 1);
+      }
+    };
   }
 }
 

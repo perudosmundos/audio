@@ -1,6 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCw, RotateCcw } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const FloatingPlayerControls = ({ 
@@ -27,37 +25,31 @@ const FloatingPlayerControls = ({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <button 
             onClick={() => {
               if (onSkipSeconds) onSkipSeconds(-10);
             }} 
-            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9"
+            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
             aria-label={getLocaleString('skipBackward10', currentLanguage) || "Skip backward 10s"}
           >
-            <RotateCcw className="h-5 w-5" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+            <div className="h-5 w-5">⏪</div>
+          </button>
+          <button 
             onClick={onPlayPause} 
-            className="text-slate-100 hover:text-white bg-purple-600/30 hover:bg-purple-500/50 rounded-full h-10 w-10"
+            className="text-slate-100 hover:text-white bg-purple-600/30 hover:bg-purple-500/50 rounded-full h-10 w-10 bg-transparent border-none cursor-pointer"
             aria-label={isPlaying ? getLocaleString('pause', currentLanguage) : getLocaleString('play', currentLanguage)}
           >
-            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+            {isPlaying ? <div className="h-5 w-5">⏸️</div> : <div className="h-5 w-5">▶️</div>}
+          </button>
+          <button 
             onClick={() => {
               if (onSkipSeconds) onSkipSeconds(10);
             }} 
-            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9"
+            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
             aria-label={getLocaleString('skipForward10', currentLanguage) || "Skip forward 10s"}
           >
-            <RotateCw className="h-5 w-5" />
-          </Button>
+            <div className="h-5 w-5">⏩</div>
+          </button>
         </div>
       </div>
     </div>

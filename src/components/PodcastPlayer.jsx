@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import AudioElement from '@/components/player/player_parts/AudioElement';
 import PlayerHeader from '@/components/player/player_parts/PlayerHeader';
@@ -29,7 +28,6 @@ const PodcastPlayer = ({
   audioRef,
   episodeSlug, 
   episodeAudioUrl,
-  episodeLang,
   episodeDate, 
   navigateBack,
   onPlayerStateChange,
@@ -60,17 +58,16 @@ const PodcastPlayer = ({
   const playPromiseRef = useRef(null);
   const isSeekingRef = useRef(false);
   const lastJumpIdProcessedRef = useRef(null);
+  const [skipEmptySegments, setSkipEmptySegments] = useState(false);
 
   const langForContent = episodeData?.lang === 'all' ? currentLanguage : episodeData?.lang;
 
   const {
     isSpeakerAssignmentDialogOpen,
     segmentForSpeakerAssignment,
-    handleOpenSpeakerAssignmentDialog,
     handleSaveSpeakerAssignment,
     handleCloseSpeakerAssignmentDialog
   } = useSpeakerAssignment(episodeData, onTranscriptUpdate, toast, currentLanguage, fetchTranscriptForEpisode, episodeSlug, langForContent);
-
 
   usePlayerInitialization({
     episodeData, audioRef, setIsPlayingState, setCurrentTimeState,
@@ -90,12 +87,12 @@ const PodcastPlayer = ({
   const { handleTimeUpdate, handleLoadedMetadata } = usePlayerTimeUpdates({
     audioRef, isSeekingRef, internalQuestions, currentLanguage,
     setCurrentTimeState, setActiveQuestionTitleState, setDurationState,
-    onPlayerStateChange,
+    onPlayerStateChange, skipEmptySegments, transcript: episodeData?.transcript, 
   });
 
   const { 
     handleProgressChange, handleSkip, navigateQuestion,
-    seekAudio, togglePlayPause, setPlaybackRateByIndex
+    seekAudio, togglePlayPause
   } = usePlayerNavigation({
     audioRef, durationState, isPlayingState, setIsPlayingState,
     onQuestionSelectJump, internalQuestions, currentTimeState,
@@ -205,6 +202,8 @@ const PodcastPlayer = ({
           playerControlsContainerRef={playerControlsContainerRef}
           showTranscript={showTranscript}
           onToggleShowTranscript={onToggleShowTranscript}
+          skipEmptySegments={skipEmptySegments}
+          onToggleSkipEmptySegments={() => setSkipEmptySegments(prev => !prev)}
           onDownloadAudio={handleDownloadAudio}
           playbackRateOptions={playbackRateOptions}
           currentPlaybackRateValue={playbackRate}
