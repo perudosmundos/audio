@@ -23,11 +23,13 @@ const PlayerUIControls = React.memo(({
   showTranscript,
   onToggleShowTranscript,
   onDownloadAudio,
+  onDownloadText,
   playbackRateOptions,
   currentPlaybackRateValue,
   onSetPlaybackRate,
   onOpenAddQuestionDialog,
-  episodeDate
+  episodeDate,
+  isOfflineMode = false
 }) => {
   
   return (
@@ -36,18 +38,16 @@ const PlayerUIControls = React.memo(({
         <div className="h-5 text-center mb-1 text-xs sm:text-sm text-white truncate px-1 w-full flex items-center justify-center">
           {activeQuestionTitle || (isPlaying ? getLocaleString('nowPlaying', currentLanguage) : getLocaleString('paused', currentLanguage))}
         </div>
-        <div className="w-full flex flex-col items-center justify-center">
+        
+        <div className="w-full px-3 mb-3">
           <ProgressBar
             currentTime={currentTime}
             duration={duration}
-            sections={questions}
+            sections={questions || []}
             onProgressChange={onProgressChange}
-            onSectionJump={(time, id) => onQuestionSelectJump(time, id, true)}
+            onSectionJump={onQuestionSelectJump}
+            currentLanguage={currentLanguage}
           />
-          <div className="flex justify-between text-xs mt-1 text-white/80 px-1 w-full max-w-full">
-            <span>{formatFullTime(currentTime, true)}</span>
-            <span>{formatFullTime(duration, true)}</span>
-          </div>
         </div>
       </div>
       <div className="mt-2.5 flex flex-col items-center gap-1.5 md:gap-2.5">
@@ -57,10 +57,12 @@ const PlayerUIControls = React.memo(({
             showTranscript={showTranscript}
             onToggleShowTranscript={onToggleShowTranscript}
             onDownloadAudio={onDownloadAudio}
+            onDownloadText={onDownloadText}
             playbackRateOptions={playbackRateOptions}
             currentPlaybackRateValue={currentPlaybackRateValue}
             onSetPlaybackRate={onSetPlaybackRate}
             isCompact={false}
+            isOfflineMode={isOfflineMode}
           />
           <Button variant="ghost" size="icon" onClick={() => onNavigateQuestion(-1)} className="text-white/80 hover:text-white hover:bg-white/15 h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11" aria-label={getLocaleString('previousQuestion', currentLanguage)}>
             <ChevronLeft className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" />

@@ -251,7 +251,8 @@ class SyncService {
                   text: serverData.text || '',
                   status: serverData.status || 'completed',
                   created_at: serverData.created_at || new Date().toISOString(),
-                  updated_at: serverData.updated_at || new Date().toISOString()
+                  updated_at: serverData.updated_at || new Date().toISOString(),
+                  edited_transcript_data: serverData.edited_transcript_data || null
                 };
                 await offlineDataService.saveTranscript(validTranscript);
               }
@@ -350,7 +351,7 @@ class SyncService {
       case 'transcript':
         const { data: transcriptData, error: transcriptError } = await supabase
           .from('transcripts')
-          .select('*')
+          .select('id, episode_slug, lang, status, created_at, updated_at, edited_transcript_data')
           .eq('episode_slug', params.episodeSlug)
           .eq('lang', params.lang)
           .order('created_at', { ascending: false })
@@ -361,18 +362,20 @@ class SyncService {
         
         // Проверяем, что данные транскрипта корректны
         if (transcriptData && typeof transcriptData === 'object') {
-          // Убеждаемся, что у транскрипта есть необходимые поля
+          // Извлекаем данные из edited_transcript_data
+          const editedData = transcriptData.edited_transcript_data || {};
+          
           return {
             id: transcriptData.id,
             episode_slug: transcriptData.episode_slug || params.episodeSlug,
             lang: transcriptData.lang || params.lang,
-            utterances: Array.isArray(transcriptData.utterances) ? transcriptData.utterances : [],
-            words: Array.isArray(transcriptData.words) ? transcriptData.words : [],
-            text: transcriptData.text || '',
+            utterances: Array.isArray(editedData.utterances) ? editedData.utterances : [],
+            words: Array.isArray(editedData.words) ? editedData.words : [],
+            text: editedData.text || '',
             status: transcriptData.status || 'completed',
             created_at: transcriptData.created_at || new Date().toISOString(),
             updated_at: transcriptData.updated_at || new Date().toISOString(),
-            edited_transcript_data: transcriptData.edited_transcript_data || null
+            edited_transcript_data: transcriptData.edited_transcript_data
           };
         }
         

@@ -5,7 +5,8 @@ import AudioElement from '@/components/player/player_parts/AudioElement';
 import PlayerHeader from '@/components/player/player_parts/PlayerHeader';
 import PlayerUIControls from '@/components/player/player_parts/PlayerUIControls';
 import SpeakerAssignmentDialog from '@/components/transcript/SpeakerAssignmentDialog';
-import AddQuestionDialog from '@/components/transcript/AddQuestionDialog.jsx'; 
+import AddQuestionDialog from '@/components/transcript/AddQuestionDialog.jsx';
+import DownloadTextDialog from '@/components/player/player_parts/DownloadTextDialog';
 import usePlayerState from '@/hooks/player/usePlayerState.js';
 import usePlayerInitialization from '@/hooks/player/usePlayerInitialization';
 import usePlayerPlayback from '@/hooks/player/usePlayerPlayback';
@@ -13,6 +14,7 @@ import usePlayerNavigation from '@/hooks/player/usePlayerNavigation';
 import usePlayerTimeUpdates from '@/hooks/player/usePlayerTimeUpdates';
 import useSpeakerAssignment from '@/hooks/player/useSpeakerAssignment';
 import { getLocaleString } from '@/lib/locales';
+import textExportService from '@/lib/textExportService';
 
 const playbackRateOptions = [
   { label: "1x", value: 1},
@@ -36,12 +38,16 @@ const PodcastPlayer = ({
   onToggleShowTranscript,
   user,
   onTranscriptUpdate,
-  fetchTranscriptForEpisode
+  fetchTranscriptForEpisode,
+  isOfflineMode = false
  }) => {
   
   const { toast } = useToast();
   const internalQuestions = episodeData?.questions || [];
   const internalTranscriptUtterances = episodeData?.transcript?.utterances || [];
+  
+  // Состояние для диалога скачивания текста
+  const [isDownloadTextDialogOpen, setIsDownloadTextDialogOpen] = useState(false);
 
   const {
     isPlayingState, setIsPlayingState,
@@ -146,6 +152,34 @@ const PodcastPlayer = ({
     }
   };
 
+  const handleDownloadText = useCallback(() => {
+    setIsDownloadTextDialogOpen(true);
+  }, []);
+
+  const handleDownloadTextConfirm = useCallback((options) => {
+    try {
+      const episodeTitle = episodeData?.title || `Эпизод ${episodeSlug}`;
+      textExportService.exportText(
+        episodeData?.transcript,
+        internalQuestions,
+        options,
+        episodeTitle
+      );
+      
+      toast({
+        title: getLocaleString('success', currentLanguage),
+        description: getLocaleString('textDownloadStarted', currentLanguage),
+      });
+    } catch (error) {
+      console.error('Error downloading text:', error);
+      toast({
+        title: getLocaleString('error', currentLanguage),
+        description: getLocaleString('downloadError', currentLanguage),
+        variant: "destructive",
+      });
+    }
+  }, [episodeData, episodeSlug, internalTranscriptUtterances, internalQuestions, currentLanguage, toast]);
+
   const handleSaveNewQuestionFromPlayer = useCallback((title, time, isFullTranscript = false, isIntro = false) => {
     handleQuestionsChange('add', { title, time, lang: langForContent, isFullTranscript, isIntro });
     setIsAddQuestionPlayerDialogOpen(false);
@@ -205,11 +239,13 @@ const PodcastPlayer = ({
           skipEmptySegments={skipEmptySegments}
           onToggleSkipEmptySegments={() => setSkipEmptySegments(prev => !prev)}
           onDownloadAudio={handleDownloadAudio}
+          onDownloadText={handleDownloadText}
           playbackRateOptions={playbackRateOptions}
           currentPlaybackRateValue={playbackRate}
           onSetPlaybackRate={handleSetPlaybackRate}
           onOpenAddQuestionDialog={handleOpenAddQuestionDialogFromPlayer}
           episodeDate={episodeDate}
+          isOfflineMode={isOfflineMode}
         />
       </div>
     </div>
@@ -239,6 +275,16 @@ const PodcastPlayer = ({
           mainPlayerSeekAudio={seekAudio}
         />
       )}
+      
+      <DownloadTextDialog
+        isOpen={isDownloadTextDialogOpen}
+        onClose={() => setIsDownloadTextDialogOpen(false)}
+        currentLanguage={currentLanguage}
+        questions={internalQuestions}
+        transcript={internalTranscriptUtterances}
+        episodeTitle={episodeData?.title}
+        onDownload={handleDownloadTextConfirm}
+      />
     </>
   );
 };

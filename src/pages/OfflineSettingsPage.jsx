@@ -73,8 +73,20 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
       setIsLoading(true);
       
       // Загружаем статистику хранилища
-      const stats = await offlineDataService.getStorageUsage();
-      setStorageStats(stats);
+      const storageStats = await offlineDataService.getStorageUsage();
+      
+      // Загружаем статистику аудио кэша
+      const audioStats = await audioCacheService.getCacheStats();
+      
+      // Объединяем статистику
+      const combinedStats = {
+        ...storageStats,
+        audioSize: audioStats.totalSize || 0,
+        audioFileCount: audioStats.fileCount || 0,
+        maxAudioCache: Math.round((audioStats.maxSize || 1024 * 1024 * 1024) / (1024 * 1024)) // в MB
+      };
+      
+      setStorageStats(combinedStats);
       
       // Загружаем настройки кеша
       const settings = await offlineDataService.getCacheSetting('offlineSettings');
@@ -286,11 +298,11 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
                     {getLocaleString('audioCache', currentLanguage) || 'Аудио кеш'}
                   </span>
                   <span className="text-sm text-slate-400">
-                    {formatSize(storageStats.audioSize || 0)} / {cacheSettings.maxAudioCache} MB
+                    {formatSize(storageStats.audioSize || 0)} / {storageStats.maxAudioCache || cacheSettings.maxAudioCache} MB
                   </span>
                 </div>
                 <Progress 
-                  value={((storageStats.audioSize || 0) / (cacheSettings.maxAudioCache * 1024 * 1024)) * 100} 
+                  value={((storageStats.audioSize || 0) / ((storageStats.maxAudioCache || cacheSettings.maxAudioCache) * 1024 * 1024)) * 100} 
                   className="h-2"
                 />
               </div>

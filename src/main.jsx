@@ -29,6 +29,17 @@ if ('serviceWorker' in navigator) {
         });
     });
 
+    // When connection is restored, ask SW to sync offline requests queue
+    window.addEventListener('online', () => {
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SYNC_OFFLINE_REQUESTS' });
+        }
+      } catch (e) {
+        console.warn('[SW] Failed to request sync on online:', e);
+      }
+    });
+
     // Обработка сообщений от Service Worker
     navigator.serviceWorker.addEventListener('message', (event) => {
       const { type, data } = event.data;

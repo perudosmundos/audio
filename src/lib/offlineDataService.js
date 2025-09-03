@@ -12,10 +12,14 @@ class OfflineDataService {
 
   // Инициализация базы данных
   async init() {
+    console.log('🚀 Initializing OfflineDataService...');
+    
     // Проверяем, поддерживается ли IndexedDB
     if (!window.indexedDB) {
-      console.warn('IndexedDB не поддерживается, используем fallback хранилище');
+      console.warn('⚠️ IndexedDB не поддерживается, используем fallback хранилище');
       this.useFallback = true;
+      this.fallbackStorage = new Map();
+      console.log('✅ OfflineDataService initialized with fallback storage');
       return null;
     }
 
@@ -109,6 +113,7 @@ class OfflineDataService {
           console.error('IndexedDB database error:', event.target.error);
         };
         
+        console.log('✅ OfflineDataService initialized with IndexedDB');
         resolve(this.db);
       };
     });
@@ -118,6 +123,12 @@ class OfflineDataService {
   getTransaction(storeNames, mode = 'readonly') {
     if (!this.db) {
       throw new Error('Database not initialized');
+    }
+    
+    // Проверяем состояние базы данных
+    if (this.db.readyState !== 'open') {
+      console.warn('Database is not open, attempting to reinitialize...');
+      throw new Error('Database connection is not open');
     }
     
     // Проверяем, что все хранилища существуют
@@ -163,20 +174,48 @@ class OfflineDataService {
   // --- ЭПИЗОДЫ ---
   
   async saveEpisode(episode) {
-    const transaction = this.getTransaction(['episodes'], 'readwrite');
-    const store = transaction.objectStore('episodes');
-    
+    if (!episode || !episode.slug) {
+      throw new Error('Episode data with slug is required');
+    }
+
     const episodeData = {
       ...episode,
       cached_at: Date.now(),
       last_updated: Date.now()
     };
-    
-    return new Promise((resolve, reject) => {
-      const request = store.put(episodeData);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `episode_${episode.slug}`;
+      this.fallbackStorage.set(key, episodeData);
+      console.log('💾 Episode saved to fallback storage:', episode.slug);
+      return episode.slug;
+    }
+
+    try {
+      const transaction = this.getTransaction(['episodes'], 'readwrite');
+      const store = transaction.objectStore('episodes');
+      
+      return new Promise((resolve, reject) => {
+        const request = store.put(episodeData);
+        request.onsuccess = () => {
+          console.log('💾 Episode saved to IndexedDB:', episode.slug);
+          resolve(request.result);
+        };
+        request.onerror = () => {
+          console.error('❌ Failed to save episode to IndexedDB:', episode.slug, request.error);
+          reject(request.error);
+        };
+      });
+    } catch (error) {
+      console.error('Error in saveEpisode:', error);
+      // Fallback to fallback storage if IndexedDB fails
+      console.log('🔄 Falling back to fallback storage for episode:', episode.slug);
+      this.useFallback = true;
+      const key = `episode_${episode.slug}`;
+      this.fallbackStorage.set(key, episodeData);
+      return episode.slug;
+    }
   }
 
   async getEpisode(slug) {
@@ -191,12 +230,28 @@ class OfflineDataService {
   }
 
   async getAllEpisodes() {
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const episodes = [];
+      for (const [key, value] of this.fallbackStorage.entries()) {
+        if (key.startsWith('episode_')) {
+          episodes.push(value);
+        }
+      }
+      return episodes.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    }
+
     const transaction = this.getTransaction(['episodes']);
     const store = transaction.objectStore('episodes');
     
     return new Promise((resolve, reject) => {
       const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const episodes = request.result || [];
+        // Сортируем по дате (новые первыми)
+        episodes.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        resolve(episodes);
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -557,7 +612,16 @@ class OfflineDataService {
       });
     } catch (error) {
       console.error('Error in getSyncQueue:', error);
-      return [];
+      // Fallback to fallback storage if IndexedDB fails
+      console.log('🔄 Falling back to fallback storage for sync queue');
+      this.useFallback = true;
+      const queue = [];
+      for (const [key, value] of this.fallbackStorage.entries()) {
+        if (key.startsWith('sync_')) {
+          queue.push(value);
+        }
+      }
+      return queue.sort((a, b) => a.timestamp - b.timestamp);
     }
   }
 

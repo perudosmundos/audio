@@ -12,7 +12,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
-import { Settings, ScrollText, Download, PlusCircle, Gauge } from 'lucide-react';
+import { Settings, ScrollText, Download, PlusCircle, Gauge, FileText } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const PlayerSettingsMenu = ({
@@ -20,10 +20,12 @@ const PlayerSettingsMenu = ({
   showTranscript,
   onToggleShowTranscript,
   onDownloadAudio,
+  onDownloadText,
   isCompact = false,
   playbackRateOptions,
   currentPlaybackRateValue,
   onSetPlaybackRate,
+  isOfflineMode = false,
 }) => {
   return (
     <DropdownMenu>
@@ -70,9 +72,17 @@ const PlayerSettingsMenu = ({
 
         <DropdownMenuSeparator className="bg-slate-700" />
 
-        <DropdownMenuItem onClick={onDownloadAudio} className="focus:bg-slate-700">
+        <DropdownMenuItem onClick={onDownloadText} className="focus:bg-slate-700">
+          <FileText className="mr-2 h-4 w-4 text-purple-300" />
+          <span>{getLocaleString('downloadText', currentLanguage)}</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={onDownloadAudio} className="focus:bg-slate-700 relative">
           <Download className="mr-2 h-4 w-4 text-purple-300" />
           <span>{getLocaleString('downloadAudio', currentLanguage)}</span>
+          {isOfflineMode && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-orange-500 rounded-full border border-white/20"></div>
+          )}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

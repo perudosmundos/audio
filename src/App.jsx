@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import CacheSettings from '@/components/CacheSettings';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 import { TelegramProvider } from '@/contexts/TelegramContext';
 import { getLocaleString } from '@/lib/locales';
@@ -81,6 +82,7 @@ const FooterContent = ({ currentLanguage, onLanguageSelect }) => {
     <footer className="py-3 sm:py-4 text-center text-xs sm:text-sm text-white/60 flex flex-col items-center gap-2">
       <div className="flex gap-2 items-center">
         {currentLanguage && <LanguageSwitcher currentLanguage={currentLanguage} onLanguageChange={handleLanguageSwitchInPlayer} />}
+        <CacheSettings currentLanguage={currentLanguage} />
       </div>
     </footer>
   );

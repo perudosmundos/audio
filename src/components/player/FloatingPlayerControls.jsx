@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play, Pause, RotateCcw, RotateCw } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const FloatingPlayerControls = ({ 
@@ -32,14 +33,14 @@ const FloatingPlayerControls = ({
             className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
             aria-label={getLocaleString('skipBackward10', currentLanguage) || "Skip backward 10s"}
           >
-            <div className="h-5 w-5">⏪</div>
+            <RotateCcw className="h-5 w-5" />
           </button>
           <button 
             onClick={onPlayPause} 
             className="text-slate-100 hover:text-white bg-purple-600/30 hover:bg-purple-500/50 rounded-full h-10 w-10 bg-transparent border-none cursor-pointer"
             aria-label={isPlaying ? getLocaleString('pause', currentLanguage) : getLocaleString('play', currentLanguage)}
           >
-            {isPlaying ? <div className="h-5 w-5">⏸️</div> : <div className="h-5 w-5">▶️</div>}
+            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
           </button>
           <button 
             onClick={() => {
@@ -48,7 +49,7 @@ const FloatingPlayerControls = ({
             className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
             aria-label={getLocaleString('skipForward10', currentLanguage) || "Skip forward 10s"}
           >
-            <div className="h-5 w-5">⏩</div>
+            <RotateCw className="h-5 w-5" />
           </button>
         </div>
       </div>

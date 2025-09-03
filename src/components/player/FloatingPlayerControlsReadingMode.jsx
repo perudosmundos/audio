@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play, Pause, RotateCcw, RotateCw, X } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const FloatingPlayerControlsReadingMode = ({ 
@@ -54,7 +55,7 @@ const FloatingPlayerControlsReadingMode = ({
             aria-label={getLocaleString('skipBackward10', currentLanguage) || "Skip backward 10s"}
             title={getLocaleString('skipBackward10Tooltip', currentLanguage)}
           >
-            <div className="h-5 w-5">⏪</div>
+            <RotateCcw className="h-5 w-5" />
           </button>
           <button 
             onClick={handlePlayPause} 
@@ -62,7 +63,7 @@ const FloatingPlayerControlsReadingMode = ({
             aria-label={isPlaying ? getLocaleString('pause', currentLanguage) : getLocaleString('play', currentLanguage)}
             title={isPlaying ? getLocaleString('pauseTooltip', currentLanguage) : getLocaleString('playTooltip', currentLanguage)}
           >
-            {isPlaying ? <div className="h-5 w-5">⏸️</div> : <div className="h-5 w-5">▶️</div>}
+            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
           </button>
           <button 
             onClick={() => handleSkip(10)} 
@@ -70,7 +71,7 @@ const FloatingPlayerControlsReadingMode = ({
             aria-label={getLocaleString('skipForward10', currentLanguage) || "Skip forward 10s"}
             title={getLocaleString('skipForward10Tooltip', currentLanguage)}
           >
-            <div className="h-5 w-5">⏩</div>
+            <RotateCw className="h-5 w-5" />
           </button>
           <button 
             onClick={onClose}
@@ -78,7 +79,7 @@ const FloatingPlayerControlsReadingMode = ({
             aria-label={getLocaleString('exitReadingMode', currentLanguage)}
             title={getLocaleString('exitReadingModeTooltip', currentLanguage)}
           >
-            <div className="h-5 w-5">❌</div>
+            <X className="h-5 w-5" />
           </button>
         </div>
       </div>

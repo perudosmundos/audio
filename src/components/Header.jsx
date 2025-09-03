@@ -1,5 +1,4 @@
 import React from 'react';
-import SimpleOfflineIndicator from './SimpleOfflineIndicator';
 
 const Header = ({ podcastData, currentLanguage = 'ru' }) => {
   return (
@@ -23,8 +22,6 @@ const Header = ({ podcastData, currentLanguage = 'ru' }) => {
           )}
         </div>
       </div>
-      
-      <SimpleOfflineIndicator currentLanguage={currentLanguage} />
     </div>
   ); 
 };

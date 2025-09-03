@@ -87,12 +87,27 @@ self.addEventListener('fetch', (event) => {
 // Проверка, является ли запрос аудиофайлом
 function isAudioRequest(request) {
   const url = new URL(request.url);
-  return request.destination === 'audio' || 
-         url.pathname.includes('.mp3') || 
-         url.pathname.includes('.wav') || 
-         url.pathname.includes('.m4a') ||
-         url.searchParams.has('audio') ||
-         request.headers.get('accept')?.includes('audio/');
+  
+  // Проверяем по расширению файла
+  const audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.webm'];
+  const hasAudioExtension = audioExtensions.some(ext => url.pathname.toLowerCase().includes(ext));
+  
+  // Проверяем по destination
+  const isAudioDestination = request.destination === 'audio';
+  
+  // Проверяем по Accept заголовку
+  const acceptHeader = request.headers.get('accept') || '';
+  const acceptsAudio = acceptHeader.includes('audio/');
+  
+  // Проверяем по параметрам URL
+  const hasAudioParam = url.searchParams.has('audio');
+  
+  // Проверяем по домену (для наших аудиофайлов)
+  const isAudioDomain = url.hostname.includes('srvstatic.kz') || 
+                       url.hostname.includes('archive.org') ||
+                       url.hostname.includes('r2.dev');
+  
+  return isAudioDestination || hasAudioExtension || acceptsAudio || hasAudioParam || isAudioDomain;
 }
 
 // Проверка, является ли запрос к Supabase
@@ -119,7 +134,16 @@ async function handleAudioRequest(request) {
 
   if (cachedResponse) {
     console.log('[SW] Serving audio from cache:', request.url);
-    return cachedResponse;
+    // Убеждаемся, что кешированный ответ имеет правильные заголовки
+    const headers = new Headers(cachedResponse.headers);
+    headers.set('Content-Type', 'audio/mpeg');
+    headers.set('Cache-Control', 'public, max-age=31536000');
+    
+    return new Response(cachedResponse.body, {
+      status: cachedResponse.status,
+      statusText: cachedResponse.statusText,
+      headers: headers
+    });
   }
 
   try {
@@ -136,7 +160,10 @@ async function handleAudioRequest(request) {
     return response;
   } catch (error) {
     console.log('[SW] Audio fetch failed, checking cache:', error);
-    return cachedResponse || new Response('Audio not available offline', { status: 503 });
+    return cachedResponse || new Response('Audio not available offline', { 
+      status: 503,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
 }
 
@@ -294,6 +321,9 @@ self.addEventListener('message', (event) => {
     case 'SYNC_OFFLINE_REQUESTS':
       syncOfflineRequests();
       break;
+    case 'REFRESH_AUDIO_CACHE':
+      refreshAudioCache(data.url);
+      break;
   }
 });
 
@@ -309,6 +339,29 @@ async function cacheAudioFile(url) {
     }
   } catch (error) {
     console.error('[SW] Failed to cache audio file:', error);
+  }
+}
+
+// Обновление кеша аудиофайла
+async function refreshAudioCache(url) {
+  try {
+    const cache = await caches.open(AUDIO_CACHE);
+    
+    // Удаляем старую версию из кеша
+    await cache.delete(url);
+    console.log('[SW] Removed old audio cache entry:', url);
+    
+    // Пытаемся перекешировать если онлайн
+    if (navigator.onLine) {
+      const response = await fetch(url, { cache: 'no-cache' });
+      if (response.ok) {
+        await manageCacheSize(cache, response.clone());
+        await cache.put(url, response);
+        console.log('[SW] Audio file refreshed in cache:', url);
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Failed to refresh audio cache:', error);
   }
 }
 

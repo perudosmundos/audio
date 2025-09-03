@@ -3,8 +3,24 @@ import offlineDataService from './offlineDataService';
 class AudioCacheService {
   constructor() {
     this.cacheInProgress = new Set();
-    this.maxCacheSize = 200 * 1024 * 1024; // 200MB максимум
+    this.maxCacheSize = this.getMaxCacheSize(); // Получаем из настроек
     this.downloadListeners = [];
+  }
+
+  // Получение максимального размера кеша из localStorage
+  getMaxCacheSize() {
+    const saved = localStorage.getItem('audioCacheMaxSize');
+    if (saved) {
+      return parseInt(saved, 10);
+    }
+    // По умолчанию 1 ГБ
+    return 1024 * 1024 * 1024; // 1GB
+  }
+
+  // Установка максимального размера кеша
+  setMaxCacheSize(sizeInBytes) {
+    this.maxCacheSize = sizeInBytes;
+    localStorage.setItem('audioCacheMaxSize', sizeInBytes.toString());
   }
 
   // Подписка на события загрузки
@@ -295,10 +311,14 @@ class AudioCacheService {
         request.onerror = () => reject(request.error);
       });
 
+      // Уведомляем слушателей об удалении
+      this.notifyDownloadListeners('remove_complete', { url });
+
       console.log('[AudioCache] Removed audio from cache:', url);
       return true;
     } catch (error) {
       console.error('[AudioCache] Error removing audio from cache:', error);
+      this.notifyDownloadListeners('remove_error', { url, error: error.message });
       return false;
     }
   }
@@ -417,6 +437,30 @@ class AudioCacheService {
         storageUsage: 0,
         files: []
       };
+    }
+  }
+
+  // Принудительное обновление кеша для URL
+  async refreshCachedAudio(url) {
+    try {
+      console.log('[AudioCache] Refreshing cached audio:', url);
+      
+      // Удаляем из кеша
+      await this.removeAudioFromCache(url);
+      
+      // Проверяем, есть ли метаданные
+      await offlineDataService.init();
+      const metadata = await offlineDataService.getAudioFileMetadata(url);
+      
+      if (metadata) {
+        // Перекешируем файл
+        return await this.cacheAudio(url, metadata.episode_slug, true);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('[AudioCache] Error refreshing cached audio:', error);
+      return false;
     }
   }
 }

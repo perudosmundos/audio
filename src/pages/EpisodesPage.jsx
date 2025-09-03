@@ -7,6 +7,7 @@ import EpisodesList from '@/components/episodes/EpisodesList';
 import EpisodesPageHeader from '@/components/episodes/EpisodesPageHeader';
 import FilterAndSearchControls from '@/components/episodes/FilterAndSearchControls';
 import EmptyState from '@/components/episodes/EmptyState';
+import offlineDataService from '@/lib/offlineDataService';
 
 const EpisodesPage = ({ currentLanguage }) => {
   const [episodes, setEpisodes] = useState([]);
@@ -27,9 +28,19 @@ const EpisodesPage = ({ currentLanguage }) => {
 
 
   const fetchEpisodesAndData = useCallback(async () => {
+    console.log('🚀 fetchEpisodesAndData started');
+    console.log('🌐 navigator.onLine:', navigator.onLine);
     setLoading(true);
     setError(null);
+    
     try {
+      // Инициализируем офлайн сервис только если он еще не инициализирован
+      if (!offlineDataService.db && !offlineDataService.useFallback) {
+        console.log('🔧 Initializing offline service...');
+        await offlineDataService.init();
+        console.log('✅ Offline service initialized');
+      }
+      
       const { data: episodesData, error: episodesError } = await supabase
         .from('episodes')
         .select('slug, title, lang, audio_url, duration, date, created_at, file_has_lang_suffix, r2_object_key, r2_bucket_name')
@@ -42,6 +53,75 @@ const EpisodesPage = ({ currentLanguage }) => {
         .select('episode_slug, id, title, lang'); 
       
       if (questionsError) throw questionsError;
+      
+      // Сохраняем данные в офлайн кеш
+      if (episodesData) {
+        for (const episode of episodesData) {
+          await offlineDataService.saveEpisode(episode);
+        }
+      }
+      
+      if (questionsData) {
+        // Группируем вопросы по эпизодам и языкам
+        const questionsByEpisode = {};
+        questionsData.forEach(q => {
+          if (!questionsByEpisode[q.episode_slug]) {
+            questionsByEpisode[q.episode_slug] = {};
+          }
+          if (!questionsByEpisode[q.episode_slug][q.lang]) {
+            questionsByEpisode[q.episode_slug][q.lang] = [];
+          }
+          questionsByEpisode[q.episode_slug][q.lang].push(q);
+        });
+        
+        // Сохраняем вопросы в офлайн кеш
+        for (const [episodeSlug, langs] of Object.entries(questionsByEpisode)) {
+          for (const [lang, questions] of Object.entries(langs)) {
+            await offlineDataService.saveQuestions(questions, episodeSlug, lang);
+          }
+        }
+      }
+
+      // Загружаем и сохраняем транскрипты для всех эпизодов
+      console.log('🔄 Загружаем транскрипты для кеширования...');
+      for (const episode of episodesData) {
+        for (const lang of ['ru', 'es', 'en']) {
+          try {
+            const { data: transcriptData, error: transcriptError } = await supabase
+              .from('transcripts')
+              .select('id, episode_slug, lang, status, created_at, updated_at, edited_transcript_data')
+              .eq('episode_slug', episode.slug)
+              .eq('lang', lang)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (!transcriptError && transcriptData) {
+              // Извлекаем данные из edited_transcript_data
+              const editedData = transcriptData.edited_transcript_data || {};
+              
+              const transcriptForCache = {
+                id: transcriptData.id,
+                episode_slug: transcriptData.episode_slug || episode.slug,
+                lang: transcriptData.lang || lang,
+                utterances: Array.isArray(editedData.utterances) ? editedData.utterances : [],
+                words: Array.isArray(editedData.words) ? editedData.words : [],
+                text: editedData.text || '',
+                status: transcriptData.status || 'completed',
+                created_at: transcriptData.created_at || new Date().toISOString(),
+                updated_at: transcriptData.updated_at || new Date().toISOString(),
+                edited_transcript_data: transcriptData.edited_transcript_data
+              };
+
+              await offlineDataService.saveTranscript(transcriptForCache);
+              console.log(`💾 Транскрипт сохранен в кеш: ${episode.slug} (${lang})`);
+            }
+          } catch (transcriptErr) {
+            console.warn(`⚠️ Ошибка загрузки транскрипта для ${episode.slug} (${lang}):`, transcriptErr);
+          }
+        }
+      }
+      
       setAllQuestions(questionsData || []);
       
       const langFilteredEpisodes = episodesData.filter(ep => 
@@ -69,7 +149,138 @@ const EpisodesPage = ({ currentLanguage }) => {
       setEpisodes(langFilteredEpisodes);
 
     } catch (err) {
-      setError(getLocaleString('errorFetchingEpisodes', currentLanguage, { errorMessage: err.message }));
+      console.warn('❌ Ошибка загрузки с сервера:', err);
+      console.log('🌐 navigator.onLine:', navigator.onLine);
+      console.log('🔍 Error details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+      
+      // Проверяем, является ли ошибка сетевой (отсутствие интернета)
+      const isNetworkError = err.message?.includes('Failed to fetch') || 
+                            err.message?.includes('NetworkError') ||
+                            err.message?.includes('Network request failed') ||
+                            err.message?.includes('ERR_INTERNET_DISCONNECTED') ||
+                            err.message?.includes('ERR_NETWORK_CHANGED') ||
+                            err.name === 'TypeError' && err.message?.includes('fetch') ||
+                            !navigator.onLine;
+      
+      // Дополнительная проверка - пробуем сделать простой запрос
+      let isActuallyOffline = isNetworkError;
+      if (isNetworkError) {
+        try {
+          // Пробуем сделать простой запрос к интернету
+          await fetch('https://www.google.com/favicon.ico', { 
+            method: 'HEAD', 
+            mode: 'no-cors',
+            cache: 'no-cache'
+          });
+          isActuallyOffline = false; // Интернет есть, это не офлайн ошибка
+        } catch (networkTestErr) {
+          isActuallyOffline = true; // Интернет действительно недоступен
+          console.log('Проверка интернета: недоступен', networkTestErr);
+        }
+      }
+      
+      console.log('🔍 Network error analysis:', {
+        isNetworkError,
+        isActuallyOffline,
+        navigatorOnLine: navigator.onLine,
+        errorMessage: err.message,
+        errorName: err.name
+      });
+      
+      // Принудительно проверяем офлайн режим
+      const forceOfflineCheck = !navigator.onLine || isActuallyOffline;
+      console.log('🔍 Force offline check:', forceOfflineCheck);
+      
+      if (forceOfflineCheck) {
+        console.log('📱 Приложение в офлайн режиме, загружаем из кеша...');
+        console.warn('Сетевая ошибка, пытаемся загрузить из кеша:', err);
+        
+        try {
+          console.log('🔄 Загружаем эпизоды из офлайн кеша...');
+          // Пытаемся загрузить данные из офлайн кеша
+          const cachedEpisodes = await offlineDataService.getAllEpisodes();
+          console.log('📦 Кешированные эпизоды:', cachedEpisodes.length, cachedEpisodes);
+          
+          if (cachedEpisodes && cachedEpisodes.length > 0) {
+            const langFilteredEpisodes = cachedEpisodes.filter(ep => 
+              ep.lang === currentLanguage || ep.lang === 'all'
+            );
+            
+            console.log('🔄 Загружаем вопросы из офлайн кеша для', langFilteredEpisodes.length, 'эпизодов...');
+            // Загружаем вопросы из кеша
+            const allCachedQuestions = [];
+            for (const episode of langFilteredEpisodes) {
+              for (const lang of ['ru', 'es', 'en']) {
+                const questions = await offlineDataService.getQuestions(episode.slug, lang);
+                if (questions.length > 0) {
+                  console.log(`📝 Найдены вопросы для ${episode.slug} (${lang}):`, questions.length);
+                }
+                allCachedQuestions.push(...questions);
+              }
+            }
+            console.log('📝 Всего загружено вопросов из кеша:', allCachedQuestions.length);
+            
+            setAllQuestions(allCachedQuestions);
+            
+            const counts = {};
+            const years = new Set();
+            langFilteredEpisodes.forEach(ep => {
+              if (ep.date) {
+                years.add(new Date(ep.date).getFullYear().toString());
+              }
+              counts[ep.slug] = counts[ep.slug] || {};
+              ['ru', 'es', 'en'].forEach(lang => {
+                 counts[ep.slug][lang] = allCachedQuestions.filter(q => 
+                   q.episode_slug === ep.slug && 
+                   q.lang === lang && 
+                   (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''))
+                 ).length;
+              });
+            });
+            
+            setAvailableYears(Array.from(years).sort((a,b) => Number(b) - Number(a)));
+            setEpisodeQuestionsCount(counts);
+            setEpisodes(langFilteredEpisodes);
+            
+            console.log('✅ Офлайн данные успешно загружены:', {
+              episodes: langFilteredEpisodes.length,
+              questions: allCachedQuestions.length,
+              years: years.size
+            });
+            
+            // Показываем предупреждение о работе в офлайн режиме
+            setError(getLocaleString('offlineMode', currentLanguage) || 'Работаем в офлайн режиме. Данные загружены из кеша.');
+          } else {
+            console.log('❌ Кеш пустой или недоступен');
+            console.log('🔍 Проверяем состояние кеша...');
+            
+            // Проверяем, есть ли вообще данные в кеше
+            try {
+              const testEpisodes = await offlineDataService.getAllEpisodes();
+              console.log('🔍 Test episodes from cache:', testEpisodes);
+              
+              if (!testEpisodes || testEpisodes.length === 0) {
+                setError('Кеш пустой. Сначала загрузите эпизоды в онлайн режиме, затем переключитесь в офлайн.');
+              } else {
+                setError(`Найдено ${testEpisodes.length} эпизодов в кеше, но они не отображаются. Ошибка: ${err.message}`);
+              }
+            } catch (cacheTestErr) {
+              console.error('❌ Ошибка при проверке кеша:', cacheTestErr);
+              setError(`Ошибка доступа к кешу: ${cacheTestErr.message}`);
+            }
+          }
+        } catch (cacheErr) {
+          console.error('❌ Ошибка загрузки из кеша:', cacheErr);
+          setError(`Ошибка загрузки данных: ${err.message}. Кеш недоступен: ${cacheErr.message}`);
+        }
+      } else {
+        // Не сетевая ошибка - показываем обычное сообщение об ошибке
+        setError(getLocaleString('errorFetchingEpisodes', currentLanguage, { errorMessage: err.message }));
+      }
     } finally {
       setLoading(false);
     }
@@ -87,7 +298,72 @@ const EpisodesPage = ({ currentLanguage }) => {
       supabase.removeChannel(channel);
     };
 
-  }, [fetchEpisodesAndData]);
+  }, [currentLanguage]); // Changed dependency to currentLanguage instead of fetchEpisodesAndData
+
+  // Автоматическая загрузка из кеша при офлайн режиме
+  useEffect(() => {
+    const loadFromCacheIfOffline = async () => {
+      if (!navigator.onLine) {
+        console.log('🔄 Автоматическая загрузка из кеша (офлайн режим)...');
+        try {
+          // Инициализируем офлайн сервис только если он еще не инициализирован
+          if (!offlineDataService.db && !offlineDataService.useFallback) {
+            await offlineDataService.init();
+          }
+          const cachedEpisodes = await offlineDataService.getAllEpisodes();
+          console.log('📦 Автоматически загружены эпизоды из кеша:', cachedEpisodes.length);
+          
+          if (cachedEpisodes && cachedEpisodes.length > 0) {
+            const langFilteredEpisodes = cachedEpisodes.filter(ep => 
+              ep.lang === currentLanguage || ep.lang === 'all'
+            );
+            
+            // Загружаем вопросы из кеша
+            const allCachedQuestions = [];
+            for (const episode of langFilteredEpisodes) {
+              for (const lang of ['ru', 'es', 'en']) {
+                const questions = await offlineDataService.getQuestions(episode.slug, lang);
+                allCachedQuestions.push(...questions);
+              }
+            }
+            
+            setAllQuestions(allCachedQuestions);
+            
+            const counts = {};
+            const years = new Set();
+            langFilteredEpisodes.forEach(ep => {
+              if (ep.date) {
+                years.add(new Date(ep.date).getFullYear().toString());
+              }
+              counts[ep.slug] = counts[ep.slug] || {};
+              ['ru', 'es', 'en'].forEach(lang => {
+                 counts[ep.slug][lang] = allCachedQuestions.filter(q => 
+                   q.episode_slug === ep.slug && 
+                   q.lang === lang && 
+                   (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''))
+                 ).length;
+              });
+            });
+            
+            setAvailableYears(Array.from(years).sort((a,b) => Number(b) - Number(a)));
+            setEpisodeQuestionsCount(counts);
+            setEpisodes(langFilteredEpisodes);
+            setError(null);
+            
+            console.log('✅ Автоматически загружены офлайн данные:', {
+              episodes: langFilteredEpisodes.length,
+              questions: allCachedQuestions.length,
+              years: years.size
+            });
+          }
+        } catch (err) {
+          console.error('❌ Ошибка автоматической загрузки из кеша:', err);
+        }
+      }
+    };
+
+    loadFromCacheIfOffline();
+  }, [currentLanguage]);
 
   useEffect(() => {
     if (selectedYear) {
@@ -134,13 +410,24 @@ const EpisodesPage = ({ currentLanguage }) => {
   }
 
   if (error) {
+    const isOfflineMode = error.includes('офлайн режиме') || error.includes('offline mode') || error.includes('sin conexión');
+    
     return (
-      <div className="text-center p-8 bg-red-700/30 rounded-lg shadow-xl max-w-2xl mx-auto">
-        <h2 className="text-xl font-bold mb-2">{getLocaleString('errorLoadingData', currentLanguage)}</h2>
+      <div className={`text-center p-8 rounded-lg shadow-xl max-w-2xl mx-auto ${
+        isOfflineMode ? 'bg-yellow-700/30' : 'bg-red-700/30'
+      }`}>
+        <h2 className="text-xl font-bold mb-2">
+          {isOfflineMode 
+            ? getLocaleString('offlineModeTitle', currentLanguage) || 'Офлайн режим'
+            : getLocaleString('errorLoadingData', currentLanguage)
+          }
+        </h2>
         <p className="max-w-md mx-auto">{error}</p>
-        <Button onClick={fetchEpisodesAndData} className="mt-4 bg-blue-500 hover:bg-blue-600">
-          {getLocaleString('tryAgain', currentLanguage)}
-        </Button>
+        {!isOfflineMode && (
+          <Button onClick={fetchEpisodesAndData} className="mt-4 bg-blue-500 hover:bg-blue-600">
+            {getLocaleString('tryAgain', currentLanguage)}
+          </Button>
+        )}
       </div>
     );
   }

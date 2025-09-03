@@ -6,11 +6,13 @@ const useSupabaseSubscriptions = (
   episodeData,
   currentLanguage,
   fetchQuestionsForEpisode,
-  fetchTranscriptForEpisode
+  fetchTranscriptForEpisode,
+  isOfflineMode = false
 ) => {
   useEffect(() => {
     if (!episodeSlug) return;
-    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    // Не подписываемся на изменения в офлайн режиме
+    if (isOfflineMode || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
 
     const questionsChannel = supabase.channel(`db-questions-changes-for-${episodeSlug}`)
       .on('postgres_changes', 
@@ -53,7 +55,7 @@ const useSupabaseSubscriptions = (
       supabase.removeChannel(questionsChannel);
       supabase.removeChannel(transcriptsChannel);
     };
-  }, [episodeSlug, episodeData, currentLanguage, fetchQuestionsForEpisode, fetchTranscriptForEpisode]);
+  }, [episodeSlug, episodeData, currentLanguage, fetchQuestionsForEpisode, fetchTranscriptForEpisode, isOfflineMode]);
 };
 
 export default useSupabaseSubscriptions;

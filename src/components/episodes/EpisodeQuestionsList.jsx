@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HelpCircle } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLanguage }) => {
@@ -33,7 +34,7 @@ const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLangua
               onClick={() => handleQuestionClick(question.id)}
               className="text-xs text-slate-300 hover:text-purple-200 hover:underline flex items-start gap-1.5 text-left w-full"
             >
-              <div className="text-purple-400 shrink-0 mt-0.5">💬</div>
+              <HelpCircle className="h-3 w-3 text-purple-400 shrink-0 mt-0.5" />
               <span className="flex-grow" title={question.title}>{question.title || getLocaleString('untitledQuestion', currentLanguage)}</span>
             </button>
           </li>

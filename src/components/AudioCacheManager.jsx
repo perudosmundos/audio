@@ -109,6 +109,18 @@ const AudioCacheManager = ({
     }
   };
 
+  const handleRefreshCache = async () => {
+    if (!episodeData?.audio_url) return;
+    
+    try {
+      await audioCacheService.refreshCachedAudio(episodeData.audio_url);
+      await checkIfCached();
+      loadCacheStats();
+    } catch (error) {
+      console.error('Error refreshing cache:', error);
+    }
+  };
+
   const formatBytes = (bytes) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -270,12 +282,20 @@ const AudioCacheManager = ({
           ) : (
             <div className="flex gap-2">
               {isCached ? (
-                <button
-                  onClick={handleRemoveEpisode}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                >
-                  🗑️ {getLocaleString('removeFromCache', currentLanguage) || 'Удалить из кеша'}
-                </button>
+                <>
+                  <button
+                    onClick={handleRefreshCache}
+                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm transition-colors"
+                  >
+                    🔄 {getLocaleString('refreshCache', currentLanguage) || 'Обновить кеш'}
+                  </button>
+                  <button
+                    onClick={handleRemoveEpisode}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
+                  >
+                    🗑️ {getLocaleString('removeFromCache', currentLanguage) || 'Удалить из кеша'}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={handleDownloadEpisode}

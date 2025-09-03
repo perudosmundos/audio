@@ -17,7 +17,7 @@ import SpeakerAssignmentDialog from '@/components/transcript/SpeakerAssignmentDi
 import useQuestionManagement from '@/hooks/useQuestionManagement';
 import AddQuestionFromSegmentDialog from '@/components/player/questions_manager_parts/AddQuestionFromSegmentDialog';
 import AddQuestionDialog from '@/components/transcript/AddQuestionDialog';
-import OfflineStatusIndicator from '@/components/OfflineStatusIndicator';
+
 
 const PlayerPage = ({ currentLanguage, user }) => {
   const { episodeSlug } = useParams(); 
@@ -61,12 +61,14 @@ const PlayerPage = ({ currentLanguage, user }) => {
     setShowFloatingControls: setPlayerShowFloatingControls
   } = usePlayerInteractions(audioRef, playerControlsContainerRef, episodeSlug, questions, true); 
 
+  // Отключаем Supabase subscriptions в офлайн режиме
   useSupabaseSubscriptions(
     episodeSlug,
     episodeData,
     currentLanguage,
     fetchQuestionsForEpisode,
-    fetchTranscriptForEpisode
+    fetchTranscriptForEpisode,
+    isOfflineMode // Передаем офлайн статус
   );
 
   const {
@@ -355,13 +357,7 @@ const PlayerPage = ({ currentLanguage, user }) => {
         />
       )}
       <div className="w-full max-w-3xl">
-        {/* Индикатор оффлайн статуса */}
-        <div className="mb-4 flex justify-center">
-          <OfflineStatusIndicator 
-            isOffline={isOfflineMode}
-            syncStatus={isOfflineMode ? 'offline' : 'synced'}
-          />
-        </div>
+
         
         <div ref={playerControlsContainerRef} className="mb-4">
           {playerEpisodeDataMemo && (
@@ -384,6 +380,7 @@ const PlayerPage = ({ currentLanguage, user }) => {
                 user={user}
                 onTranscriptUpdate={handleTranscriptUpdate}
                 fetchTranscriptForEpisode={fetchTranscriptForEpisode}
+                isOfflineMode={isOfflineMode}
             />
           )}
         </div>
