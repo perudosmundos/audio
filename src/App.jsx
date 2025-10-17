@@ -8,8 +8,10 @@ import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 import { TelegramProvider } from '@/contexts/TelegramContext';
 import { getLocaleString } from '@/lib/locales';
 import EpisodesPage from '@/pages/EpisodesPage';
+import OptimizedEpisodesPage from '@/pages/OptimizedEpisodesPage';
+import InstantEpisodesPage from '@/pages/InstantEpisodesPage';
 import PlayerPage from '@/pages/PlayerPage';
-import ManagePage from '@/pages/ManagePage'; 
+import ManagePage from '@/pages/ManageEpisodesPage'; 
 import NotFoundPage from '@/pages/NotFoundPage';
 import DeepSearchPage from '@/pages/DeepSearchPage';
 import UploadPage from '@/pages/UploadPage';
@@ -19,6 +21,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import syncService from '@/lib/syncService';
 import enhancedCacheService from '@/lib/enhancedCacheService';
+import cacheIntegration from '@/lib/cacheIntegration';
 import { useToast } from '@/components/ui/use-toast';
 
 
@@ -97,24 +100,24 @@ function App() {
   const [offlineServicesReady, setOfflineServicesReady] = useState(false);
   const { toast } = useToast();
 
-  // Инициализация офлайн сервисов (временно отключено для отладки)
+  // Инициализация оптимизированной системы кэша
   useEffect(() => {
-    const initOfflineServices = async () => {
+    const initOptimizedCache = async () => {
       try {
-        console.log('[App] Initializing offline services...');
+        console.log('[App] Initializing optimized cache system...');
         
-        // Временно отключаем инициализацию для отладки
-        // await enhancedCacheService.init();
+        // Инициализируем оптимизированную систему кэша
+        await cacheIntegration.init();
         
         setOfflineServicesReady(true);
-        console.log('[App] Offline services initialized successfully (minimal mode)');
+        console.log('[App] Optimized cache system initialized successfully');
       } catch (error) {
-        console.error('[App] Failed to initialize offline services:', error);
+        console.error('[App] Failed to initialize optimized cache:', error);
         setOfflineServicesReady(true);
       }
     };
 
-    initOfflineServices();
+    initOptimizedCache();
   }, [currentLanguage, toast]);
 
   useEffect(() => {
@@ -177,7 +180,7 @@ function App() {
             <main className="flex-grow w-full">
               <Routes>
                 <Route path="/" element={<Navigate to="/episodes" replace />} />
-                <Route path="/episodes" element={<EpisodesPage currentLanguage={currentLanguage} />} />
+                <Route path="/episodes" element={<InstantEpisodesPage currentLanguage={currentLanguage} />} />
                 <Route path="/episode/:episodeSlug" element={<PlayerPage currentLanguage={currentLanguage} user={user} />} />
                 <Route path="/manage" element={<ManagePage currentLanguage={currentLanguage} />} />
                 <Route path="/upload" element={<UploadPage currentLanguage={currentLanguage} />} />

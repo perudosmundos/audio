@@ -8,12 +8,19 @@ class OfflineDataService {
     this.db = null;
     this.fallbackStorage = new Map(); // Fallback для случаев, когда IndexedDB недоступен
     this.useFallback = false;
+    this.initializing = false;
+    this.initPromise = null;
   }
 
   // Инициализация базы данных
   async init() {
     console.log('🚀 Initializing OfflineDataService...');
     
+    // Если уже инициализируемся, возвращаем существующий промис
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
     // Проверяем, поддерживается ли IndexedDB
     if (!window.indexedDB) {
       console.warn('⚠️ IndexedDB не поддерживается, используем fallback хранилище');
@@ -28,11 +35,13 @@ class OfflineDataService {
       return this.db;
     }
 
-    return new Promise((resolve, reject) => {
+    this.initializing = true;
+    this.initPromise = new Promise((resolve, reject) => {
       // Добавляем таймаут для предотвращения зависания
       const timeoutId = setTimeout(() => {
         console.warn('IndexedDB timeout, switching to fallback storage');
         this.useFallback = true;
+        this.initializing = false;
         resolve(null);
       }, 10000); // 10 секунд таймаут
 
@@ -114,13 +123,22 @@ class OfflineDataService {
         };
         
         console.log('✅ OfflineDataService initialized with IndexedDB');
+        this.initializing = false;
         resolve(this.db);
       };
     });
+
+    return this.initPromise;
   }
 
   // Получение транзакции
-  getTransaction(storeNames, mode = 'readonly') {
+  async getTransaction(storeNames, mode = 'readonly') {
+    // Если база данных еще не инициализирована, ждем инициализации
+    if (!this.db && this.initializing) {
+      console.log('🔄 Database is initializing, waiting...');
+      await this.initPromise;
+    }
+    
     if (!this.db) {
       throw new Error('Database not initialized');
     }
@@ -128,7 +146,11 @@ class OfflineDataService {
     // Проверяем состояние базы данных
     if (this.db.readyState !== 'open') {
       console.warn('Database is not open, attempting to reinitialize...');
-      throw new Error('Database connection is not open');
+      // Попробуем переинициализировать
+      await this.init();
+      if (this.db.readyState !== 'open') {
+        throw new Error('Database connection is not open');
+      }
     }
     
     // Проверяем, что все хранилища существуют
@@ -193,7 +215,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['episodes'], 'readwrite');
+      const transaction = await this.getTransaction(['episodes'], 'readwrite');
       const store = transaction.objectStore('episodes');
       
       return new Promise((resolve, reject) => {
@@ -219,7 +241,7 @@ class OfflineDataService {
   }
 
   async getEpisode(slug) {
-    const transaction = this.getTransaction(['episodes']);
+    const transaction = await this.getTransaction(['episodes']);
     const store = transaction.objectStore('episodes');
     
     return new Promise((resolve, reject) => {
@@ -241,7 +263,7 @@ class OfflineDataService {
       return episodes.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     }
 
-    const transaction = this.getTransaction(['episodes']);
+    const transaction = await this.getTransaction(['episodes']);
     const store = transaction.objectStore('episodes');
     
     return new Promise((resolve, reject) => {
@@ -288,7 +310,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['transcripts'], 'readwrite');
+      const transaction = await this.getTransaction(['transcripts'], 'readwrite');
       const store = transaction.objectStore('transcripts');
       
       const transcriptData = {
@@ -340,7 +362,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['transcripts']);
+      const transaction = await this.getTransaction(['transcripts']);
       const store = transaction.objectStore('transcripts');
       const index = store.index('episode_slug');
       
@@ -388,7 +410,7 @@ class OfflineDataService {
         return 0; // Нет вопросов для сохранения
       }
 
-      const transaction = this.getTransaction(['questions'], 'readwrite');
+      const transaction = await this.getTransaction(['questions'], 'readwrite');
       const store = transaction.objectStore('questions');
       
       // Создаем все промисы сразу, чтобы транзакция не завершилась
@@ -434,7 +456,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['questions']);
+      const transaction = await this.getTransaction(['questions']);
       const store = transaction.objectStore('questions');
       const index = store.index('episode_slug');
       
@@ -463,7 +485,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['questions'], 'readwrite');
+      const transaction = await this.getTransaction(['questions'], 'readwrite');
       const store = transaction.objectStore('questions');
       const index = store.index('episode_slug');
       
@@ -496,7 +518,7 @@ class OfflineDataService {
   // --- АУДИОФАЙЛЫ ---
   
   async saveAudioFileMetadata(url, episodeSlug, size = null) {
-    const transaction = this.getTransaction(['audioFiles'], 'readwrite');
+    const transaction = await this.getTransaction(['audioFiles'], 'readwrite');
     const store = transaction.objectStore('audioFiles');
     
     const audioData = {
@@ -515,7 +537,7 @@ class OfflineDataService {
   }
 
   async getAudioFileMetadata(url) {
-    const transaction = this.getTransaction(['audioFiles']);
+    const transaction = await this.getTransaction(['audioFiles']);
     const store = transaction.objectStore('audioFiles');
     
     return new Promise((resolve, reject) => {
@@ -526,7 +548,7 @@ class OfflineDataService {
   }
 
   async updateAudioFileAccess(url) {
-    const transaction = this.getTransaction(['audioFiles'], 'readwrite');
+    const transaction = await this.getTransaction(['audioFiles'], 'readwrite');
     const store = transaction.objectStore('audioFiles');
     
     return new Promise((resolve, reject) => {
@@ -566,7 +588,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['syncQueue'], 'readwrite');
+      const transaction = await this.getTransaction(['syncQueue'], 'readwrite');
       const store = transaction.objectStore('syncQueue');
       
       const syncItem = {
@@ -602,7 +624,7 @@ class OfflineDataService {
     }
 
     try {
-      const transaction = this.getTransaction(['syncQueue']);
+      const transaction = await this.getTransaction(['syncQueue']);
       const store = transaction.objectStore('syncQueue');
       
       return new Promise((resolve, reject) => {
@@ -626,7 +648,7 @@ class OfflineDataService {
   }
 
   async removeSyncItem(id) {
-    const transaction = this.getTransaction(['syncQueue'], 'readwrite');
+    const transaction = await this.getTransaction(['syncQueue'], 'readwrite');
     const store = transaction.objectStore('syncQueue');
     
     return new Promise((resolve, reject) => {
@@ -637,7 +659,7 @@ class OfflineDataService {
   }
 
   async incrementSyncAttempts(id) {
-    const transaction = this.getTransaction(['syncQueue'], 'readwrite');
+    const transaction = await this.getTransaction(['syncQueue'], 'readwrite');
     const store = transaction.objectStore('syncQueue');
     
     return new Promise((resolve, reject) => {
@@ -661,7 +683,7 @@ class OfflineDataService {
   // --- НАСТРОЙКИ КЕША ---
   
   async saveCacheSetting(key, value) {
-    const transaction = this.getTransaction(['cacheSettings'], 'readwrite');
+    const transaction = await this.getTransaction(['cacheSettings'], 'readwrite');
     const store = transaction.objectStore('cacheSettings');
     
     return new Promise((resolve, reject) => {
@@ -672,7 +694,7 @@ class OfflineDataService {
   }
 
   async getCacheSetting(key, defaultValue = null) {
-    const transaction = this.getTransaction(['cacheSettings']);
+    const transaction = await this.getTransaction(['cacheSettings']);
     const store = transaction.objectStore('cacheSettings');
     
     return new Promise((resolve, reject) => {

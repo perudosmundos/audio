@@ -261,9 +261,13 @@ class AudioCacheService {
           if (freedSpace >= targetSpace) break;
           
           await cache.delete(file.request);
-          await offlineDataService.getTransaction(['audioFiles'], 'readwrite')
-            .objectStore('audioFiles')
-            .delete(file.url);
+          const transaction = await offlineDataService.getTransaction(['audioFiles'], 'readwrite');
+          const store = transaction.objectStore('audioFiles');
+          await new Promise((resolve, reject) => {
+            const request = store.delete(file.url);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
           
           freedSpace += file.size;
           console.log('[AudioCache] Removed from cache:', file.url);
@@ -303,7 +307,7 @@ class AudioCacheService {
 
       // Удаляем метаданные из IndexedDB
       await offlineDataService.init();
-      const transaction = offlineDataService.getTransaction(['audioFiles'], 'readwrite');
+      const transaction = await offlineDataService.getTransaction(['audioFiles'], 'readwrite');
       const store = transaction.objectStore('audioFiles');
       await new Promise((resolve, reject) => {
         const request = store.delete(url);
@@ -327,7 +331,7 @@ class AudioCacheService {
   async getCachedAudioList() {
     try {
       await offlineDataService.init();
-      const transaction = offlineDataService.getTransaction(['audioFiles']);
+      const transaction = await offlineDataService.getTransaction(['audioFiles']);
       const store = transaction.objectStore('audioFiles');
       
       return new Promise((resolve, reject) => {
@@ -362,7 +366,7 @@ class AudioCacheService {
 
       // Очищаем метаданные из IndexedDB
       await offlineDataService.init();
-      const transaction = offlineDataService.getTransaction(['audioFiles'], 'readwrite');
+      const transaction = await offlineDataService.getTransaction(['audioFiles'], 'readwrite');
       const store = transaction.objectStore('audioFiles');
       
       await new Promise((resolve, reject) => {

@@ -30,14 +30,14 @@ const FloatingPlayerControls = ({
             onClick={() => {
               if (onSkipSeconds) onSkipSeconds(-10);
             }} 
-            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
+            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded flex items-center justify-center"
             aria-label={getLocaleString('skipBackward10', currentLanguage) || "Skip backward 10s"}
           >
             <RotateCcw className="h-5 w-5" />
           </button>
           <button 
             onClick={onPlayPause} 
-            className="text-slate-100 hover:text-white bg-purple-600/30 hover:bg-purple-500/50 rounded-full h-10 w-10 bg-transparent border-none cursor-pointer"
+            className="text-white hover:text-white bg-purple-600 hover:bg-purple-700 rounded-full h-10 w-10 border-none cursor-pointer flex items-center justify-center"
             aria-label={isPlaying ? getLocaleString('pause', currentLanguage) : getLocaleString('play', currentLanguage)}
           >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
@@ -46,7 +46,7 @@ const FloatingPlayerControls = ({
             onClick={() => {
               if (onSkipSeconds) onSkipSeconds(10);
             }} 
-            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded"
+            className="text-slate-200 hover:text-white hover:bg-white/15 h-9 w-9 bg-transparent border-none cursor-pointer rounded flex items-center justify-center"
             aria-label={getLocaleString('skipForward10', currentLanguage) || "Skip forward 10s"}
           >
             <RotateCw className="h-5 w-5" />

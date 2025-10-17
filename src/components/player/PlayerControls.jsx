@@ -74,7 +74,7 @@ const PlayerControls = ({
         onClick={() => {
           onSkip(-10);
         }}
-        className={`text-white hover:text-white/80 hover:bg-white/15 ${controlSize}`}
+        className={`text-white hover:text-white/80 hover:bg-white/15 flex items-center justify-center ${controlSize}`}
         aria-label={getLocaleString('playerRewindBack10', currentLanguage)}
       >
         <RotateCcw className={iconSize} />
@@ -86,19 +86,19 @@ const PlayerControls = ({
         onClick={() => {
           onPlayPause();
         }}
-        className={`bg-white text-blue-700 hover:bg-white/90 rounded-full flex items-center justify-center shadow-lg ${mainButtonSize}`}
+        className={`bg-purple-600 text-white hover:bg-purple-700 rounded-full flex items-center justify-center shadow-lg ${mainButtonSize}`}
         aria-label={isPlaying ? getLocaleString('playerPause', currentLanguage) : getLocaleString('playerPlay', currentLanguage)}
       >
-        {isPlaying ? <Pause className={mainIconSize} /> : <Play className={`${mainIconSize}`} />}
+        {isPlaying ? <Pause className={mainIconSize} /> : <Play className={mainIconSize} />}
       </Button>
 
-              <Button
+      <Button
         variant="ghost"
         size="icon"
         onClick={() => {
           onSkip(10);
         }}
-        className={`text-white hover:text-white/80 hover:bg-white/10 ${controlSize}`}
+        className={`text-white hover:text-white/80 hover:bg-white/15 flex items-center justify-center ${controlSize}`}
         aria-label={getLocaleString('playerForward10', currentLanguage)}
       >
         <RotateCw className={iconSize} />

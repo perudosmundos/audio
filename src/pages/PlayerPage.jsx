@@ -19,10 +19,27 @@ import AddQuestionFromSegmentDialog from '@/components/player/questions_manager_
 import AddQuestionDialog from '@/components/transcript/AddQuestionDialog';
 
 
-const PlayerPage = ({ currentLanguage, user }) => {
+const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
   const { episodeSlug } = useParams(); 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const location = useLocation();
+  
+  // Read language from URL parameter, fallback to app language
+  const urlParams = new URLSearchParams(location.search);
+  const urlLanguage = urlParams.get('lang');
+  const currentLanguage = urlLanguage || appCurrentLanguage;
+
+  // Update global app language if URL parameter is present and different
+  useEffect(() => {
+    if (urlLanguage && urlLanguage !== appCurrentLanguage) {
+      // Update localStorage to persist the language change
+      localStorage.setItem('podcastLang', urlLanguage);
+      
+      // Force page reload to update global app state
+      window.location.reload();
+    }
+  }, [urlLanguage, appCurrentLanguage]);
 
   const audioRef = useRef(null); 
   const [showFloatingControls, setShowFloatingControls] = useState(false);
