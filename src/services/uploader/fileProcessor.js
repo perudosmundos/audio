@@ -196,11 +196,14 @@ export const processSingleItem = async ({
       URL.revokeObjectURL(audioForDuration.src);
     }
 
+    // Provide fallback date if parsedDate is null to avoid database constraint violation
+    const episodeDate = parsedDate || new Date().toISOString().split('T')[0];
+
     const episodePayload = {
       slug: episodeSlug,
       title: episodeTitle,
       lang: lang,
-      date: parsedDate,
+      date: episodeDate,
       audio_url: workerFileUrl,
       r2_object_key: r2FileKey,
       r2_bucket_name: bucketNameUsed,
@@ -348,7 +351,10 @@ export const processSingleItem = async ({
       const choices = userOverwriteChoices || { overwriteTranscript: true };
       if (shouldSubmitTranscription && choices.overwriteTranscript) {
         try {
-            const assemblyLangCode = lang; 
+            // Use automatic language detection for better accuracy
+            // This allows AssemblyAI to detect the actual language instead of relying on filename
+            const assemblyLangCode = 'auto';
+
             // If the public URL is not accessible by AssemblyAI (schema/CDN), fall back to direct upload
             // Try multiple URL approaches for AssemblyAI compatibility
             let transcriptJob;
@@ -356,16 +362,16 @@ export const processSingleItem = async ({
               // Use the correct public URL format for AssemblyAI
               let assemblyUrl = workerFileUrl;
               console.log("DEBUG: workerFileUrl before conversion:", workerFileUrl);
-              
+
               // If we have a file name, construct the correct public URL
               if (file && file.name) {
                 const fileName = file.name.replace(/\s+/g, '_');
                 assemblyUrl = `https://b2a9e188-93e4-4928-a636-2ad4c9e1094e.srvstatic.kz/${fileName}`;
                 console.log("Constructed correct public URL for AssemblyAI:", assemblyUrl);
               }
-              
+
               console.log("DEBUG: Final assemblyUrl:", assemblyUrl);
-              console.log("Submitting to AssemblyAI with URL:", assemblyUrl);
+              console.log("Submitting to AssemblyAI with automatic language detection for URL:", assemblyUrl);
               transcriptJob = await assemblyAIService.submitTranscription(assemblyUrl, assemblyLangCode, upsertedEpisode.slug, currentLanguage, lang);
                         } catch (e) {
               const msg = (e?.message || '').toLowerCase();

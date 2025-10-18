@@ -34,11 +34,29 @@ export const getFileNameWithoutExtension = (filename) => {
 export const formatShortDate = (dateString, language = 'ru') => {
   if (!dateString) return '';
 
-  const date = new Date(dateString);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `${day}.${month}.${year}`;
+  // Если дата уже в формате DD.MM.YY, возвращаем как есть
+  if (typeof dateString === 'string' && /^\d{2}\.\d{2}\.\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+
+  try {
+    // Для формата YYYY-MM-DD, парсим напрямую без временной зоны
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split('-').map(num => parseInt(num, 10));
+      return `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${String(year).slice(-2)}`;
+    }
+
+    // Для других форматов используем локальную дату
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    
+    return `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${String(year).slice(-2)}`;
+  } catch (error) {
+    console.warn('Invalid date string format:', dateString);
+    return dateString;
+  }
 };
 
 // Функция для преобразования аудио URL через прокси (для обхода CORS)

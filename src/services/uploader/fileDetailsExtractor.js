@@ -14,9 +14,17 @@ export const generateInitialItemData = async (file, targetLang, currentLanguage,
     fileHasLangSuffix = true;
   }
   
-  const dateMatch = titleBase.match(/(\d{4})\.(\d{2})\.(\d{2})/); 
+  // Handle both YYYY.MM.DD and DD.MM.YY formats
+  const dateMatch = titleBase.match(/(?:(\d{4})\.(\d{2})\.(\d{2})|(\d{2})\.(\d{2})\.(\d{2}))/); 
   if (dateMatch) {
-    dateFromFile = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+    if (dateMatch[1]) {
+      // YYYY.MM.DD format
+      dateFromFile = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+    } else {
+      // DD.MM.YY format
+      const year = parseInt('20' + dateMatch[6], 10);
+      dateFromFile = `${year}-${dateMatch[5]}-${dateMatch[4]}`;
+    }
     titleBase = titleBase.replace(dateMatch[0], '').trim().replace(/^[-_]+|[-_]+$/g, '');
   } else {
     const strictDateMatch = titleBase.match(/^(\d{4})-(\d{2})-(\d{2})$/); 

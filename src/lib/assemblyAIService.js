@@ -76,6 +76,8 @@ const assemblyAIService = {
     }
   },
   submitTranscription: async (audioUrl, languageCodeForAssembly, episodeSupabaseIdOrSlug, currentInterfaceLanguage, targetLangForDB) => {
+    let requestBody = null;
+
     try {
       logger.info("Starting AssemblyAI transcription submission", {
         audioUrl: audioUrl?.substring(0, 100) + '...',
@@ -83,22 +85,29 @@ const assemblyAIService = {
         episodeSlug: episodeSupabaseIdOrSlug,
         targetLang: targetLangForDB
       });
-      
+
       const apiKey = await initializeAssemblyAI();
       logger.info("AssemblyAI API key initialized successfully", {
         hasApiKey: !!apiKey,
         apiKeyLength: apiKey?.length || 0,
         apiKeyPrefix: apiKey?.substring(0, 8) + '...' || 'none'
       });
-      
+
       // Request body with enhanced features for Russian and Spanish
-      const requestBody = {
+      // Use automatic language detection if language is uncertain or not specified
+      const shouldUseAutoDetection = !languageCodeForAssembly ||
+                                     languageCodeForAssembly === 'auto' ||
+                                     languageCodeForAssembly === 'all';
+
+      requestBody = {
         audio_url: audioUrl,
-        language_code: languageCodeForAssembly === 'all' ? 'es' : languageCodeForAssembly,
+        ...(shouldUseAutoDetection ? {} : { language_code: languageCodeForAssembly }),
         speaker_labels: true, // Enable speaker recognition for all languages
         punctuate: true,
         format_text: true,
-        dual_channel: false
+        dual_channel: false,
+        // Enable automatic language detection when language is uncertain
+        ...(shouldUseAutoDetection ? { language_detection: true } : {})
       };
 
       // Enhanced request for Russian and Spanish with full feature set

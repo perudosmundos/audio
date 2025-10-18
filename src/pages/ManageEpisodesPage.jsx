@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UploadCloud, Loader2, PlusCircle, ArrowLeft, Settings2, Trash2, Search, ShieldAlert, ListChecks, PenLine, Languages, HelpCircle, Star, Database, FileAudio2, Key } from 'lucide-react';
+import { UploadCloud, Loader2, PlusCircle, ArrowLeft, Settings2, Trash2, Search, ShieldAlert, ListChecks, FileAudio2, Key, PenLine, Languages, HelpCircle, Star, Database } from 'lucide-react';
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -17,7 +17,9 @@ import { formatShortDate } from '@/lib/utils';
 import assemblyAIService from '@/lib/assemblyAIService';
 import { translateTextOpenAI, translateTranscriptFast, generateQuestionsOpenAI } from '@/lib/openAIService';
 import { startPollingForItem } from '@/services/uploader/transcriptPoller';
+import timeOldService from '@/lib/timeOldService';
 import logger from '@/lib/logger';
+import LanguageCard from '@/components/manage/LanguageCard';
 
 /**
  * Enhanced Manage Page for Episode Management
@@ -41,6 +43,7 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
     handleRemoveItem,
     confirmOverwrite,
     cancelOverwrite,
+    handleTranslateTimings,
   } = useFileUploadManager(currentLanguage);
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -80,7 +83,7 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
       <AssemblyAIKeySection currentLanguage={currentLanguage} />
 
       {/* File Upload Section */}
-      <FileUploadSection 
+      <FileUploadSection
         currentLanguage={currentLanguage}
         getRootProps={getRootProps}
         getInputProps={getInputProps}
@@ -92,6 +95,7 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
         handleTitleChange={handleTitleChange}
         handleTimingsChange={handleTimingsChange}
         handleProcessAllFiles={handleProcessAllFiles}
+        handleTranslateTimings={handleTranslateTimings}
       />
 
       <OverwriteDialog 
@@ -213,18 +217,19 @@ const AssemblyAIKeySection = ({ currentLanguage }) => {
 /**
  * File Upload Section Component
  */
-const FileUploadSection = ({ 
-  currentLanguage, 
-  getRootProps, 
-  getInputProps, 
-  isDragActive, 
-  open, 
-  filesToProcess, 
-  isProcessingAll, 
-  handleRemoveItem, 
-  handleTitleChange, 
-  handleTimingsChange, 
-  handleProcessAllFiles 
+const FileUploadSection = ({
+  currentLanguage,
+  getRootProps,
+  getInputProps,
+  isDragActive,
+  open,
+  filesToProcess,
+  isProcessingAll,
+  handleRemoveItem,
+  handleTitleChange,
+  handleTimingsChange,
+  handleProcessAllFiles,
+  handleTranslateTimings
 }) => {
   return (
     <div className="mb-8">
@@ -264,12 +269,13 @@ const FileUploadSection = ({
             {getPluralizedLocaleString('filesInQueue', currentLanguage, filesToProcess.length)}
           </h3>
           {filesToProcess.map((itemData) => (
-            <FileUploadItem 
+            <FileUploadItem
               key={itemData.id}
               itemData={itemData}
               onTimingsChange={handleTimingsChange}
               onTitleChange={handleTitleChange}
               onRemove={handleRemoveItem}
+              onTranslateTimings={handleTranslateTimings}
               currentLanguage={currentLanguage}
             />
           ))}
@@ -429,9 +435,20 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
     };
   }, []);
 
-  // Group episodes by date and file type
+  // Group episodes by date extracted from filename for proper file matching
   const groupedEpisodes = episodes.reduce((groups, episode) => {
-    const dateKey = episode.date || 'unknown';
+    // Extract date from slug for proper grouping (e.g., "2024-11-13_ru" -> "2024-11-13")
+    let dateKey = 'unknown';
+
+    // Try to extract date from slug first (most reliable for file matching)
+    const slugDateMatch = episode.slug.match(/^(\d{4}-\d{2}-\d{2})_/);
+    if (slugDateMatch) {
+      dateKey = slugDateMatch[1];
+    } else if (episode.date) {
+      // Fallback to episode.date if slug doesn't contain date
+      dateKey = episode.date;
+    }
+
     if (!groups[dateKey]) {
       groups[dateKey] = {
         ru: [],  // Array for Russian files (each gets own group)
@@ -439,7 +456,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
         combined: [] // Array for files without language suffixes (all in one group)
       };
     }
-    
+
     // Check if file has language suffix
     if (!episode.file_has_lang_suffix) {
       // Files without language suffixes go to combined group
@@ -452,7 +469,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
         groups[dateKey].es_en.push(episode);
       }
     }
-    
+
     return groups;
   }, {});
 
@@ -764,32 +781,8 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
   // Function to check if timings data is available for an episode
   const checkTimingsDataAvailable = async (episode) => {
     try {
-      const { data: episodeData } = await supabase
-        .from('episodes')
-        .select('timings_es, timings_ru')
-        .eq('slug', episode.slug)
-        .single();
+      const hasTimingsData = await timeOldService.hasTimingsData(episode.slug, episode.lang);
 
-      if (!episodeData) {
-        console.log(`No episode data found for slug: ${episode.slug}`);
-        return false;
-      }
-
-      let timingsData = null;
-      if (episode.lang === 'es' && episodeData.timings_es) {
-        timingsData = episodeData.timings_es;
-      } else if (episode.lang === 'ru' && episodeData.timings_ru) {
-        timingsData = episodeData.timings_ru;
-      }
-
-      const hasTimingsData = timingsData && Array.isArray(timingsData) && timingsData.length > 0;
-      
-      console.log(`Timings data for ${episode.slug}-${episode.lang}:`, {
-        hasTimingsData,
-        timingsDataLength: timingsData?.length || 0,
-        timingsData: timingsData
-      });
-      
       setAvailableTimingsData(prev => ({
         ...prev,
         [`${episode.slug}-${episode.lang}`]: hasTimingsData
@@ -817,59 +810,33 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
     setLoadingQuestionsFromDB(prev => new Set(prev).add(`${episode.slug}-${episode.lang}`));
 
     try {
-      // Get the base episode data to access timings columns
-      const { data: episodeData } = await supabase
-        .from('episodes')
-        .select('timings_es, timings_ru')
-        .eq('slug', episode.slug)
-        .single();
+      // Используем сервис timeOldService для извлечения вопросов
+      const questions = await timeOldService.loadQuestionsFromTimeOld(episode.slug, episode.lang);
 
-      if (!episodeData) {
-        toast({ title: getLocaleString('questionsNotFound', currentLanguage), description: getLocaleString('questionsNotFoundInDB', currentLanguage), variant: 'info' });
-        return;
-      }
-
-      // Get timings based on language
-      let timingsData = null;
-      if (episode.lang === 'es' && episodeData.timings_es) {
-        timingsData = episodeData.timings_es;
-      } else if (episode.lang === 'ru' && episodeData.timings_ru) {
-        timingsData = episodeData.timings_ru;
-      }
-
-      if (!timingsData || !Array.isArray(timingsData) || timingsData.length === 0) {
-        toast({ title: getLocaleString('questionsNotFound', currentLanguage), description: getLocaleString('questionsNotFoundInDB', currentLanguage), variant: 'info' });
-        return;
-      }
-
-      // Save questions to the questions table
-      await supabase.from('questions').delete().eq('episode_slug', episode.slug).eq('lang', episode.lang);
-      
-      const questionsToInsert = timingsData.map((timing, index) => ({
-        episode_slug: episode.slug,
-        lang: episode.lang,
-        title: timing.title || `${getLocaleString('question', currentLanguage)} ${index + 1}`,
-        time: Number.isFinite(timing.time) ? timing.time : index * 10
-      }));
-
-      await supabase.from('questions').insert(questionsToInsert);
-
-      setEpisodes(prev => prev.map(ep => 
-        ep.slug === episode.slug && ep.lang === episode.lang 
-          ? { ...ep, questionsCount: questionsToInsert.length }
+      // Обновляем локальное состояние
+      setEpisodes(prev => prev.map(ep =>
+        ep.slug === episode.slug && ep.lang === episode.lang
+          ? { ...ep, questionsCount: questions.length }
           : ep
       ));
 
-      // Update available timings data after loading
+      // Обновляем данные о доступности таймингов
       setAvailableTimingsData(prev => ({
         ...prev,
         [`${episode.slug}-${episode.lang}`]: false
       }));
-      
-      toast({ title: getLocaleString('questionsLoaded', currentLanguage), description: getPluralizedLocaleString('questionsLoadedFromDB', currentLanguage, questionsToInsert.length) });
-      
+
+      toast({
+        title: getLocaleString('questionsLoaded', currentLanguage),
+        description: getPluralizedLocaleString('questionsLoadedFromDB', currentLanguage, questions.length)
+      });
+
     } catch (error) {
-      toast({ title: getLocaleString('errorGeneric', currentLanguage), description: `${getLocaleString('questionsLoadError', currentLanguage)}: ${error.message}`, variant: 'destructive' });
+      toast({
+        title: getLocaleString('errorGeneric', currentLanguage),
+        description: `${getLocaleString('questionsLoadError', currentLanguage)}: ${error.message}`,
+        variant: 'destructive'
+      });
     } finally {
       setLoadingQuestionsFromDB(prev => {
         const s = new Set(prev);
@@ -938,12 +905,13 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
 
   const handleTranslateTranscriptFromSpanishForEnglish = async (englishEpisode, baseSlug) => {
     setTransferringTextEpisodes(prev => new Set(prev).add(`${englishEpisode?.slug || baseSlug}-en`));
-    
+
     try {
-      // Find Spanish episode
+      // Find Spanish episode - more flexible search
       let spanishEpisode = null;
+
+      // First try exact match with lowercase suffix
       const esSlug = `${baseSlug}_es`;
-      
       const { data } = await supabase
         .from('episodes')
         .select('slug, title, date, audio_url, r2_object_key, r2_bucket_name, duration, file_has_lang_suffix')
@@ -951,17 +919,29 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
         .eq('lang', 'es')
         .maybeSingle();
       spanishEpisode = data || null;
-      
+
       if (!spanishEpisode) {
-        // Try to find any Spanish episode with the same base slug pattern
+        // Try case-insensitive search for Spanish episodes with similar base slug
         const { data: altData } = await supabase
           .from('episodes')
           .select('slug, title, date, audio_url, r2_object_key, r2_bucket_name, duration, file_has_lang_suffix')
-          .like('slug', `${baseSlug}%`)
+          .ilike('slug', `${baseSlug}%`)
           .eq('lang', 'es')
           .limit(1)
           .maybeSingle();
         spanishEpisode = altData || null;
+      }
+
+      if (!spanishEpisode) {
+        // Try to find any Spanish episode that contains the base slug (for files like "Pepe_15.10.25.ES")
+        const { data: fuzzyData } = await supabase
+          .from('episodes')
+          .select('slug, title, date, audio_url, r2_object_key, r2_bucket_name, duration, file_has_lang_suffix')
+          .ilike('slug', `%${baseSlug}%`)
+          .eq('lang', 'es')
+          .limit(1)
+          .maybeSingle();
+        spanishEpisode = fuzzyData || null;
       }
       
       if (!spanishEpisode) {
@@ -1227,14 +1207,31 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
 
   const formatDateForDisplay = (dateString) => {
     if (!dateString || dateString === 'unknown') return getLocaleString('dateNotSpecified', currentLanguage);
+
+    // Если дата уже в формате DD.MM.YY, возвращаем как есть
+    if (typeof dateString === 'string' && /^\d{2}\.\d{2}\.\d{2}$/.test(dateString)) {
+      return dateString;
+    }
+
     try {
+      // For YYYY-MM-DD format, parse directly without timezone conversion
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(num => parseInt(num, 10));
+        return `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${String(year).slice(-2)}`;
+      }
+
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string in formatDateForDisplay:', dateString);
+        return dateString; // Возвращаем оригинал при ошибке
+      }
+
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      return `${year}-${month}-${day}`;
+      const year = date.getFullYear().toString(); // Convert to string before slice
+      return `${day}.${month}.${year.slice(-2)}`;
     } catch (error) {
+      console.warn('Error formatting date:', error, 'Input:', dateString);
       return dateString;
     }
   };
@@ -1258,19 +1255,19 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
     const hasAudio = episode.audio_url || episode.r2_object_key;
     const transcriptCompleted = episode.transcript?.status === 'completed';
     const transcriptProcessing = episode.transcript?.status === 'processing';
-    
+
     // Check if Spanish version exists and has completed transcript
-    const spanishEpisode = episodes.find(ep => 
+    const spanishEpisode = episodes.find(ep =>
       ep.slug.startsWith(baseSlug) && ep.lang === 'es' && ep.transcript?.status === 'completed'
     );
-    
+
     // Check if Russian version exists and has questions
-    const russianEpisode = episodes.find(ep => 
+    const russianEpisode = episodes.find(ep =>
       ep.slug.startsWith(baseSlug) && ep.lang === 'ru' && ep.questionsCount > 0
     );
-    
+
     if (episode.lang === 'en') {
-      // English episode actions - smart logic
+      // English episode actions - improved logic
       if (!transcriptCompleted) {
         // Show translation button only if Spanish transcript is available
         if (spanishEpisode) {
@@ -1294,7 +1291,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
         } else {
           return (
             <div className="text-xs text-slate-400 text-center">
-              {getLocaleString('transcriptRequired', currentLanguage)}
+              {getLocaleString('spanishTranscriptRequired', currentLanguage)}
             </div>
           );
         }
@@ -1302,7 +1299,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
         // Show question translation buttons based on available sources
         const hasSpanishQuestions = spanishEpisode && spanishEpisode.questionsCount > 0;
         const hasRussianQuestions = russianEpisode && russianEpisode.questionsCount > 0;
-        
+
         if (hasSpanishQuestions || hasRussianQuestions) {
           return (
             <div className="flex flex-col gap-1">
@@ -1369,7 +1366,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                 getLocaleString('retranslate', currentLanguage)
               )}
             </Button>
-            
+
             {/* Question management */}
             <div className="flex gap-1">
               <Button
@@ -1440,7 +1437,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
               <PenLine className="h-3 w-3 mr-1" />
               {getLocaleString('deleteAndRetranscribe', currentLanguage)}
             </Button>
-            
+
             {/* Question management when transcript is completed */}
             {episode.questionsCount === 0 ? (
               <div className="flex gap-1">
@@ -1585,6 +1582,7 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                                   getEpisodeActions={getEpisodeActions}
                                   languageEpisodes={baseSlugGroups}
                                   handleSmartFileUpload={handleSmartFileUpload}
+                                  episodes={episodes}
                                 />
                               </div>
                             ))
@@ -1642,8 +1640,9 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                                   getEpisodeActions={getEpisodeActions}
                                   languageEpisodes={baseSlugGroups}
                                   handleSmartFileUpload={handleSmartFileUpload}
+                                  episodes={episodes}
                                 />
-                                
+
                                 {/* English Version */}
                                 <EpisodeLanguageCard
                                   episode={baseSlugGroups.es_en.find(ep => ep.lang === 'en') || null}
@@ -1656,6 +1655,8 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                                   getEpisodeActions={getEpisodeActions}
                                   languageEpisodes={baseSlugGroups}
                                   handleSmartFileUpload={handleSmartFileUpload}
+                                  episodes={episodes}
+                                  episodes={episodes}
                                 />
                               </div>
                             </div>
@@ -1696,38 +1697,52 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                 <p className="text-slate-500 text-sm mb-3">
                   {getLocaleString('noFileUploaded', currentLanguage)}
                 </p>
-                {/* Smart suggestions for English - only show translation if Spanish version exists with transcript */}
+                {/* Smart suggestions for English - show create button if Spanish exists with transcript */}
                 {(() => {
-                  const spanishEpisode = baseSlugGroups.es_en?.find(ep => ep.lang === 'es');
-                  const hasSpanishTranscript = spanishEpisode?.transcript?.status === 'completed';
-                  
-                  if (spanishEpisode && hasSpanishTranscript) {
+                  // Find Spanish episode more broadly across all groups
+                  const spanishEpisode = episodes.find(ep =>
+                    ep.slug.startsWith(date) && ep.lang === 'es' && ep.transcript?.status === 'completed'
+                  );
+
+                  if (spanishEpisode) {
                     return (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-7 text-xs bg-purple-600/20 border-purple-500 text-purple-300 hover:bg-purple-600/40 hover:text-purple-200 mb-1"
-                        onClick={() => {
-                          const englishEpisode = { slug: `${date}_en`, lang: 'en' };
-                          handleTranslateTranscriptFromSpanishForEnglish(englishEpisode, date);
-                        }}
-                      >
-                        <Languages className="h-3 w-3 mr-1" />
-                        {getLocaleString('translateTranscriptFromSpanish', currentLanguage)}
-                      </Button>
-                    );
-                  } else if (spanishEpisode && !hasSpanishTranscript) {
-                    return (
-                      <div className="text-xs text-slate-500 mb-1">
-                        {getLocaleString('spanishTranscriptRequired', currentLanguage)}
+                      <div className="space-y-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full h-7 text-xs bg-purple-600/20 border-purple-500 text-purple-300 hover:bg-purple-600/40 hover:text-purple-200 mb-1"
+                          onClick={() => {
+                            const englishEpisode = { slug: `${date}_en`, lang: 'en' };
+                            handleTranslateTranscriptFromSpanishForEnglish(englishEpisode, date);
+                          }}
+                        >
+                          <Languages className="h-3 w-3 mr-1" />
+                          {getLocaleString('createEnglishVersion', currentLanguage)}
+                        </Button>
+                        <div className="text-xs text-slate-400">
+                          {getLocaleString('fromSpanishTranscript', currentLanguage)}
+                        </div>
                       </div>
                     );
                   } else {
-                    return (
-                      <div className="text-xs text-slate-500 mb-1">
-                        {getLocaleString('spanishVersionRequired', currentLanguage)}
-                      </div>
+                    // Check if Spanish version exists but without transcript
+                    const spanishEpisodeNoTranscript = episodes.find(ep =>
+                      ep.slug.startsWith(date) && ep.lang === 'es'
                     );
+
+                    if (spanishEpisodeNoTranscript) {
+                      return (
+                        <div className="text-xs text-slate-500 mb-1">
+                          {getLocaleString('spanishTranscriptRequired', currentLanguage)}
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="text-xs text-slate-500 mb-1">
+                          {getLocaleString('spanishVersionRequired', currentLanguage)}
+                        </div>
+                      );
+                    }
                   }
                 })()}
                 <Button
@@ -1776,8 +1791,9 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                             getEpisodeActions={getEpisodeActions}
                             languageEpisodes={baseSlugGroups}
                             handleSmartFileUpload={handleSmartFileUpload}
+                            episodes={episodes}
                           />
-                          
+
                           {/* Spanish Version */}
                           <EpisodeLanguageCard
                             episode={baseSlugGroups.combined.find(ep => ep.lang === 'es') || null}
@@ -1790,8 +1806,9 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                             getEpisodeActions={getEpisodeActions}
                             languageEpisodes={baseSlugGroups}
                             handleSmartFileUpload={handleSmartFileUpload}
+                            episodes={episodes}
                           />
-                          
+
                           {/* English Version */}
                           <EpisodeLanguageCard
                             episode={baseSlugGroups.combined.find(ep => ep.lang === 'en') || null}
@@ -1804,6 +1821,8 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                             getEpisodeActions={getEpisodeActions}
                             languageEpisodes={baseSlugGroups}
                             handleSmartFileUpload={handleSmartFileUpload}
+                            episodes={episodes}
+                            episodes={episodes}
                           />
                         </div>
                       </div>
@@ -1910,200 +1929,241 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
 /**
  * Episode Language Card Component
  */
-  const EpisodeLanguageCard = ({ 
-    episode, 
-    language, 
-    baseSlug, 
-    currentLanguage, 
-    selectedEpisodes, 
-    handleSelectEpisode, 
-    handleDeleteClick, 
-    getEpisodeActions,
-    languageEpisodes,
-    handleSmartFileUpload 
-  }) => {
-    const navigate = useNavigate();
-    
-    const langColors = {
-      es: 'bg-green-600/70 text-green-100',
-      ru: 'bg-blue-600/70 text-blue-100',
-      en: 'bg-purple-600/70 text-purple-100'
-    };
+const EpisodeLanguageCard = ({
+  episode,
+  language,
+  baseSlug,
+  currentLanguage,
+  selectedEpisodes,
+  handleSelectEpisode,
+  handleDeleteClick,
+  getEpisodeActions,
+  languageEpisodes,
+  handleSmartFileUpload,
+  episodes
+}) => {
+  const navigate = useNavigate();
 
+  const langColors = {
+    es: 'bg-green-600 text-green-100',
+    ru: 'bg-blue-600 text-blue-100',
+    en: 'bg-purple-600 text-purple-100'
+  };
 
-    const hasEpisode = episode !== null;
-    
-    // Get smart suggestions for missing languages
-    const getSmartSuggestions = () => {
-      if (hasEpisode) return null;
-      
-      const suggestions = [];
-      
-      // Always show upload button for Spanish and Russian languages
-      if (language === 'es' || language === 'ru') {
+  const hasEpisode = episode !== null;
+
+  // Get smart suggestions for missing languages
+  const getSmartSuggestions = () => {
+    if (hasEpisode) return null;
+
+    const suggestions = [];
+
+    // Always show upload button for Spanish and Russian languages
+    if (language === 'es' || language === 'ru') {
+      suggestions.push({
+        type: 'upload',
+        text: getLocaleString('uploadAudioFiles', currentLanguage),
+        icon: <UploadCloud className="h-3 w-3 mr-1" />,
+        action: 'upload'
+      });
+    }
+
+    // Smart logic for English version
+    if (language === 'en') {
+      // Find Spanish episode more broadly across all episodes for this date
+      const spanishEpisode = episodes.find(ep =>
+        ep.slug.startsWith(baseSlug) && ep.lang === 'es' && ep.transcript?.status === 'completed'
+      );
+
+      // Check if Spanish version exists and has completed transcript
+      if (spanishEpisode) {
         suggestions.push({
-          type: 'upload',
-          text: getLocaleString('uploadAudioFiles', currentLanguage),
-          icon: <UploadCloud className="h-3 w-3 mr-1" />,
-          action: 'upload'
+          type: 'translate',
+          text: getLocaleString('createEnglishVersion', currentLanguage),
+          icon: <Languages className="h-3 w-3 mr-1" />,
+          action: 'translate_from_es'
+        });
+      } else {
+        // Check if Spanish version exists but transcript is not ready
+        const spanishEpisodeNoTranscript = episodes.find(ep =>
+          ep.slug.startsWith(baseSlug) && ep.lang === 'es'
+        );
+
+        if (spanishEpisodeNoTranscript) {
+          if (spanishEpisodeNoTranscript.transcript?.status === 'processing') {
+            suggestions.push({
+              type: 'wait',
+              text: getLocaleString('spanishTranscriptInProgress', currentLanguage),
+              icon: <Loader2 className="h-3 w-3 mr-1 animate-spin" />,
+              action: 'wait_for_spanish'
+            });
+          } else {
+            suggestions.push({
+              type: 'transcribe_spanish',
+              text: getLocaleString('transcribeSpanishFirst', currentLanguage),
+              icon: <PenLine className="h-3 w-3 mr-1" />,
+              action: 'transcribe_spanish_first'
+            });
+          }
+        } else {
+          suggestions.push({
+            type: 'need_spanish',
+            text: getLocaleString('spanishVersionRequired', currentLanguage),
+            icon: <UploadCloud className="h-3 w-3 mr-1" />,
+            action: 'need_spanish_first'
+          });
+        }
+      }
+
+      // Also check for Russian questions translation if Russian exists and has questions
+      const russianEpisode = episodes.find(ep =>
+        ep.slug.startsWith(baseSlug) && ep.lang === 'ru' && ep.questionsCount > 0
+      );
+      if (russianEpisode) {
+        suggestions.push({
+          type: 'translate',
+          text: getLocaleString('translateQuestionsFromRussian', currentLanguage),
+          icon: <Languages className="h-3 w-3 mr-1" />,
+          action: 'translate_from_ru'
         });
       }
-      
-      // Check if English version should be translated from Spanish
-      if (language === 'en') {
-        if (languageEpisodes.es && languageEpisodes.es.transcript?.status === 'completed') {
-          suggestions.push({
-            type: 'translate',
-            text: getLocaleString('translateTranscriptFromSpanish', currentLanguage),
-            icon: <Languages className="h-3 w-3 mr-1" />,
-            action: 'translate_from_es'
-          });
-        }
-        if (languageEpisodes.ru && languageEpisodes.ru.transcript?.status === 'completed') {
-          suggestions.push({
-            type: 'translate',
-            text: getLocaleString('translateQuestionsFromRussian', currentLanguage),
-            icon: <Languages className="h-3 w-3 mr-1" />,
-            action: 'translate_from_ru'
-          });
-        }
-      }
-      
-      return suggestions;
-    };
+    }
 
-    const suggestions = getSmartSuggestions();
-    
-    return (
-      <div className={`p-3 rounded-lg border ${
-        hasEpisode 
-          ? 'bg-slate-600/40 border-slate-500' 
-          : 'bg-slate-700/30 border-slate-600 border-dashed'
-      }`}>
-        {hasEpisode ? (
-          <div className="space-y-2">
-            {/* Clickable slug on the same line as language badge */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-1 rounded text-xs font-medium ${langColors[language]}`}>
-                  {language.toUpperCase()}
-                </span>
-                <div className="flex items-center gap-1">
-                  <div 
-                    className="text-xs text-purple-300 truncate cursor-pointer hover:text-purple-200 hover:underline max-w-[100px]"
-                    title={`Open episode: ${episode.slug}`}
-                    onClick={() => navigate(`/episode/${episode.slug}?lang=${episode.lang}`)}
-                  >
-                    {episode.slug}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(`/episode/${episode.slug}?lang=${episode.lang}`, '_blank');
-                    }}
-                    className="h-5 w-5 p-0 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
-                    title={getLocaleString('openInNewWindow', currentLanguage)}
-                  >
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </Button>
-                </div>
-              </div>
-              
+    return suggestions;
+  };
+
+  const suggestions = getSmartSuggestions();
+
+  return (
+    <div className={`p-3 rounded-lg border ${
+      hasEpisode
+        ? 'bg-slate-600/40 border-slate-500'
+        : 'bg-slate-700/30 border-slate-600 border-dashed'
+    }`}>
+      {hasEpisode ? (
+        <div className="space-y-2">
+          {/* Clickable slug on the same line as language badge */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 rounded text-xs font-medium ${langColors[language]}`}>
+                {language.toUpperCase()}
+              </span>
               <div className="flex items-center gap-1">
-                <Checkbox
-                  id={`select-${episode.slug}-${episode.lang}`}
-                  checked={!!selectedEpisodes[`${episode.slug}-${episode.lang}`]}
-                  onCheckedChange={() => handleSelectEpisode(episode.slug, episode.lang)}
-                  className="border-slate-500 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
-                />
+                <div
+                  className="text-xs text-purple-300 truncate cursor-pointer hover:text-purple-200 hover:underline max-w-[100px]"
+                  title={`Open episode: ${episode.slug}`}
+                  onClick={() => navigate(`/episode/${episode.slug}?lang=${episode.lang}`)}
+                >
+                  {episode.slug}
+                </div>
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => handleDeleteClick(episode)}
-                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                  title={getLocaleString('delete', currentLanguage)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/episode/${episode.slug}?lang=${episode.lang}`, '_blank');
+                  }}
+                  className="h-5 w-5 p-0 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
+                  title={getLocaleString('openInNewWindow', currentLanguage)}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
                 </Button>
               </div>
             </div>
-            
-            {/* Status indicators */}
-            <div className="flex flex-wrap gap-1">
-              {episode.transcript && episode.transcript.status !== 'completed' && (
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  episode.transcript.status === 'processing' ? 'bg-yellow-600/70 text-yellow-100' :
-                  episode.transcript.status === 'error' ? 'bg-red-600/70 text-red-100' :
-                  'bg-gray-600/70 text-gray-100'
-                }`}>
-                  {episode.transcript.status === 'processing' ? getLocaleString('processing', currentLanguage) :
-                   episode.transcript.status === 'error' ? getLocaleString('error', currentLanguage) :
-                   getLocaleString('notStarted', currentLanguage)}
-                </span>
-              )}
-              
-              {episode.duration && episode.duration > 0 && (
-                <span className="text-xs text-slate-400">
-                  {formatDuration(episode.duration)}
-                </span>
-              )}
-            </div>
-            
-            {/* Action buttons */}
-            <div className="pt-2">
-              {getEpisodeActions(episode, baseSlug)}
+
+            <div className="flex items-center gap-1">
+              <Checkbox
+                id={`select-${episode.slug}-${episode.lang}`}
+                checked={!!selectedEpisodes[`${episode.slug}-${episode.lang}`]}
+                onCheckedChange={() => handleSelectEpisode(episode.slug, episode.lang)}
+                className="border-slate-500 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteClick(episode)}
+                className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                title={getLocaleString('delete', currentLanguage)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
             </div>
           </div>
-        ) : (
-          <div className="text-center">
-            <div className="mb-2">
-              <FileAudio2 className="mx-auto h-6 w-6 text-slate-500 opacity-70" />
-            </div>
-            <p className="text-slate-500 text-sm mb-3">
-              {getLocaleString('noFileUploaded', currentLanguage)}
-            </p>
-            
-            {/* Smart suggestions */}
-            {suggestions && suggestions.length > 0 && (
-              <div className="space-y-1">
-                {suggestions.map((suggestion, index) => (
-                  <Button
-                    key={index}
-                    size="sm"
-                    variant="outline"
-                    className={`w-full h-7 text-xs ${
-                      suggestion.type === 'upload' 
-                        ? 'bg-green-600/20 border-green-500 text-green-300 hover:bg-green-600/40 hover:text-green-200'
-                        : 'bg-purple-600/20 border-purple-500 text-purple-300 hover:bg-purple-600/40 hover:text-purple-200'
-                    }`}
-                    onClick={() => {
-                      if (suggestion.action === 'translate_from_es') {
-                        // Handle translation from Spanish
-                        const englishEpisode = { slug: `${baseSlug}_en`, lang: 'en' };
-                        handleTranslateTranscriptFromSpanishForEnglish(englishEpisode, baseSlug);
-                      } else if (suggestion.action === 'translate_from_ru') {
-                        // Handle translation from Russian
-                        handleTranslateQuestionsToEnglish(baseSlug, 'ru');
-                      } else {
-                        // Handle upload using smart file upload
-                        handleSmartFileUpload(baseSlug, language);
-                      }
-                    }}
-                  >
-                    {suggestion.icon}
-                    {suggestion.text}
-                  </Button>
-                ))}
-              </div>
+
+          {/* Status indicators */}
+          <div className="flex flex-wrap gap-1">
+            {episode.transcript && episode.transcript.status !== 'completed' && (
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                episode.transcript.status === 'processing' ? 'bg-yellow-600 text-yellow-100' :
+                episode.transcript.status === 'error' ? 'bg-red-600 text-red-100' :
+                'bg-gray-600 text-gray-100'
+              }`}>
+                {episode.transcript.status === 'processing' ? getLocaleString('processing', currentLanguage) :
+                 episode.transcript.status === 'error' ? getLocaleString('error', currentLanguage) :
+                 getLocaleString('notStarted', currentLanguage)}
+              </span>
+            )}
+
+            {episode.duration && episode.duration > 0 && (
+              <span className="text-xs text-slate-400">
+                {formatDuration(episode.duration)}
+              </span>
             )}
           </div>
-        )}
-      </div>
-    );
-  };
+
+          {/* Action buttons */}
+          <div className="pt-2">
+            {getEpisodeActions(episode, baseSlug)}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center">
+          <div className="mb-2">
+            <FileAudio2 className="mx-auto h-6 w-6 text-slate-500 opacity-70" />
+          </div>
+          <p className="text-slate-500 text-sm mb-3">
+            {getLocaleString('noFileUploaded', currentLanguage)}
+          </p>
+
+          {/* Smart suggestions */}
+          {suggestions && suggestions.length > 0 && (
+            <div className="space-y-1">
+              {suggestions.map((suggestion, index) => (
+                <Button
+                  key={index}
+                  size="sm"
+                  variant="outline"
+                  className={`w-full h-7 text-xs ${
+                    suggestion.type === 'upload'
+                      ? 'bg-green-600/20 border-green-500 text-green-300 hover:bg-green-600/40 hover:text-green-200'
+                      : 'bg-purple-600/20 border-purple-500 text-purple-300 hover:bg-purple-600/40 hover:text-purple-200'
+                  }`}
+                  onClick={() => {
+                    if (suggestion.action === 'translate_from_es') {
+                      // Handle translation from Spanish
+                      const englishEpisode = { slug: `${baseSlug}_en`, lang: 'en' };
+                      handleTranslateTranscriptFromSpanishForEnglish(englishEpisode, baseSlug);
+                    } else if (suggestion.action === 'translate_from_ru') {
+                      // Handle translation from Russian
+                      handleTranslateQuestionsToEnglish(baseSlug, 'ru');
+                    } else {
+                      // Handle upload using smart file upload
+                      handleSmartFileUpload(baseSlug, language);
+                    }
+                  }}
+                >
+                  {suggestion.icon}
+                  {suggestion.text}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default ManageEpisodesPage;

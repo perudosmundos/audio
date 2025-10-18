@@ -133,34 +133,29 @@ class OfflineDataService {
 
   // Получение транзакции
   async getTransaction(storeNames, mode = 'readonly') {
-    // Если база данных еще не инициализирована, ждем инициализации
-    if (!this.db && this.initializing) {
-      console.log('🔄 Database is initializing, waiting...');
-      await this.initPromise;
-    }
-    
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-    
-    // Проверяем состояние базы данных
-    if (this.db.readyState !== 'open') {
-      console.warn('Database is not open, attempting to reinitialize...');
-      // Попробуем переинициализировать
-      await this.init();
-      if (this.db.readyState !== 'open') {
-        throw new Error('Database connection is not open');
-      }
-    }
-    
-    // Проверяем, что все хранилища существуют
-    for (const storeName of storeNames) {
-      if (!this.db.objectStoreNames.contains(storeName)) {
-        throw new Error(`Object store '${storeName}' does not exist`);
-      }
-    }
-    
     try {
+      // Если база данных не инициализирована или закрыта, инициализируем её
+      if (!this.db || this.db.readyState !== 'open') {
+        console.log('🔄 Initializing or reinitializing database...');
+        await this.init();
+      }
+
+      // Проверяем успешность инициализации
+      if (!this.db || this.db.readyState !== 'open') {
+        if (this.useFallback) {
+          console.log('Using fallback storage');
+          return null;
+        }
+        throw new Error('Database not initialized properly');
+      }
+
+      // Проверяем, что все хранилища существуют
+      for (const storeName of storeNames) {
+        if (!this.db.objectStoreNames.contains(storeName)) {
+          throw new Error(`Object store '${storeName}' does not exist`);
+        }
+      }
+
       const transaction = this.db.transaction(storeNames, mode);
       
       // Добавляем обработчики ошибок для транзакции
@@ -189,6 +184,11 @@ class OfflineDataService {
       return transaction;
     } catch (error) {
       console.error('Error creating transaction:', error);
+      if (error.name === 'InvalidStateError') {
+        console.log('Database connection was lost, attempting to reinitialize...');
+        this.db = null;
+        return this.getTransaction(storeNames, mode);
+      }
       throw new Error(`Ошибка создания транзакции: ${error.message}`);
     }
   }

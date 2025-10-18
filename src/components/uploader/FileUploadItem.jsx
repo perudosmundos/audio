@@ -12,6 +12,7 @@ const FileUploadItem = ({
   onTimingsChange,
   onTitleChange,
   onRemove,
+  onTranslateTimings,
   currentLanguage,
 }) => {
   const { 
@@ -96,6 +97,18 @@ const FileUploadItem = ({
       <div>
         <div className="flex justify-between items-center">
             <Label htmlFor={`timings-${itemData.id}`} className="text-xs text-slate-300">{getLocaleString('timingsQuestions', currentLanguage)}</Label>
+            {itemData.lang === 'es' && itemData.timingsText && !itemData.isTranslatingTimings && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onTranslateTimings && onTranslateTimings(itemData.id)}
+                className="h-6 px-2 text-xs bg-purple-600/20 border-purple-500 text-purple-300 hover:bg-purple-600/40 hover:text-purple-200"
+                title={getLocaleString('translateTimingsToEnglish', currentLanguage)}
+              >
+                <Languages className="h-3 w-3 mr-1" />
+                ES→EN
+              </Button>
+            )}
         </div>
         <Textarea
           id={`timings-${itemData.id}`}

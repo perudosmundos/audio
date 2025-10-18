@@ -146,17 +146,7 @@ const useFileUploadManager = (currentLanguage) => {
     }
   }, [filesToProcess, updateItemState, currentLanguage, toast]);
 
-  useEffect(() => {
-    filesToProcess.forEach(item => {
-      if (item.lang === 'es' && item.timingsText && !item.translationTriggered) {
-        const enItem = filesToProcess.find(i => i.originalFileId === item.originalFileId && i.lang === 'en');
-        if (enItem) {
-          updateItemState(item.id, { translationTriggered: true });
-          handleTranslateTimings(item.id);
-        }
-      }
-    });
-  }, [filesToProcess, handleTranslateTimings, updateItemState]);
+  // Automatic translation removed - now handled manually through UI buttons
 
 
   useEffect(() => {
@@ -169,24 +159,19 @@ const useFileUploadManager = (currentLanguage) => {
     const newItemsPromises = acceptedFiles.flatMap(async (file) => {
       const nameWithoutExt = getFileNameWithoutExtension(file.name);
       const langSuffixMatch = nameWithoutExt.match(/_([RUruESesENen]{2})$/i);
-      
+
       if (langSuffixMatch) {
         const lang = langSuffixMatch[1].toLowerCase();
-        if (lang === 'es') {
-           return Promise.all([
-            generateInitialItemData(file, 'es', currentLanguage, toast),
-            generateInitialItemData(file, 'en', currentLanguage, toast, 'es') 
-          ]);
-        }
+        // Only create the specific language version that matches the file suffix
+        // Remove automatic English version creation for Spanish files
         return [await generateInitialItemData(file, lang, currentLanguage, toast)];
       } else {
+        // For files without language suffixes, only create Spanish and Russian versions
+        // Remove automatic English version creation
         const esDataPromise = generateInitialItemData(file, 'es', currentLanguage, toast);
         const ruDataPromise = generateInitialItemData(file, 'ru', currentLanguage, toast);
-        
-        const esData = await esDataPromise;
-        const enDataPromise = generateInitialItemData(file, 'en', currentLanguage, toast, 'es', esData?.timingsText);
-        
-        return Promise.all([ruDataPromise, esDataPromise, enDataPromise]);
+
+        return Promise.all([esDataPromise, ruDataPromise]);
       }
     });
 
@@ -248,16 +233,7 @@ const useFileUploadManager = (currentLanguage) => {
 
   const handleTimingsChange = (itemUniqueId, newText) => {
     setFilesToProcess(prev => {
-        const updatedFiles = prev.map(item => item.id === itemUniqueId ? { ...item, timingsText: newText, translationTriggered: false } : item);
-        const changedItem = updatedFiles.find(item => item.id === itemUniqueId);
-
-        if (changedItem && changedItem.lang === 'es' && newText.trim()) {
-            const enItem = updatedFiles.find(item => item.originalFileId === changedItem.originalFileId && item.lang === 'en');
-            if (enItem) {
-                handleTranslateTimings(changedItem.id);
-            }
-        }
-        return updatedFiles;
+        return prev.map(item => item.id === itemUniqueId ? { ...item, timingsText: newText, translationTriggered: false } : item);
     });
   };
 
@@ -265,6 +241,8 @@ const useFileUploadManager = (currentLanguage) => {
   const handleTitleChange = (itemUniqueId, newTitle) => {
      setFilesToProcess(prev => prev.map(item => item.id === itemUniqueId ? { ...item, episodeTitle: newTitle } : item));
   };
+
+
   
   const handleRemoveItem = (itemIdToRemove) => {
      setFilesToProcess(prev => {
@@ -307,6 +285,7 @@ const useFileUploadManager = (currentLanguage) => {
     handleRemoveItem,
     confirmOverwrite,
     cancelOverwrite,
+    handleTranslateTimings,
     publishEpisode,
     isEpisodePublished,
   };
