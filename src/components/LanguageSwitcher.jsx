@@ -33,38 +33,22 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
   }, []);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-2 w-[140px] px-3 py-2 text-sm bg-slate-800/70 hover:bg-slate-700/70 text-slate-300 rounded-lg border border-slate-600/30 shadow-sm transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <currentLang.Flag className="w-4 h-4" />
-          <span>{currentLang.name}</span>
-        </div>
-        <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-1 rounded-lg overflow-hidden bg-slate-800/70 shadow-lg border border-slate-600/30 backdrop-blur-sm">
-          <div className="flex items-center p-1 gap-1">
-            {languages.map((lang) => (
-              <button
-                key={lang.code}
-                className={`px-3 py-1.5 text-sm flex items-center gap-2 rounded hover:bg-slate-700/70 transition-colors whitespace-nowrap
-                          ${currentLanguage === lang.code ? 'text-blue-300 font-medium bg-slate-700/40' : 'text-slate-300'}`}
-                onClick={() => handleLanguageChange(lang.code)}
-                title={lang.fullName}
-              >
-                <lang.Flag className="w-4 h-4" />
-                <span>{lang.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="flex items-center gap-1" ref={dropdownRef}>
+      {languages.map((lang) => (
+        <button
+          key={lang.code}
+          onClick={() => handleLanguageChange(lang.code)}
+          className={`flex items-center justify-center gap-1.5 px-2.5 py-2 text-sm transition-colors rounded-lg
+                    ${currentLanguage === lang.code 
+                      ? 'bg-slate-700/70 text-blue-300 font-medium border border-slate-600/30' 
+                      : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+                    }`}
+        >
+          <lang.Flag className="w-4 h-4" />
+          <span>{lang.name}</span>
+        </button>
+      ))}
+    </div>
     </div>
   );
 };
