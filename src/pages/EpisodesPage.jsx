@@ -21,6 +21,11 @@ const EpisodesPage = ({ currentLanguage }) => {
   const [error, setError] = useState(null);
   const [episodeQuestionsCount, setEpisodeQuestionsCount] = useState({});
 
+  const handleLanguageChange = (langCode) => {
+    localStorage.setItem('podcastLang', langCode);
+    window.location.reload();
+  };
+
   const [availableYears, setAvailableYears] = useState([]);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);

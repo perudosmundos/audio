@@ -16,9 +16,28 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
       setIsOpen(false);
       return;
     }
-    localStorage.setItem('podcastLang', langCode);
-    setIsOpen(false);
-    onLanguageChange(langCode);
+
+    try {
+      // Обновляем localStorage
+      localStorage.setItem('podcastLang', langCode);
+      
+      // Закрываем dropdown
+      setIsOpen(false);
+      
+      // Вызываем callback для обновления состояния и ждем его выполнения
+      if (onLanguageChange) {
+        onLanguageChange(langCode);
+      }
+
+      // Перезагружаем страницу после небольшой задержки
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } catch (error) {
+      console.error('Error changing language:', error);
+      // Если что-то пошло не так, все равно перезагружаем страницу
+      window.location.reload();
+    }
   };
 
   const currentLang = languages.find(lang => lang.code === currentLanguage);
