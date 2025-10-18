@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { HelpCircle } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
-const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLanguage }) => {
+const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLanguage, updateTimestamp }) => {
   const navigate = useNavigate();
 
   if (!questions || questions.length === 0) {
@@ -20,7 +20,7 @@ const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLangua
   };
 
   return (
-    <div className="mt-3 pl-2">
+    <div key={`questions-${episodeSlug}-${updateTimestamp || ''}`} className="mt-3 pl-2">
       <div className="text-xs text-purple-300 font-semibold mb-1 py-1">
         {getLocaleString('questions', currentLanguage)} ({questions.length})
       </div>

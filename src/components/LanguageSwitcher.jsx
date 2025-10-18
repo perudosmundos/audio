@@ -33,22 +33,34 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
   }, []);
 
   return (
-    <div className="flex items-center gap-1" ref={dropdownRef}>
-      {languages.map((lang) => (
-        <button
-          key={lang.code}
-          onClick={() => handleLanguageChange(lang.code)}
-          className={`flex items-center justify-center gap-1.5 px-2.5 py-2 text-sm transition-colors rounded-lg
-                    ${currentLanguage === lang.code 
-                      ? 'bg-slate-700/70 text-blue-300 font-medium border border-slate-600/30' 
-                      : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
-                    }`}
-        >
-          <lang.Flag className="w-4 h-4" />
-          <span>{lang.name}</span>
-        </button>
-      ))}
-    </div>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="transition-all rounded-lg px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 bg-[#1E1B4B]/90 hover:bg-[#1E1B4B] text-white/90 min-w-[60px] border border-gray-600/30 shadow-sm"
+      >
+        <currentLang.Flag className="w-5 h-5" />
+        <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-40 rounded-lg overflow-hidden bg-[#1E1B4B]/95 shadow-lg border border-gray-600/30 backdrop-blur-sm">
+          <div className="py-1">
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#2D2A5A] transition-colors
+                          ${currentLanguage === lang.code ? 'text-blue-300 font-medium bg-[#2D2A5A]/50' : 'text-white/90'}`}
+                onClick={() => handleLanguageChange(lang.code)}
+              >
+                <lang.Flag className="w-4 h-4" />
+                <span>{lang.fullName}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

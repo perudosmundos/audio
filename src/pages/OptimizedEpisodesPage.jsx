@@ -328,6 +328,10 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
     <div className="container mx-auto p-2 sm:p-4 max-w-2xl">
       <EpisodesPageHeader 
         currentLanguage={currentLanguage}
+        onLanguageChange={(langCode) => {
+          localStorage.setItem('podcastLang', langCode);
+          window.location.reload();
+        }}
       />
       <FilterAndSearchControls
         years={availableYears}
@@ -340,8 +344,8 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
         onResetFilters={handleResetFilters}
       />
 
-      {filteredEpisodes.length === 0 ? (
-        <EmptyState currentLanguage={currentLanguage} />
+      {(loading || filteredEpisodes.length === 0) ? (
+        <EmptyState currentLanguage={currentLanguage} isLoading={loading} />
       ) : (
         <OptimizedEpisodesList 
           episodes={filteredEpisodes} 

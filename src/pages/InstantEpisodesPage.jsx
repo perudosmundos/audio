@@ -9,7 +9,7 @@ import FilterAndSearchControls from '@/components/episodes/FilterAndSearchContro
 import EmptyState from '@/components/episodes/EmptyState';
 import cacheIntegration from '@/lib/cacheIntegration';
 
-const InstantEpisodesPage = ({ currentLanguage }) => {
+const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
   const [episodes, setEpisodes] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
   const [loading, setLoading] = useState(false); // Только для индикатора обновления
@@ -276,18 +276,9 @@ const InstantEpisodesPage = ({ currentLanguage }) => {
     <div className="container mx-auto p-2 sm:p-4 max-w-2xl">
       <EpisodesPageHeader 
         currentLanguage={currentLanguage}
+        onLanguageChange={onLanguageChange}
       />
       
-      {/* Индикатор загрузки только при обновлении */}
-      {loading && (
-        <div className="flex justify-center mb-4">
-          <div className="flex items-center gap-2 bg-blue-500/20 px-4 py-2 rounded-lg">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">{getLocaleString('loadingEpisodes', currentLanguage)}</span>
-          </div>
-        </div>
-      )}
-
       <FilterAndSearchControls
         years={availableYears}
         months={availableMonths}
@@ -299,9 +290,9 @@ const InstantEpisodesPage = ({ currentLanguage }) => {
         onResetFilters={handleResetFilters}
       />
 
-      {/* Всегда показываем интерфейс, даже если данных нет */}
-      {filteredEpisodes.length === 0 ? (
-        <EmptyState currentLanguage={currentLanguage} />
+      {/* Показываем состояние загрузки или пустое состояние */}
+      {(loading || filteredEpisodes.length === 0) ? (
+        <EmptyState currentLanguage={currentLanguage} isLoading={loading} />
       ) : (
         <EpisodesList 
           episodes={filteredEpisodes} 

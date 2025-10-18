@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import EpisodesList from '@/components/episodes/EpisodesList';
 import EpisodesPageHeader from '@/components/episodes/EpisodesPageHeader';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import FilterAndSearchControls from '@/components/episodes/FilterAndSearchControls';
 import EmptyState from '@/components/episodes/EmptyState';
 import offlineDataService from '@/lib/offlineDataService';
+import { useTelegram } from '@/contexts/TelegramContext';
 
 const EpisodesPage = ({ currentLanguage }) => {
+  const { user, isReady } = useTelegram();
+  const navigate = useNavigate();
   const [episodes, setEpisodes] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +25,9 @@ const EpisodesPage = ({ currentLanguage }) => {
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
+  const [updateTimestamp, setUpdateTimestamp] = useState(null);
+
+  const showManageButton = isReady && user && user.username === 'de_paz';
 
   const monthLabels = [
     "january", "february", "march", "april", "may", "june", 
@@ -147,6 +155,7 @@ const EpisodesPage = ({ currentLanguage }) => {
       setAvailableYears(Array.from(years).sort((a,b) => Number(b) - Number(a)));
       setEpisodeQuestionsCount(counts);
       setEpisodes(langFilteredEpisodes);
+      setUpdateTimestamp(Date.now());
 
     } catch (err) {
       console.warn('❌ Ошибка загрузки с сервера:', err);
@@ -245,7 +254,8 @@ const EpisodesPage = ({ currentLanguage }) => {
             setAvailableYears(Array.from(years).sort((a,b) => Number(b) - Number(a)));
             setEpisodeQuestionsCount(counts);
             setEpisodes(langFilteredEpisodes);
-            
+            setUpdateTimestamp(Date.now());
+
             console.log('✅ Офлайн данные успешно загружены:', {
               episodes: langFilteredEpisodes.length,
               questions: allCachedQuestions.length,
@@ -287,18 +297,25 @@ const EpisodesPage = ({ currentLanguage }) => {
   }, [currentLanguage]);
 
   useEffect(() => {
-    fetchEpisodesAndData();
-    const channel = supabase
-      .channel('episodes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, fetchEpisodesAndData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, fetchEpisodesAndData)
-      .subscribe();
+    const fetchAndSetupSubscription = async () => {
+      await fetchEpisodesAndData();
+      
+      const channel = supabase
+        .channel('episodes-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, fetchEpisodesAndData)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, fetchEpisodesAndData)
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
 
-  }, [currentLanguage]); // Changed dependency to currentLanguage instead of fetchEpisodesAndData
+    const cleanup = fetchAndSetupSubscription();
+    return () => {
+      if (cleanup) cleanup.then(fn => fn());
+    };
+  }, [currentLanguage, fetchEpisodesAndData]);
 
   // Автоматическая загрузка из кеша при офлайн режиме
   useEffect(() => {
@@ -321,8 +338,10 @@ const EpisodesPage = ({ currentLanguage }) => {
             // Загружаем вопросы из кеша
             const allCachedQuestions = [];
             for (const episode of langFilteredEpisodes) {
-              for (const lang of ['ru', 'es', 'en']) {
-                const questions = await offlineDataService.getQuestions(episode.slug, lang);
+              // Only load questions for current language or episode's specific language
+              const effectiveLang = episode.lang === 'all' ? currentLanguage : episode.lang;
+              const questions = await offlineDataService.getQuestions(episode.slug, effectiveLang);
+              if (questions.length > 0) {
                 allCachedQuestions.push(...questions);
               }
             }
@@ -348,8 +367,9 @@ const EpisodesPage = ({ currentLanguage }) => {
             setAvailableYears(Array.from(years).sort((a,b) => Number(b) - Number(a)));
             setEpisodeQuestionsCount(counts);
             setEpisodes(langFilteredEpisodes);
+            setUpdateTimestamp(Date.now());
             setError(null);
-            
+
             console.log('✅ Автоматически загружены офлайн данные:', {
               episodes: langFilteredEpisodes.length,
               questions: allCachedQuestions.length,
@@ -399,6 +419,24 @@ const EpisodesPage = ({ currentLanguage }) => {
     return tempEpisodes;
   }, [episodes, selectedYear, selectedMonth]);
 
+  // Compute questions that should be displayed for current language and filtered episodes.
+  // This creates a new array when currentLanguage, episodes or allQuestions change so
+  // downstream memoized components receive updated props and re-render correctly.
+  const displayedQuestions = useMemo(() => {
+    if (!allQuestions || allQuestions.length === 0) return [];
+
+    // Build a set of visible episode slugs to limit filtering cost
+    const visibleSlugs = new Set(filteredEpisodes.map(ep => ep.slug));
+
+    return allQuestions.filter(q => {
+      if (!visibleSlugs.has(q.episode_slug)) return false;
+      const ep = episodes.find(e => e.slug === q.episode_slug);
+      if (!ep) return false;
+      const effectiveLang = ep.lang === 'all' ? currentLanguage : ep.lang;
+      return q.lang === effectiveLang;
+    });
+  }, [allQuestions, filteredEpisodes, episodes, currentLanguage]);
+
 
   if (loading) {
     return (
@@ -433,31 +471,49 @@ const EpisodesPage = ({ currentLanguage }) => {
   }
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 max-w-2xl">
-      <EpisodesPageHeader 
-        currentLanguage={currentLanguage}
-      />
-      <FilterAndSearchControls
-        years={availableYears}
-        months={availableMonths}
-        selectedYear={selectedYear}
-        setSelectedYear={setSelectedYear}
-        selectedMonth={selectedMonth}
-        setSelectedMonth={setSelectedMonth}
-        currentLanguage={currentLanguage}
-        onResetFilters={handleResetFilters}
-      />
-
-      {filteredEpisodes.length === 0 ? (
-        <EmptyState currentLanguage={currentLanguage} />
-      ) : (
-        <EpisodesList 
-          episodes={filteredEpisodes} 
-          currentLanguage={currentLanguage} 
-          episodeQuestionsCount={episodeQuestionsCount}
-          allQuestions={allQuestions}
-        />
+    <div className="relative min-h-screen">
+      {showManageButton && (
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={() => navigate('/manage')}
+            className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 py-2 px-3 rounded-lg text-sm whitespace-nowrap"
+          >
+            {getLocaleString('manageAndUploadTitle', currentLanguage)}
+          </button>
+        </div>
       )}
+
+      <div className="container mx-auto p-2 sm:p-4 max-w-2xl">
+        <EpisodesPageHeader
+          currentLanguage={currentLanguage}
+          onLanguageChange={(langCode) => {
+            localStorage.setItem('podcastLang', langCode);
+            window.location.reload();
+          }}
+        />
+        <FilterAndSearchControls
+          years={availableYears}
+          months={availableMonths}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          selectedMonth={selectedMonth}
+          setSelectedMonth={setSelectedMonth}
+          currentLanguage={currentLanguage}
+          onResetFilters={handleResetFilters}
+        />
+
+        {(loading || filteredEpisodes.length === 0) ? (
+          <EmptyState currentLanguage={currentLanguage} isLoading={loading} />
+        ) : (
+          <EpisodesList
+            episodes={filteredEpisodes}
+            currentLanguage={currentLanguage}
+            episodeQuestionsCount={episodeQuestionsCount}
+            allQuestions={displayedQuestions}
+            updateTimestamp={updateTimestamp}
+          />
+        )}
+      </div>
     </div>
   );
 };

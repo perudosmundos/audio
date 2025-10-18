@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import EpisodeListItem from './EpisodeListItem';
 
 const OptimizedEpisodesList = React.memo(({ 
@@ -56,23 +56,32 @@ const OptimizedEpisodesList = React.memo(({
     return null; 
   }
 
+  const filteredEpisodeQuestions = useMemo(() => {
+    return episodes.map(episode => {
+      const effectiveLang = episode.lang === 'all' ? currentLanguage : episode.lang;
+      return {
+        episodeSlug: episode.slug,
+        questions: allQuestions.filter(q => q.episode_slug === episode.slug && q.lang === effectiveLang) || [],
+        questionsCount: episodeQuestionsCount[episode.slug]?.[effectiveLang] || 0
+      };
+    });
+  }, [episodes, currentLanguage, episodeQuestionsCount, allQuestions]);
+
   return (
     <ul className="space-y-4 animate-fade-in">
-      {episodes.map((episode, index) => {
-        const effectiveLang = episode.lang === 'all' ? currentLanguage : episode.lang;
-        const questionsForThisEpisode = allQuestions.filter(q => q.episode_slug === episode.slug && q.lang === effectiveLang) || [];
-        const questionsCount = episodeQuestionsCount[episode.slug]?.[effectiveLang] || 0;
+      {filteredEpisodeQuestions.map((episodeData) => {
+        const episode = episodes.find(ep => ep.slug === episodeData.episodeSlug);
                                           
         return (
           <li 
-            key={episode.slug + '-' + effectiveLang}
+            key={`${episode.slug}-${episode.lang === 'all' ? currentLanguage : episode.lang}`}
             ref={(el) => attachObserver(el, episode.slug)}
           >
             <EpisodeListItem
               episode={episode}
               currentLanguage={currentLanguage}
-              questionsCount={questionsCount}
-              questionsForEpisode={questionsForThisEpisode}
+              questionsCount={episodeData.questionsCount}
+              questionsForEpisode={episodeData.questions}
             />
           </li>
         );

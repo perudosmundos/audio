@@ -6,7 +6,7 @@ import EpisodeCacheControls from './EpisodeCacheControls';
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { formatFullTime, formatShortDate } from '@/lib/utils';
 
-const EpisodeListItem = React.memo(({ episode, currentLanguage, questionsCount, questionsForEpisode }) => {
+const EpisodeListItem = React.memo(({ episode, currentLanguage, questionsCount, questionsForEpisode, updateTimestamp }) => {
   
   const formatEpisodeTitle = (title, episodeDate) => {
     const prefix = getLocaleString('meditationTitlePrefix', currentLanguage);
@@ -53,6 +53,7 @@ const EpisodeListItem = React.memo(({ episode, currentLanguage, questionsCount, 
           questions={questionsForEpisode}
           episodeSlug={episode.slug}
           currentLanguage={currentLanguage}
+          updateTimestamp={updateTimestamp}
         />
       </div>
     </li>
