@@ -35,8 +35,12 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="transition-all rounded-lg px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 bg-[#1E1B4B]/90 hover:bg-[#1E1B4B] text-white/90 min-w-[60px] border border-gray-600/30 shadow-sm"
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          setIsOpen(!isOpen);
+        }}
+        className="transition-all rounded-lg px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 bg-slate-800/70 hover:bg-slate-700/70 text-slate-300 rounded-lg border border-slate-600/30 shadow-sm cursor-pointer"
       >
         <currentLang.Flag className="w-5 h-5" />
         <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,9 +54,14 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
             {languages.map((lang) => (
               <button
                 key={lang.code}
-                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#2D2A5A] transition-colors
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleLanguageChange(lang.code);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#2D2A5A] transition-colors cursor-pointer
                           ${currentLanguage === lang.code ? 'text-blue-300 font-medium bg-[#2D2A5A]/50' : 'text-white/90'}`}
-                onClick={() => handleLanguageChange(lang.code)}
               >
                 <lang.Flag className="w-4 h-4" />
                 <span>{lang.fullName}</span>
