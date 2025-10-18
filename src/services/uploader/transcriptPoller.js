@@ -48,8 +48,9 @@ const handleSpanishTranscriptCompletion = async (esTranscriptPayload, episodeSlu
         total,
         message
       });
-      
+
       // Note: Progress updates can't be sent here because the English item may not exist in UI yet
+      // Прогресс будет отображаться в логах для отладки
     };
     
           const translatedTranscriptPayload = await translateTranscriptFast(esTranscriptPayload, 'en', 'en', onTranslationProgress);
@@ -75,7 +76,13 @@ const handleSpanishTranscriptCompletion = async (esTranscriptPayload, episodeSlu
         utterances: compactTranslated.utterances?.length || 0,
         processedUtterances: processedTranslated?.utterances?.length || 0
       });
-    } catch (_) {}
+    } catch (error) {
+      // Игнорируем ошибки при подсчете размера для логирования
+      logger.debug('[pollTranscriptStatus] Could not calculate transcript size for logging', {
+        episodeSlug,
+        error: error?.message || String(error)
+      });
+    }
     
     const upsertPayload = {
       episode_slug: episodeSlug,

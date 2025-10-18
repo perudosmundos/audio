@@ -132,6 +132,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
       startBackgroundTranscriptLoading(episodesData);
       
     } catch (err) {
+      console.error('Error in loadFreshData:', err);
       throw err;
     }
   };

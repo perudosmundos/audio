@@ -257,7 +257,10 @@ const UploadPage = ({ currentLanguage }) => {
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             onBlur={() => {
-              try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch {}
+              // Сохраняем API ключ при потере фокуса
+              try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch (error) {
+                console.warn('Failed to save API key to localStorage:', error);
+              }
             }}
             placeholder="sk_..."
             className="w-full h-9 px-3 rounded bg-slate-800 border border-slate-600 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -269,7 +272,23 @@ const UploadPage = ({ currentLanguage }) => {
               variant="secondary"
               className="bg-purple-600 hover:bg-purple-700 text-white"
               onClick={() => {
-                try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch {}
+                // Сохраняем API ключ при нажатии кнопки
+                try {
+                  localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim());
+                  toast({
+                    title: "✅ API ключ сохранен",
+                    description: "Ключ AssemblyAI успешно сохранен в браузере",
+                    duration: 3000
+                  });
+                } catch (error) {
+                  console.warn('Failed to save API key to localStorage:', error);
+                  toast({
+                    title: "❌ Ошибка сохранения",
+                    description: "Не удалось сохранить API ключ",
+                    variant: "destructive",
+                    duration: 3000
+                  });
+                }
               }}
             >Сохранить</Button>
           </div>
@@ -349,14 +368,19 @@ const UploadPage = ({ currentLanguage }) => {
         </Button>
       </div>
 
-      <OverwriteDialog 
-        isOpen={showOverwriteDialog}
-        onOpenChange={() => {}} 
-        onConfirm={confirmOverwrite}
-        onCancel={cancelOverwrite}
-        slug={currentItemForOverwrite?.episodeSlug || ''}
-        currentLanguage={currentLanguage}
-      />
+      {showOverwriteDialog && (
+        <OverwriteDialog
+          isOpen={showOverwriteDialog}
+          onOpenChange={() => {
+            // Обработчик изменения состояния модального окна
+            // Пока не используется, но может быть расширен в будущем
+          }}
+          onConfirm={confirmOverwrite}
+          onCancel={cancelOverwrite}
+          slug={currentItemForOverwrite?.episodeSlug || ''}
+          currentLanguage={currentLanguage}
+        />
+      )}
     </div>
   );
 };

@@ -1,18 +1,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import FooterLanguageSwitcher from '@/components/FooterLanguageSwitcher';
 import CacheSettings from '@/components/CacheSettings';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 import { TelegramProvider } from '@/contexts/TelegramContext';
 import { getLocaleString } from '@/lib/locales';
-import EpisodesPage from '@/pages/EpisodesPage';
-import OptimizedEpisodesPage from '@/pages/OptimizedEpisodesPage';
 import InstantEpisodesPage from '@/pages/InstantEpisodesPage';
 import PlayerPage from '@/pages/PlayerPage';
-import ManagePage from '@/pages/ManageEpisodesPage'; 
+import ManagePage from '@/pages/ManageEpisodesPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import DeepSearchPage from '@/pages/DeepSearchPage';
 import UploadPage from '@/pages/UploadPage';
@@ -20,8 +17,6 @@ import SpotifyUploadPage from '@/pages/SpotifyUploadPage';
 import OfflineSettingsPage from '@/pages/OfflineSettingsPage';
 import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import syncService from '@/lib/syncService';
-import enhancedCacheService from '@/lib/enhancedCacheService';
 import cacheIntegration from '@/lib/cacheIntegration';
 import { useToast } from '@/components/ui/use-toast';
 
