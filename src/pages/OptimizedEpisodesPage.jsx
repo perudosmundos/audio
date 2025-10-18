@@ -28,6 +28,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
 
   const visibleEpisodesRef = useRef(new Set()); // Отслеживаем видимые эпизоды
   const hasInitializedCache = useRef(false);
+  const lastBackgroundRefresh = useRef(0); // Время последнего фонового обновления
 
   // Инициализация кэша
   useEffect(() => {
@@ -56,21 +57,26 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
     console.log('🚀 Optimized fetchEpisodesAndData started');
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Сначала пытаемся загрузить из кэша
-      const cachedEpisodes = await optimizedCacheService.smartGet('episodes', 'all');
-      
+      // Сначала пытаемся загрузить из кэша с таймаутом
+      const cachedEpisodes = await Promise.race([
+        optimizedCacheService.smartGet('episodes', 'all'),
+        new Promise(resolve => setTimeout(() => resolve(null), 2000)) // 2 секунды таймаут
+      ]);
+
       if (cachedEpisodes && cachedEpisodes.length > 0) {
         console.log('📦 Using cached episodes:', cachedEpisodes.length);
         await processEpisodesData(cachedEpisodes, true);
-        
-        // Загружаем свежие данные в фоне
-        loadFreshDataInBackground();
+
+        // Загружаем свежие данные в фоне только если страница активна
+        if (!document.hidden) {
+          loadFreshDataInBackground();
+        }
         return;
       }
 
-      // Если кэша нет, загружаем свежие данные
+      // Если кэша нет или он устарел, загружаем свежие данные
       await loadFreshData();
     } catch (err) {
       console.error('❌ Error in fetchEpisodesAndData:', err);
@@ -140,6 +146,14 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
   // Фоновая загрузка свежих данных
   const loadFreshDataInBackground = async () => {
     try {
+      // Ограничиваем частоту фоновых обновлений (не чаще чем раз в 5 минут)
+      const now = Date.now();
+      if (now - lastBackgroundRefresh.current < 5 * 60 * 1000) {
+        console.debug('⏳ Background refresh skipped - too frequent');
+        return;
+      }
+      lastBackgroundRefresh.current = now;
+
       const { data: episodesData, error: episodesError } = await supabase
         .from('episodes')
         .select('slug, title, lang, audio_url, duration, date, created_at, file_has_lang_suffix, r2_object_key, r2_bucket_name')
@@ -151,7 +165,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
           await optimizedCacheService.smartCache('episodes', episode.slug, episode, 'normal');
         }
         await optimizedCacheService.smartCache('episodes', 'all', episodesData, 'normal');
-        
+
         console.log('🔄 Background data refresh completed');
       }
     } catch (err) {

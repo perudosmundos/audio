@@ -302,65 +302,78 @@ class OptimizedCacheService {
   // Управление размером кэша с приоритетом пользовательских данных
   async manageCacheSize(type, strategy) {
     try {
-      const transaction = offlineDataService.getTransaction([this.getStoreName(type)]);
-      const store = transaction.objectStore(this.getStoreName(type));
-      
+      const storeName = this.getStoreName(type);
+      const transaction = await offlineDataService.getTransaction([storeName]);
+      if (!transaction) {
+        logger.warn(`[OptimizedCache] Could not create transaction for ${type} cache management`);
+        return;
+      }
+      const store = transaction.objectStore(storeName);
+
       return new Promise((resolve, reject) => {
         const request = store.getAll();
         request.onsuccess = async () => {
           const items = request.result;
-          
+
           if (items.length <= strategy.maxSize) {
             resolve();
             return;
           }
 
           logger.debug(`[OptimizedCache] Cache size exceeded for ${type}, cleaning up...`);
-          
+
           // Сортируем с приоритетом пользовательских данных
           const sortedItems = items
             .filter(item => item.cache_metadata)
             .sort((a, b) => {
-              const aIsUser = this.userInteractionData.has(`${type}:${this.getItemKey(type, a)}`);
-              const bIsUser = this.userInteractionData.has(`${type}:${this.getItemKey(type, b)}`);
-              
+              const aKey = this.getItemKey(type, a);
+              const bKey = this.getItemKey(type, b);
+              const aIsUser = aKey ? this.userInteractionData.has(`${type}:${aKey}`) : false;
+              const bIsUser = bKey ? this.userInteractionData.has(`${type}:${bKey}`) : false;
+
               // Пользовательские данные имеют высший приоритет
               if (aIsUser && !bIsUser) return -1;
               if (!aIsUser && bIsUser) return 1;
-              
+
               const aPriority = this.getPriorityWeight(a.cache_metadata.priority);
               const bPriority = this.getPriorityWeight(b.cache_metadata.priority);
-              
+
               if (aPriority !== bPriority) {
                 return aPriority - bPriority;
               }
-              
+
               // При одинаковом приоритете удаляем менее используемые
-              const aScore = (a.cache_metadata.access_count || 0) / 
+              const aScore = (a.cache_metadata.access_count || 0) /
                            Math.max(1, Date.now() - a.cache_metadata.last_accessed);
-              const bScore = (b.cache_metadata.access_count || 0) / 
+              const bScore = (b.cache_metadata.access_count || 0) /
                            Math.max(1, Date.now() - b.cache_metadata.last_accessed);
-              
+
               return aScore - bScore;
             });
 
           // Удаляем элементы до достижения целевого размера
           const targetSize = Math.floor(strategy.maxSize * 0.8);
           const itemsToDelete = sortedItems.slice(0, items.length - targetSize);
-          
-          const deleteTransaction = offlineDataService.getTransaction([this.getStoreName(type)], 'readwrite');
-          const deleteStore = deleteTransaction.objectStore(this.getStoreName(type));
-          
-          for (const item of itemsToDelete) {
-            const key = this.getItemKey(type, item);
-            if (key) {
-              deleteStore.delete(key);
-              // Удаляем из пользовательских данных
-              this.userInteractionData.delete(`${type}:${key}`);
+
+          if (itemsToDelete.length > 0) {
+            const deleteTransaction = offlineDataService.getTransaction([storeName], 'readwrite');
+            const deleteStore = deleteTransaction.objectStore(storeName);
+
+            for (const item of itemsToDelete) {
+              const key = this.getItemKey(type, item);
+              if (key) {
+                try {
+                  deleteStore.delete(key);
+                  // Удаляем из пользовательских данных
+                  this.userInteractionData.delete(`${type}:${key}`);
+                } catch (deleteError) {
+                  logger.warn(`[OptimizedCache] Failed to delete item ${key}:`, deleteError);
+                }
+              }
             }
+
+            logger.debug(`[OptimizedCache] Removed ${itemsToDelete.length} items from ${type} cache`);
           }
-          
-          logger.debug(`[OptimizedCache] Removed ${itemsToDelete.length} items from ${type} cache`);
           resolve();
         };
         request.onerror = () => reject(request.error);
@@ -426,7 +439,11 @@ class OptimizedCacheService {
       
       for (const [type, strategy] of Object.entries(this.cacheStrategies)) {
         const storeName = this.getStoreName(type);
-        const transaction = offlineDataService.getTransaction([storeName]);
+        const transaction = await offlineDataService.getTransaction([storeName]);
+        if (!transaction) {
+          logger.warn(`[OptimizedCache] Could not create transaction for ${type} stats`);
+          continue;
+        }
         const store = transaction.objectStore(storeName);
         
         const typeStats = await new Promise((resolve, reject) => {
@@ -496,7 +513,11 @@ class OptimizedCacheService {
       
       for (const [type, strategy] of Object.entries(this.cacheStrategies)) {
         const storeName = this.getStoreName(type);
-        const transaction = offlineDataService.getTransaction([storeName], 'readwrite');
+        const transaction = await offlineDataService.getTransaction([storeName], 'readwrite');
+        if (!transaction) {
+          logger.warn(`[OptimizedCache] Could not create transaction for ${type} cleanup`);
+          continue;
+        }
         const store = transaction.objectStore(storeName);
         
         await new Promise((resolve, reject) => {

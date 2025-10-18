@@ -241,9 +241,19 @@ class OfflineDataService {
   }
 
   async getEpisode(slug) {
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      const key = `episode_${slug}`;
+      return this.fallbackStorage.get(key) || null;
+    }
+
     const transaction = await this.getTransaction(['episodes']);
+    if (!transaction) {
+      return null;
+    }
+
     const store = transaction.objectStore('episodes');
-    
+
     return new Promise((resolve, reject) => {
       const request = store.get(slug);
       request.onsuccess = () => resolve(request.result);
@@ -264,8 +274,12 @@ class OfflineDataService {
     }
 
     const transaction = await this.getTransaction(['episodes']);
+    if (!transaction) {
+      return [];
+    }
+
     const store = transaction.objectStore('episodes');
-    
+
     return new Promise((resolve, reject) => {
       const request = store.getAll();
       request.onsuccess = () => {
@@ -518,9 +532,19 @@ class OfflineDataService {
   // --- АУДИОФАЙЛЫ ---
   
   async saveAudioFileMetadata(url, episodeSlug, size = null) {
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      // В fallback режиме просто возвращаем URL как результат
+      return url;
+    }
+
     const transaction = await this.getTransaction(['audioFiles'], 'readwrite');
+    if (!transaction) {
+      return url;
+    }
+
     const store = transaction.objectStore('audioFiles');
-    
+
     const audioData = {
       url,
       episode_slug: episodeSlug,
@@ -528,7 +552,7 @@ class OfflineDataService {
       cached_at: Date.now(),
       last_accessed: Date.now()
     };
-    
+
     return new Promise((resolve, reject) => {
       const request = store.put(audioData);
       request.onsuccess = () => resolve(request.result);
@@ -537,9 +561,19 @@ class OfflineDataService {
   }
 
   async getAudioFileMetadata(url) {
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      // В fallback режиме возвращаем null для метаданных аудио
+      return null;
+    }
+
     const transaction = await this.getTransaction(['audioFiles']);
+    if (!transaction) {
+      return null;
+    }
+
     const store = transaction.objectStore('audioFiles');
-    
+
     return new Promise((resolve, reject) => {
       const request = store.get(url);
       request.onsuccess = () => resolve(request.result);
@@ -548,9 +582,19 @@ class OfflineDataService {
   }
 
   async updateAudioFileAccess(url) {
+    // Если используем fallback хранилище
+    if (this.useFallback) {
+      // В fallback режиме просто возвращаем успешно
+      return;
+    }
+
     const transaction = await this.getTransaction(['audioFiles'], 'readwrite');
+    if (!transaction) {
+      return;
+    }
+
     const store = transaction.objectStore('audioFiles');
-    
+
     return new Promise((resolve, reject) => {
       const getRequest = store.get(url);
       getRequest.onsuccess = () => {
@@ -765,48 +809,56 @@ class OfflineDataService {
 
       // Подсчитываем количество эпизодов
       try {
-        const episodeTransaction = this.getTransaction(['episodes']);
-        const episodeStore = episodeTransaction.objectStore('episodes');
-        const episodeRequest = episodeStore.count();
-        episodeRequest.onsuccess = () => {
-          stats.episodeCount = episodeRequest.result;
-        };
+        const episodeTransaction = await this.getTransaction(['episodes']);
+        if (episodeTransaction) {
+          const episodeStore = episodeTransaction.objectStore('episodes');
+          const episodeRequest = episodeStore.count();
+          episodeRequest.onsuccess = () => {
+            stats.episodeCount = episodeRequest.result;
+          };
+        }
       } catch (error) {
         console.warn('Error counting episodes:', error);
       }
 
       // Подсчитываем количество транскриптов
       try {
-        const transcriptTransaction = this.getTransaction(['transcripts']);
-        const transcriptStore = transcriptTransaction.objectStore('transcripts');
-        const transcriptRequest = transcriptStore.count();
-        transcriptRequest.onsuccess = () => {
-          stats.transcriptCount = transcriptRequest.result;
-        };
+        const transcriptTransaction = await this.getTransaction(['transcripts']);
+        if (transcriptTransaction) {
+          const transcriptStore = transcriptTransaction.objectStore('transcripts');
+          const transcriptRequest = transcriptStore.count();
+          transcriptRequest.onsuccess = () => {
+            stats.transcriptCount = transcriptRequest.result;
+          };
+        }
       } catch (error) {
         console.warn('Error counting transcripts:', error);
       }
 
       // Подсчитываем количество вопросов
       try {
-        const questionTransaction = this.getTransaction(['questions']);
-        const questionStore = questionTransaction.objectStore('questions');
-        const questionRequest = questionStore.count();
-        questionRequest.onsuccess = () => {
-          stats.questionCount = questionRequest.result;
-        };
+        const questionTransaction = await this.getTransaction(['questions']);
+        if (questionTransaction) {
+          const questionStore = questionTransaction.objectStore('questions');
+          const questionRequest = questionStore.count();
+          questionRequest.onsuccess = () => {
+            stats.questionCount = questionRequest.result;
+          };
+        }
       } catch (error) {
         console.warn('Error counting questions:', error);
       }
 
       // Подсчитываем количество элементов в очереди синхронизации
       try {
-        const syncTransaction = this.getTransaction(['syncQueue']);
-        const syncStore = syncTransaction.objectStore('syncQueue');
-        const syncRequest = syncStore.count();
-        syncRequest.onsuccess = () => {
-          stats.syncQueueCount = syncRequest.result;
-        };
+        const syncTransaction = await this.getTransaction(['syncQueue']);
+        if (syncTransaction) {
+          const syncStore = syncTransaction.objectStore('syncQueue');
+          const syncRequest = syncStore.count();
+          syncRequest.onsuccess = () => {
+            stats.syncQueueCount = syncRequest.result;
+          };
+        }
       } catch (error) {
         console.warn('Error counting sync queue:', error);
       }

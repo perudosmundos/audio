@@ -259,16 +259,20 @@ class AudioCacheService {
         
         for (const file of sortedFiles) {
           if (freedSpace >= targetSpace) break;
-          
+
           await cache.delete(file.request);
+
+          // Проверяем, что транзакция была создана успешно
           const transaction = await offlineDataService.getTransaction(['audioFiles'], 'readwrite');
-          const store = transaction.objectStore('audioFiles');
-          await new Promise((resolve, reject) => {
-            const request = store.delete(file.url);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-          });
-          
+          if (transaction) {
+            const store = transaction.objectStore('audioFiles');
+            await new Promise((resolve, reject) => {
+              const request = store.delete(file.url);
+              request.onsuccess = () => resolve();
+              request.onerror = () => reject(request.error);
+            });
+          }
+
           freedSpace += file.size;
           console.log('[AudioCache] Removed from cache:', file.url);
         }
@@ -308,6 +312,16 @@ class AudioCacheService {
       // Удаляем метаданные из IndexedDB
       await offlineDataService.init();
       const transaction = await offlineDataService.getTransaction(['audioFiles'], 'readwrite');
+
+      // Проверяем, что транзакция была создана успешно
+      if (!transaction) {
+        console.warn('[AudioCache] Could not create transaction for removal, but continuing...');
+        // Уведомляем слушателей об удалении
+        this.notifyDownloadListeners('remove_complete', { url });
+        console.log('[AudioCache] Removed audio from cache (SW only):', url);
+        return true;
+      }
+
       const store = transaction.objectStore('audioFiles');
       await new Promise((resolve, reject) => {
         const request = store.delete(url);

@@ -26,7 +26,7 @@ const OptimizedEpisodesList = React.memo(({
               }
             }
           });
-          
+
           // Уведомляем родительский компонент об изменениях
           onEpisodeVisibilityChange(Array.from(visibleEpisodesRef.current));
         },
@@ -40,7 +40,10 @@ const OptimizedEpisodesList = React.memo(({
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
+        observerRef.current = null;
       }
+      // Очищаем множество видимых эпизодов
+      visibleEpisodesRef.current.clear();
     };
   }, [onEpisodeVisibilityChange]);
 

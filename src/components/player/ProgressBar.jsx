@@ -16,10 +16,10 @@ const ProgressBar = ({ currentTime, duration, sections, onProgressChange, onSect
 
       if (typeof onProgressChange === 'function' && !isNaN(newTime)) {
         onProgressChange(newTime);
-      } else {
       }
-    } else {
+      // No else clause needed - silently ignore invalid inputs
     }
+    // No else clause needed for invalid progress bar state
   }, [duration, onProgressChange]);
 
   const handleMouseClick = (e) => {

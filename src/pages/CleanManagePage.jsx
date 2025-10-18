@@ -1252,7 +1252,7 @@ const ApiKeyInlinePanel = ({ currentLanguage }) => {
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
         onBlur={() => {
-          try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch {}
+          try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch (e) { console.error('Failed to save API key:', e); }
         }}
         placeholder="sk_..."
         className="w-full h-9 px-3 rounded bg-slate-800 border border-slate-600 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -1264,7 +1264,7 @@ const ApiKeyInlinePanel = ({ currentLanguage }) => {
           variant="secondary"
           className="bg-purple-600 hover:bg-purple-700 text-white"
           onClick={() => {
-            try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch {}
+            try { localStorage.setItem('ASSEMBLYAI_API_KEY', apiKey.trim()); } catch (e) { console.error('Failed to save API key:', e); }
           }}
         >Сохранить</Button>
       </div>

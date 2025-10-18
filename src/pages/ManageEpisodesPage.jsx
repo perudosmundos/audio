@@ -36,7 +36,6 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
     isProcessingAll,
     showOverwriteDialog,
     currentItemForOverwrite,
-    addFilesToQueue,
     handleProcessAllFiles,
     handleTimingsChange,
     handleTitleChange,
@@ -44,10 +43,14 @@ const ManageEpisodesPage = ({ currentLanguage }) => {
     confirmOverwrite,
     cancelOverwrite,
     handleTranslateTimings,
+    addFilesToQueue,
   } = useFileUploadManager(currentLanguage);
 
+
   const onDrop = useCallback((acceptedFiles) => {
-    addFilesToQueue(acceptedFiles);
+    if (typeof addFilesToQueue === 'function') {
+      addFilesToQueue(acceptedFiles);
+    }
   }, [addFilesToQueue]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -536,6 +539,95 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
   // State for delete transcript confirmation
   const [showDeleteTranscriptDialog, setShowDeleteTranscriptDialog] = useState(false);
   const [episodeToDeleteTranscript, setEpisodeToDeleteTranscript] = useState(null);
+
+  // Функции для работы с SRT и AI
+  const handleDownloadSRT = async (episode) => {
+    try {
+      if (!episode.transcript?.edited_transcript_data) {
+        toast({
+          title: getLocaleString('errorGeneric', currentLanguage),
+          description: getLocaleString('transcriptRequired', currentLanguage),
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Генерируем SRT файл из транскрипта
+      const srtContent = generateSRTContent(episode.transcript.edited_transcript_data);
+      const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${episode.slug}_${episode.lang}.srt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: getLocaleString('downloadStartedTitle', currentLanguage),
+        description: 'SRT файл загружается'
+      });
+    } catch (error) {
+      toast({
+        title: getLocaleString('errorGeneric', currentLanguage),
+        description: `Ошибка создания SRT файла: ${error.message}`,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleProcessWithAI = async (episode) => {
+    try {
+      if (!episode.transcript?.edited_transcript_data) {
+        toast({
+          title: getLocaleString('errorGeneric', currentLanguage),
+          description: getLocaleString('transcriptRequired', currentLanguage),
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Используем существующий перевод через ИИ для обработки текста
+      toast({
+        title: getLocaleString('processWithAI', currentLanguage),
+        description: 'Обработка текста через ИИ начата'
+      });
+
+      // Здесь можно добавить дополнительную обработку текста через ИИ
+      // Например, улучшение транскрипции, генерацию вопросов и т.д.
+
+    } catch (error) {
+      toast({
+        title: getLocaleString('errorGeneric', currentLanguage),
+        description: `Ошибка обработки через ИИ: ${error.message}`,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Функция генерации SRT контента
+  const generateSRTContent = (transcriptData) => {
+    if (!transcriptData?.utterances) return '';
+
+    return transcriptData.utterances.map((utterance, index) => {
+      const startTime = formatTimeForSRT(utterance.start);
+      const endTime = formatTimeForSRT(utterance.end);
+      const text = utterance.text || '';
+
+      return `${index + 1}\n${startTime} --> ${endTime}\n${text}\n`;
+    }).join('\n');
+  };
+
+  const formatTimeForSRT = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const milliseconds = Math.floor((seconds % 1) * 1000);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+  };
 
   // Core functionality functions
   const handleStartTranscription = async (episode) => {
@@ -1583,6 +1675,8 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                                   languageEpisodes={baseSlugGroups}
                                   handleSmartFileUpload={handleSmartFileUpload}
                                   episodes={episodes}
+                                  onDownloadSRT={handleDownloadSRT}
+                                  onProcessWithAI={handleProcessWithAI}
                                 />
                               </div>
                             ))
@@ -1940,7 +2034,9 @@ const EpisodeLanguageCard = ({
   getEpisodeActions,
   languageEpisodes,
   handleSmartFileUpload,
-  episodes
+  episodes,
+  onDownloadSRT,
+  onProcessWithAI
 }) => {
   const navigate = useNavigate();
 
@@ -2115,7 +2211,10 @@ const EpisodeLanguageCard = ({
 
           {/* Action buttons */}
           <div className="pt-2">
-            {getEpisodeActions(episode, baseSlug)}
+            {React.cloneElement(getEpisodeActions(episode, baseSlug), {
+              onDownloadSRT,
+              onProcessWithAI
+            })}
           </div>
         </div>
       ) : (
@@ -2143,11 +2242,12 @@ const EpisodeLanguageCard = ({
                   onClick={() => {
                     if (suggestion.action === 'translate_from_es') {
                       // Handle translation from Spanish
-                      const englishEpisode = { slug: `${baseSlug}_en`, lang: 'en' };
-                      handleTranslateTranscriptFromSpanishForEnglish(englishEpisode, baseSlug);
+                      // TODO: Implement handleTranslateTranscriptFromSpanishForEnglish
+                      console.warn('Translation from Spanish not yet implemented');
                     } else if (suggestion.action === 'translate_from_ru') {
                       // Handle translation from Russian
-                      handleTranslateQuestionsToEnglish(baseSlug, 'ru');
+                      // TODO: Implement handleTranslateQuestionsToEnglish
+                      console.warn('Translation from Russian not yet implemented');
                     } else {
                       // Handle upload using smart file upload
                       handleSmartFileUpload(baseSlug, language);

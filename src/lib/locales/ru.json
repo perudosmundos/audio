@@ -542,6 +542,8 @@
   "maxCacheSize": "Максимальный размер кеша",
   "downloadText": "Скачать текст",
   "downloadTextSettings": "Настройки скачивания текста",
+  "downloadSubtitles": "Скачать субтитры",
+  "processWithAI": "Обработать через ИИ",
   "contentType": "Тип контента",
   "allText": "Весь текст",
   "selectedQuestions": "Выбранные вопросы",

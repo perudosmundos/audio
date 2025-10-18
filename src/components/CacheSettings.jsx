@@ -3,6 +3,7 @@ import { Settings, HardDrive, Trash2, Save } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 import audioCacheService from '@/lib/audioCacheService';
 import offlineDataService from '@/lib/offlineDataService';
+import optimizedCacheService from '@/lib/optimizedCacheService';
 import './styles/slider.css';
 
 const CacheSettings = ({ currentLanguage = 'ru' }) => {
@@ -24,18 +25,53 @@ const CacheSettings = ({ currentLanguage = 'ru' }) => {
   const loadCacheStats = async () => {
     try {
       setIsLoading(true);
+
       // Получаем статистику аудио кэша из audioCacheService
       const audioStats = await audioCacheService.getCacheStats();
+
+      // Получаем статистику оптимизированного кэша
+      let optimizedStats = {};
+      try {
+        // Проверяем, доступен ли сервис оптимизированного кэша
+        if (typeof optimizedCacheService !== 'undefined') {
+          try {
+            optimizedStats = await optimizedCacheService.getCacheStats();
+          } catch (e) {
+            console.debug('Optimized cache service error:', e);
+          }
+        }
+      } catch (e) {
+        console.debug('Optimized cache service not available');
+      }
+
       // Получаем общую статистику хранилища из offlineDataService
       const storageStats = await offlineDataService.getStorageUsage();
-      
+
+      // Подсчитываем общую статистику
+      const totalOptimizedSize = Object.values(optimizedStats).reduce((sum, type) => sum + (type.estimatedSize || 0), 0);
+      const totalOptimizedItems = Object.values(optimizedStats).reduce((sum, type) => sum + (type.itemCount || 0), 0);
+
       setCacheStats({
-        totalSize: audioStats.totalSize || 0,
-        fileCount: audioStats.fileCount || 0,
-        maxSize: audioStats.maxSize || 1024 * 1024 * 1024
+        totalSize: (audioStats.totalSize || 0) + totalOptimizedSize,
+        fileCount: (audioStats.fileCount || 0) + totalOptimizedItems,
+        maxSize: audioStats.maxSize || 1024 * 1024 * 1024,
+        audioFiles: audioStats.fileCount || 0,
+        optimizedItems: totalOptimizedItems,
+        storageQuota: storageStats.quota || 0,
+        storageUsage: storageStats.usage || 0
       });
     } catch (error) {
       console.error('Error loading cache stats:', error);
+      // Устанавливаем значения по умолчанию при ошибке
+      setCacheStats({
+        totalSize: 0,
+        fileCount: 0,
+        maxSize: 1024 * 1024 * 1024,
+        audioFiles: 0,
+        optimizedItems: 0,
+        storageQuota: 0,
+        storageUsage: 0
+      });
     } finally {
       setIsLoading(false);
     }

@@ -225,17 +225,23 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
       loadDataInstantly();
       hasInitialized.current = true;
     }
-    
+
     const channel = supabase
       .channel('episodes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, loadDataInstantly)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, loadDataInstantly)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'episodes' }, () => {
+        // Используем стабильную функцию для избежания бесконечных ререндеров
+        loadFreshDataInBackground();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => {
+        // Используем стабильную функцию для избежания бесконечных ререндеров
+        loadFreshDataInBackground();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [loadDataInstantly, loadFreshDataInBackground]);
 
   // Фильтрация по месяцам
   useEffect(() => {

@@ -9,17 +9,21 @@ class CacheIntegration {
 
   // Инициализация системы кэша
   async init() {
-    if (this.isInitialized) return;
-    
+    if (this.isInitialized) {
+      logger.debug('[CacheIntegration] Cache system already initialized');
+      return;
+    }
+
     try {
       await optimizedCacheService.init();
       this.isInitialized = true;
       logger.debug('[CacheIntegration] Cache system initialized');
-      
+
       // Запускаем периодическую очистку устаревших данных
       this.startPeriodicCleanup();
     } catch (error) {
       logger.error('[CacheIntegration] Initialization failed:', error);
+      this.isInitialized = false;
     }
   }
 

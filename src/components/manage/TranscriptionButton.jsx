@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, PenLine, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, PenLine, Trash2, AlertTriangle, FileText, Bot } from 'lucide-react';
 import { getLocaleString } from '@/lib/locales';
 
 /**
@@ -11,6 +11,8 @@ const TranscriptionButton = ({
   episode,
   onStartTranscription,
   onDeleteTranscript,
+  onDownloadSRT,
+  onProcessWithAI,
   isTranscribing,
   currentLanguage,
   disabled = false
@@ -78,6 +80,51 @@ const TranscriptionButton = ({
     }
   };
 
+  // Если транскрипция завершена, показываем дополнительные кнопки
+  if (episode.transcript?.status === 'completed') {
+    return (
+      <div className="flex gap-1">
+        {/* Основная кнопка управления транскрипцией */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleClick}
+          disabled={buttonState.disabled}
+          className="h-8 px-2 text-xs bg-red-600/20 border-red-500 text-red-300 hover:bg-red-600/40 hover:text-red-200 flex-1"
+          title={getLocaleString('deleteAndRetranscribe', currentLanguage)}
+        >
+          <Trash2 className="h-3 w-3 mr-1" />
+          {getLocaleString('deleteAndRetranscribe', currentLanguage)}
+        </Button>
+
+        {/* Кнопка скачивания SRT */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onDownloadSRT && onDownloadSRT(episode)}
+          className="h-8 px-2 text-xs bg-green-600/20 border-green-500 text-green-300 hover:bg-green-600/40 hover:text-green-200 flex-1"
+          title={getLocaleString('downloadSubtitles', currentLanguage)}
+        >
+          <FileText className="h-3 w-3 mr-1" />
+          Srt
+        </Button>
+
+        {/* Кнопка обработки через AI */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onProcessWithAI && onProcessWithAI(episode)}
+          className="h-8 px-2 text-xs bg-blue-600/20 border-blue-500 text-blue-300 hover:bg-blue-600/40 hover:text-blue-200 flex-1"
+          title={getLocaleString('processWithAI', currentLanguage)}
+        >
+          <Bot className="h-3 w-3 mr-1" />
+          AI
+        </Button>
+      </div>
+    );
+  }
+
+  // Стандартная кнопка для всех остальных состояний
   return (
     <Button
       size="sm"
