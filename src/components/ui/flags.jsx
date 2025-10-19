@@ -29,3 +29,26 @@ export const USFlag = () => (
     <rect width="7" height="7" fill="#0A3161"/>
   </svg>
 );
+
+export const GermanFlag = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none" className="inline-block">
+    <rect width="16" height="4" fill="#000000"/>
+    <rect y="4" width="16" height="4" fill="#DD0000"/>
+    <rect y="8" width="16" height="4" fill="#FFCE00"/>
+  </svg>
+);
+
+export const FrenchFlag = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none" className="inline-block">
+    <rect width="5.33" height="12" fill="#002395"/>
+    <rect x="5.33" width="5.34" height="12" fill="#FFFFFF"/>
+    <rect x="10.67" width="5.33" height="12" fill="#ED2939"/>
+  </svg>
+);
+
+export const PolishFlag = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none" className="inline-block">
+    <rect width="16" height="6" fill="#FFFFFF"/>
+    <rect y="6" width="16" height="6" fill="#DC143C"/>
+  </svg>
+);

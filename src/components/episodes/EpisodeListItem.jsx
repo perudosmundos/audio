@@ -9,6 +9,12 @@ import { formatFullTime, formatShortDate } from '@/lib/utils';
 const EpisodeListItem = React.memo(({ episode, currentLanguage, questionsCount, questionsForEpisode, updateTimestamp }) => {
   
   const formatEpisodeTitle = (title, episodeDate) => {
+    // Если есть переведенное название из БД, используем его
+    if (title && title.trim() !== '') {
+      return title;
+    }
+    
+    // Иначе генерируем название на основе префикса и даты
     const prefix = getLocaleString('meditationTitlePrefix', currentLanguage);
     let datePart = '';
 
@@ -16,7 +22,7 @@ const EpisodeListItem = React.memo(({ episode, currentLanguage, questionsCount, 
       datePart = formatShortDate(episodeDate, currentLanguage);
     }
     
-    return datePart ? `${prefix} ${datePart}` : title || prefix;
+    return datePart ? `${prefix} ${datePart}` : prefix;
   };
 
   const displayTitle = formatEpisodeTitle(episode.title, episode.date);

@@ -106,6 +106,9 @@ export const translateTextOpenAI = async (text, targetLanguage, currentInterface
         en: 'English',
         es: 'Spanish',
         ru: 'Russian',
+        de: 'German',
+        fr: 'French',
+        pl: 'Polish',
       };
       const targetLangFullName = languageMap[targetLanguage] || targetLanguage;
       logger.debug("🌐 Target language:", targetLangFullName);
@@ -165,6 +168,9 @@ export const translateTranscriptOpenAI = async (transcriptData, targetLanguage, 
       en: 'English',
       es: 'Spanish',
       ru: 'Russian',
+      de: 'German',
+      fr: 'French',
+      pl: 'Polish',
     };
     const targetLangFullName = languageMap[targetLanguage] || targetLanguage;
 

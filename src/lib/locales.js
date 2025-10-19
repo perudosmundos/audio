@@ -1,8 +1,11 @@
 import ru from './locales/ru.json';
 import es from './locales/es.json';
 import en from './locales/en.json';
+import de from './locales/de.json';
+import fr from './locales/fr.json';
+import pl from './locales/pl.json';
 
-const locales = { ru, es, en };
+const locales = { ru, es, en, de, fr, pl };
 
 export const getLocaleString = (key, lang, params = {}) => {
   let currentLang = lang || 'ru'; 
@@ -35,6 +38,7 @@ export const getPluralizedLocaleString = (keyBase, lang, count, params = {}) => 
   
   let key;
   if (currentLang === 'ru') {
+    // Russian pluralization: 1, 2-4, 5+
     if (count === 1) {
       key = `${keyBase}_one`;
     } else if (count > 1 && count < 5) {
@@ -42,13 +46,24 @@ export const getPluralizedLocaleString = (keyBase, lang, count, params = {}) => 
     } else {
       key = `${keyBase}_many`;
     }
-  } else if (currentLang === 'es' || currentLang === 'en') {
+  } else if (currentLang === 'pl') {
+    // Polish pluralization: 1, 2-4 (not ending in 12-14), 5+
+    if (count === 1) {
+      key = `${keyBase}_one`;
+    } else if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20)) {
+      key = `${keyBase}_few`;
+    } else {
+      key = `${keyBase}_many`;
+    }
+  } else if (currentLang === 'es' || currentLang === 'en' || currentLang === 'de' || currentLang === 'fr') {
+    // Spanish, English, German, French: simple 1 vs many
     if (count === 1) {
       key = `${keyBase}_one`;
     } else {
       key = `${keyBase}_many`; 
     }
   } else { 
+    // Default fallback
     key = (count === 1) ? `${keyBase}_one` : `${keyBase}_many`;
   }
   

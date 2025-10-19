@@ -42,7 +42,10 @@ const LanguageCard = ({
   const langColors = {
     es: 'bg-green-600 text-green-100',
     ru: 'bg-blue-600 text-blue-100',
-    en: 'bg-purple-600 text-purple-100'
+    en: 'bg-purple-600 text-purple-100',
+    de: 'bg-orange-600 text-orange-100',
+    fr: 'bg-pink-600 text-pink-100',
+    pl: 'bg-teal-600 text-teal-100'
   };
 
   const hasEpisode = episode !== null;

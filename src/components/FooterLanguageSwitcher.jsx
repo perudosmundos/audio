@@ -1,11 +1,14 @@
 import React from 'react';
-import { RussianFlag, SpanishFlag, USFlag } from './ui/flags';
+import { RussianFlag, SpanishFlag, USFlag, GermanFlag, FrenchFlag, PolishFlag } from './ui/flags';
 
 const FooterLanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
   const languages = [
     { code: 'ru', name: "RU", Flag: RussianFlag },
     { code: 'es', name: "ES", Flag: SpanishFlag },
     { code: 'en', name: "EN", Flag: USFlag },
+    { code: 'de', name: "DE", Flag: GermanFlag },
+    { code: 'fr', name: "FR", Flag: FrenchFlag },
+    { code: 'pl', name: "PL", Flag: PolishFlag },
   ];
 
   const handleLanguageChange = (langCode) => {

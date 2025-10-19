@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RussianFlag, SpanishFlag, USFlag } from './ui/flags';
+import { RussianFlag, SpanishFlag, USFlag, GermanFlag, FrenchFlag, PolishFlag } from './ui/flags';
 
 const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,6 +9,9 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
     { code: 'ru', name: "RU", fullName: "Русский", Flag: RussianFlag },
     { code: 'es', name: "ES", fullName: "Español", Flag: SpanishFlag },
     { code: 'en', name: "EN", fullName: "English", Flag: USFlag },
+    { code: 'de', name: "DE", fullName: "Deutsch", Flag: GermanFlag },
+    { code: 'fr', name: "FR", fullName: "Français", Flag: FrenchFlag },
+    { code: 'pl', name: "PL", fullName: "Polski", Flag: PolishFlag },
   ];
 
   const handleLanguageChange = (langCode) => {

@@ -1,7 +1,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { getLocaleString } from '@/lib/locales';
-import r2Service from '@/lib/r2Service';
+import storageRouter from '@/lib/storageRouter';
 import assemblyAIService from '@/lib/assemblyAIService';
 import { parseQuestionsFromDescriptionString } from '@/lib/podcastService';
 import { translateTextOpenAI } from '@/lib/openAIService';
@@ -160,15 +160,7 @@ export const processSingleItem = async ({
     }
     
     if (!skipUpload && (!userConfirmedOverwriteGlobal || !workerFileUrl)) {
-      let fileExistsInR2 = { exists: false };
-      try {
-        fileExistsInR2 = await r2Service.checkFileExists(file.name);
-      } catch (checkError) {
-        // If file existence check fails (e.g., network error), just proceed with upload
-        console.warn('[fileProcessor] File existence check failed, proceeding with upload:', checkError.message);
-        fileExistsInR2 = { exists: false };
-      }
-      
+      const fileExistsInR2 = await storageRouter.checkFileExists(file.name);
       if (fileExistsInR2.exists && !userConfirmedOverwriteGlobal) {
         // Trigger dialog also when only server file exists
         const userConfirmedDialog = await openOverwriteDialog(itemData);
@@ -183,7 +175,7 @@ export const processSingleItem = async ({
         userConfirmedOverwriteGlobal = true;
 
         if (userOverwriteChoices && userOverwriteChoices.overwriteServerFile) {
-          const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await r2Service.uploadFile(
+          const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await storageRouter.uploadFile(
             file,
             (progress, details) => updateItemState(itemData.id, { 
               uploadProgress: progress,
@@ -203,7 +195,7 @@ export const processSingleItem = async ({
           toast({ title: getLocaleString('fileAlreadyInR2Title', currentLanguage), description: getLocaleString('fileAlreadyInR2Desc', currentLanguage, { fileName: file.name }), variant: "info" });
         }
       } else {
-        const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await r2Service.uploadFile(
+        const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await storageRouter.uploadFile(
           file,
           (progress, details) => updateItemState(itemData.id, { 
             uploadProgress: progress,
@@ -220,7 +212,7 @@ export const processSingleItem = async ({
        // Respect overwriteServerFile choice even when episode existed in DB
        const choices = userOverwriteChoices || { overwriteServerFile: false };
        if (choices.overwriteServerFile) {
-         const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await r2Service.uploadFile(
+         const { fileUrl: uploadedUrl, fileKey: uploadedKey, bucketName: uploadedBucket } = await storageRouter.uploadFile(
            file,
            (progress, details) => updateItemState(itemData.id, { 
              uploadProgress: progress,
@@ -285,6 +277,8 @@ export const processSingleItem = async ({
       audio_url: workerFileUrl,
       r2_object_key: r2FileKey,
       r2_bucket_name: bucketNameUsed,
+      storage_provider: bucketNameUsed === 'hostinger' ? 'hostinger' : 'r2',
+      hostinger_file_key: bucketNameUsed === 'hostinger' ? r2FileKey : null,
       duration: Math.round(duration || 0),
       file_has_lang_suffix: itemData.fileHasLangSuffix,
     };

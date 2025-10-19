@@ -324,6 +324,174 @@ class TextExportService {
     return html;
   }
 
+  // Генерация SRT субтитров из edited_transcript_data
+  // Правила: 1 строка, ~30-40 символов, ≤10 слов
+  // Длительность 1.0–6.0 сек
+  generateSRTFromEditedTranscript(editedTranscriptData) {
+    if (!editedTranscriptData || !editedTranscriptData.utterances) {
+      throw new Error('Invalid transcript data: missing utterances');
+    }
+
+    const utterances = editedTranscriptData.utterances;
+    const subtitles = [];
+    let subtitleIndex = 1;
+
+    for (let i = 0; i < utterances.length; i++) {
+      const utterance = utterances[i];
+      const text = (utterance.text || '').trim();
+      
+      if (!text) continue;
+
+      const startMs = utterance.start || 0;
+      const endMs = utterance.end || (startMs + 3000); // default 3 sec if no end
+      const durationMs = endMs - startMs;
+
+      // Разбиваем текст на сегменты по правилам
+      const segments = this.splitTextForSRT(text, durationMs);
+      
+      segments.forEach((segment, segIndex) => {
+        const segmentDuration = durationMs / segments.length;
+        const segmentStart = startMs + (segIndex * segmentDuration);
+        const segmentEnd = segmentStart + segmentDuration;
+
+        // Ensure minimum 1.0 sec
+        const finalEnd = Math.max(segmentEnd, segmentStart + 1000);
+
+        subtitles.push({
+          index: subtitleIndex++,
+          startTime: this.formatSRTTime(segmentStart),
+          endTime: this.formatSRTTime(finalEnd),
+          text: segment
+        });
+      });
+    }
+
+    // Merge too short subtitles (<1.0 sec)
+    const merged = this.mergeShortSubtitles(subtitles);
+
+    // Split too long subtitles (>6.0 sec)
+    const final = this.splitLongSubtitles(merged);
+
+    // Generate SRT format
+    return final.map(sub => 
+      `${sub.index}\n${sub.startTime} --> ${sub.endTime}\n${sub.text}\n`
+    ).join('\n');
+  }
+
+  // Разбивка текста на сегменты: 1 строка, ~30-40 символов, ≤10 слов
+  splitTextForSRT(text, durationMs) {
+    const words = text.split(/\s+/);
+    const segments = [];
+    let currentSegment = [];
+    let currentLength = 0;
+
+    for (const word of words) {
+      const willExceedWords = currentSegment.length >= 10;
+      const willExceedChars = currentLength + word.length + 1 > 40;
+
+      if (willExceedWords || willExceedChars) {
+        if (currentSegment.length > 0) {
+          segments.push(currentSegment.join(' '));
+          currentSegment = [];
+          currentLength = 0;
+        }
+      }
+
+      currentSegment.push(word);
+      currentLength += word.length + 1;
+    }
+
+    if (currentSegment.length > 0) {
+      segments.push(currentSegment.join(' '));
+    }
+
+    return segments.length > 0 ? segments : [text];
+  }
+
+  // Форматирование времени для SRT: HH:MM:SS,mmm
+  formatSRTTime(milliseconds) {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const ms = Math.floor(milliseconds % 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+  }
+
+  // Объединение слишком коротких субтитров (<1.0 сек)
+  mergeShortSubtitles(subtitles) {
+    const merged = [];
+    let i = 0;
+
+    while (i < subtitles.length) {
+      const current = subtitles[i];
+      const duration = this.parseSRTTimeToMs(current.endTime) - this.parseSRTTimeToMs(current.startTime);
+
+      if (duration < 1000 && i + 1 < subtitles.length) {
+        // Merge with next
+        const next = subtitles[i + 1];
+        merged.push({
+          index: merged.length + 1,
+          startTime: current.startTime,
+          endTime: next.endTime,
+          text: `${current.text} ${next.text}`
+        });
+        i += 2;
+      } else {
+        merged.push({
+          ...current,
+          index: merged.length + 1
+        });
+        i++;
+      }
+    }
+
+    return merged;
+  }
+
+  // Разбивка слишком длинных субтитров (>6.0 сек)
+  splitLongSubtitles(subtitles) {
+    const result = [];
+
+    subtitles.forEach(sub => {
+      const startMs = this.parseSRTTimeToMs(sub.startTime);
+      const endMs = this.parseSRTTimeToMs(sub.endTime);
+      const duration = endMs - startMs;
+
+      if (duration > 6000) {
+        // Split text by punctuation or whitespace
+        const segments = this.splitTextForSRT(sub.text, duration);
+        const segmentDuration = duration / segments.length;
+
+        segments.forEach((segment, idx) => {
+          const segStart = startMs + (idx * segmentDuration);
+          const segEnd = segStart + segmentDuration;
+
+          result.push({
+            index: result.length + 1,
+            startTime: this.formatSRTTime(segStart),
+            endTime: this.formatSRTTime(segEnd),
+            text: segment
+          });
+        });
+      } else {
+        result.push({
+          ...sub,
+          index: result.length + 1
+        });
+      }
+    });
+
+    return result;
+  }
+
+  // Парсинг SRT времени в миллисекунды
+  parseSRTTimeToMs(timeString) {
+    const [time, ms] = timeString.split(',');
+    const [hours, minutes, seconds] = time.split(':').map(Number);
+    return (hours * 3600 + minutes * 60 + seconds) * 1000 + parseInt(ms);
+  }
 
 }
 

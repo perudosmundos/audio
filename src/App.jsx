@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import FooterLanguageSwitcher from '@/components/FooterLanguageSwitcher';
 import CacheSettings from '@/components/CacheSettings';
@@ -15,6 +15,9 @@ import DeepSearchPage from '@/pages/DeepSearchPage';
 import UploadPage from '@/pages/UploadPage';
 import SpotifyUploadPage from '@/pages/SpotifyUploadPage';
 import OfflineSettingsPage from '@/pages/OfflineSettingsPage';
+import StorageMigrationPage from '@/pages/StorageMigrationPage';
+import HostingerMigrationPage from '@/pages/HostingerMigrationPage';
+import MigrationMenuPage from '@/pages/MigrationMenuPage';
 import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import cacheIntegration from '@/lib/cacheIntegration';
@@ -23,6 +26,46 @@ import { useToast } from '@/components/ui/use-toast';
 
 const FooterContent = ({ currentLanguage, onLanguageSelect }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [availableLanguages, setAvailableLanguages] = useState(['ru', 'es', 'en', 'de', 'fr', 'pl']);
+
+  // Определяем доступные языки для текущего эпизода
+  useEffect(() => {
+    const fetchAvailableLanguages = async () => {
+      const pathParts = window.location.pathname.split('/');
+      if (pathParts.length === 3 && pathParts[1] === 'episode') {
+        const currentSlug = pathParts[2];
+        
+        try {
+          const { data: currentEpisode } = await supabase
+            .from('episodes')
+            .select('date')
+            .eq('slug', currentSlug)
+            .single();
+
+          if (currentEpisode) {
+            // Получаем все эпизоды с той же датой
+            const { data: episodesWithSameDate } = await supabase
+              .from('episodes')
+              .select('lang')
+              .eq('date', currentEpisode.date);
+
+            if (episodesWithSameDate && episodesWithSameDate.length > 0) {
+              const langs = episodesWithSameDate.map(ep => ep.lang);
+              setAvailableLanguages(langs);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching available languages:', error);
+        }
+      } else {
+        // На других страницах показываем все языки
+        setAvailableLanguages(['ru', 'es', 'en', 'de', 'fr', 'pl']);
+      }
+    };
+
+    fetchAvailableLanguages();
+  }, [location.pathname]);
 
   const handleLanguageSwitchInPlayer = async (newLang) => {
     const pathParts = window.location.pathname.split('/');
@@ -80,7 +123,7 @@ const FooterContent = ({ currentLanguage, onLanguageSelect }) => {
   return (
     <footer className="py-3 sm:py-4 text-center text-xs sm:text-sm text-white/60 flex flex-col items-center gap-2">
       <div className="flex gap-2 items-center">
-        {currentLanguage && <FooterLanguageSwitcher currentLanguage={currentLanguage} onLanguageChange={handleLanguageSwitchInPlayer} />}
+        {currentLanguage && <FooterLanguageSwitcher currentLanguage={currentLanguage} onLanguageChange={handleLanguageSwitchInPlayer} availableLanguages={availableLanguages} />}
         <CacheSettings currentLanguage={currentLanguage} />
       </div>
     </footer>
@@ -188,6 +231,9 @@ function App() {
                     onBack={() => window.history.back()} 
                   />
                 } />
+                <Route path="/migration" element={<MigrationMenuPage currentLanguage={currentLanguage} />} />
+                <Route path="/migration/storage" element={<StorageMigrationPage currentLanguage={currentLanguage} />} />
+                <Route path="/hostinger-migration" element={<HostingerMigrationPage currentLanguage={currentLanguage} />} />
                 <Route path="*" element={<NotFoundPage currentLanguage={currentLanguage} />} />
               </Routes>
             </main>

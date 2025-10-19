@@ -8,6 +8,7 @@ import { startPollingForItem as startPollingForItemService } from '@/services/up
 import { translateTextOpenAI } from '@/lib/openAIService';
 import logger from '@/lib/logger';
 import useEpisodePublishing from './useEpisodePublishing';
+import conflictChecker from '@/lib/conflictChecker';
 
 
 const useFileUploadManager = (currentLanguage) => {
@@ -15,6 +16,11 @@ const useFileUploadManager = (currentLanguage) => {
   const [isProcessingAll, setIsProcessingAll] = useState(false);
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
   const [currentItemForOverwrite, setCurrentItemForOverwrite] = useState(null);
+  const [conflictDialog, setConflictDialog] = useState({
+    isOpen: false,
+    fileItem: null,
+    conflicts: null
+  });
   
   const { toast } = useToast();
   const pollingIntervals = useRef({});
@@ -156,41 +162,108 @@ const useFileUploadManager = (currentLanguage) => {
   }, []);
 
   const addFilesToQueue = useCallback(async (acceptedFiles) => {
-    const newItemsPromises = acceptedFiles.flatMap(async (file) => {
-      const nameWithoutExt = getFileNameWithoutExtension(file.name);
-      const langSuffixMatch = nameWithoutExt.match(/_([RUruESesENen]{2})$/i);
+    console.log('[addFilesToQueue] Called with files:', acceptedFiles.length);
+    
+    if (!acceptedFiles || acceptedFiles.length === 0) {
+      console.warn('[addFilesToQueue] No files provided');
+      return;
+    }
 
-      if (langSuffixMatch) {
-        const lang = langSuffixMatch[1].toLowerCase();
-        // Only create the specific language version that matches the file suffix
-        // Remove automatic English version creation for Spanish files
-        return [await generateInitialItemData(file, lang, currentLanguage, toast)];
-      } else {
-        // For files without language suffixes, only create Spanish and Russian versions
-        // Remove automatic English version creation
-        const esDataPromise = generateInitialItemData(file, 'es', currentLanguage, toast);
-        const ruDataPromise = generateInitialItemData(file, 'ru', currentLanguage, toast);
+    try {
+      const newItemsPromises = acceptedFiles.flatMap(async (file) => {
+        console.log('[addFilesToQueue] Processing file:', file.name);
+        const nameWithoutExt = getFileNameWithoutExtension(file.name);
+        const langSuffixMatch = nameWithoutExt.match(/_([RUruESesENen]{2})$/i);
 
-        return Promise.all([esDataPromise, ruDataPromise]);
+        // Generate unique ID for file grouping (single-track files share same source)
+        const fileGroupId = `${file.name}_${file.lastModified}`;
+
+        if (langSuffixMatch) {
+          const lang = langSuffixMatch[1].toLowerCase();
+          console.log('[addFilesToQueue] File has language suffix:', lang);
+          // Only create the specific language version that matches the file suffix
+          const item = await generateInitialItemData(file, lang, currentLanguage, toast);
+          return [{ ...item, fileGroupId }];
+        } else {
+          console.log('[addFilesToQueue] File without language suffix, creating ES and RU versions');
+          // For files without language suffixes, create ES and RU versions
+          // Both share the same file and will use the same R2 upload
+          const esData = await generateInitialItemData(file, 'es', currentLanguage, toast);
+          const ruData = await generateInitialItemData(file, 'ru', currentLanguage, toast);
+
+          return [
+            { ...esData, fileGroupId, isSingleTrackFile: true },
+            { ...ruData, fileGroupId, isSingleTrackFile: true }
+          ];
+        }
+      });
+
+      const newItemsArrays = await Promise.all(newItemsPromises);
+      const newItemsFlat = newItemsArrays.flat();
+      console.log('[addFilesToQueue] Adding items to queue:', newItemsFlat.length);
+      
+      // Проверяем конфликты для каждого элемента
+      const itemsWithConflicts = [];
+      for (const item of newItemsFlat) {
+        if (item) {
+          try {
+            const conflicts = await conflictChecker.checkFileConflicts(item);
+            if (conflicts.hasFileConflict || conflicts.hasDBConflict) {
+              itemsWithConflicts.push({ item, conflicts });
+            }
+          } catch (error) {
+            console.warn('Error checking conflicts for', item.episodeSlug, error);
+          }
+        }
       }
-    });
 
-    const newItemsArrays = await Promise.all(newItemsPromises);
-    const newItemsFlat = newItemsArrays.flat();
-    setFilesToProcess(prev => [...prev, ...newItemsFlat.filter(item => item !== null)]);
+      // Если есть конфликты, показываем диалог
+      if (itemsWithConflicts.length > 0) {
+        const firstConflict = itemsWithConflicts[0];
+        setConflictDialog({
+          isOpen: true,
+          fileItem: firstConflict.item,
+          conflicts: firstConflict.conflicts
+        });
+        return; // Не добавляем в очередь пока не решим конфликт
+      }
+      
+      setFilesToProcess(prev => {
+        const updated = [...prev, ...newItemsFlat.filter(item => item !== null)];
+        console.log('[addFilesToQueue] Queue updated, total items:', updated.length);
+        return updated;
+      });
+
+      toast({
+        title: '✅ Файлы добавлены',
+        description: `Добавлено ${newItemsFlat.length} элементов в очередь`,
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('[addFilesToQueue] Error:', error);
+      toast({
+        title: '❌ Ошибка добавления файлов',
+        description: error.message,
+        variant: 'destructive',
+        duration: 5000
+      });
+    }
   }, [currentLanguage, toast]);
 
   const processSingleItem = useCallback(async (itemData, forceOverwrite = false, overwriteOptions = null) => {
+    // Если у элемента есть настройки замены, используем их
+    const finalOverwriteOptions = itemData.overwriteSettings || overwriteOptions;
+    
     return processSingleItemService({
         itemData,
-        forceOverwrite,
+        forceOverwrite: forceOverwrite || (finalOverwriteOptions && Object.values(finalOverwriteOptions).some(Boolean)),
         updateItemState,
         currentLanguage,
         toast,
         openOverwriteDialog,
         pollingIntervalsRef: pollingIntervals,
         getAllItems: () => filesToProcess,
-        overwriteOptions,
+        overwriteOptions: finalOverwriteOptions,
     });
   }, [updateItemState, currentLanguage, toast, openOverwriteDialog, filesToProcess]);
 
@@ -273,18 +346,51 @@ const useFileUploadManager = (currentLanguage) => {
     }
   };
 
+  // Функции для обработки конфликтов
+  const handleConflictConfirm = useCallback((overwriteSettings) => {
+    // Добавляем файл в очередь с настройками замены
+    const item = conflictDialog.fileItem;
+    if (item) {
+      setFilesToProcess(prev => [...prev, { ...item, overwriteSettings }]);
+      
+      toast({
+        title: '✅ Файл добавлен с заменой',
+        description: `Файл ${item.file.name} добавлен в очередь с настройками замены`,
+        duration: 3000
+      });
+    }
+    
+    setConflictDialog({ isOpen: false, fileItem: null, conflicts: null });
+  }, [conflictDialog.fileItem, toast]);
+
+  const handleConflictCancel = useCallback(() => {
+    setConflictDialog({ isOpen: false, fileItem: null, conflicts: null });
+    
+    toast({
+      title: '❌ Загрузка отменена',
+      description: 'Файл не был добавлен в очередь из-за конфликтов',
+      variant: 'destructive',
+      duration: 3000
+    });
+  }, [toast]);
+
   return {
     filesToProcess,
     isProcessingAll,
     showOverwriteDialog,
     currentItemForOverwrite,
+    conflictDialog,
     addFilesToQueue,
+    updateItemState,
+    processSingleItem,
     handleProcessAllFiles,
     handleTimingsChange,
     handleTitleChange,
     handleRemoveItem,
     confirmOverwrite,
     cancelOverwrite,
+    handleConflictConfirm,
+    handleConflictCancel,
     handleTranslateTimings,
     publishEpisode,
     isEpisodePublished,

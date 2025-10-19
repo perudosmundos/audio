@@ -6,6 +6,9 @@ const LanguageSelectionModal = ({ onLanguageSelect, currentLanguage }) => {
     { code: 'ru', name: "Русский", flag: '🇷🇺' },
     { code: 'es', name: "Español", flag: '🇪🇸' },
     { code: 'en', name: "English", flag: '🇺🇸' },
+    { code: 'de', name: "Deutsch", flag: '🇩🇪' },
+    { code: 'fr', name: "Français", flag: '🇫🇷' },
+    { code: 'pl', name: "Polski", flag: '🇵🇱' },
   ];
 
   return (

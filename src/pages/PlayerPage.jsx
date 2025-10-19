@@ -65,6 +65,27 @@ const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
     setTranscript,
   } = useOfflineEpisodeData(episodeSlug, currentLanguage, toast);
 
+  // Слушаем обновления эпизодов после перевода
+  useEffect(() => {
+    if (!refreshAllData) return; // Защита от вызова до инициализации
+
+    const handleEpisodeUpdate = (event) => {
+      const { slug, lang, episode } = event.detail;
+      
+      // Если это текущий эпизод, обновляем данные
+      if (slug === episodeSlug && lang === currentLanguage) {
+        console.log('[PlayerPage] Episode updated after translation, refreshing data');
+        refreshAllData();
+      }
+    };
+
+    window.addEventListener('episodeUpdated', handleEpisodeUpdate);
+    
+    return () => {
+      window.removeEventListener('episodeUpdated', handleEpisodeUpdate);
+    };
+  }, [episodeSlug, currentLanguage, refreshAllData]);
+
   const {
     jumpDetails,
     showFloatingControls: playerShowFloatingControls,
@@ -280,15 +301,23 @@ const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
     if (!episodeData) return null;
     
     const langForDisplay = episodeData.lang === 'all' ? currentLanguage : episodeData.lang;
-    const prefix = getLocaleString('meditationTitlePrefix', langForDisplay);
-    let datePart = '';
+    
+    // Если есть переведенное название из БД, используем его
+    let displayTitle;
+    if (episodeData.title && episodeData.title.trim() !== '') {
+      displayTitle = episodeData.title;
+    } else {
+      // Иначе генерируем название на основе префикса и даты
+      const prefix = getLocaleString('meditationTitlePrefix', langForDisplay);
+      let datePart = '';
 
-    if (episodeData.date) {
-        datePart = formatShortDate(episodeData.date, langForDisplay);
-    } else if (episodeData.created_at) {
-        datePart = formatShortDate(episodeData.created_at, langForDisplay);
+      if (episodeData.date) {
+          datePart = formatShortDate(episodeData.date, langForDisplay);
+      } else if (episodeData.created_at) {
+          datePart = formatShortDate(episodeData.created_at, langForDisplay);
+      }
+      displayTitle = datePart ? `${prefix} ${datePart}` : prefix;
     }
-    const displayTitle = datePart ? `${prefix} ${datePart}` : episodeData.title || prefix;
 
     const playerData = {
       ...episodeData,
