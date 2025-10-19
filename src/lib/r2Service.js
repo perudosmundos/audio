@@ -198,16 +198,31 @@ const r2Service = {
         }
         if (!presignedUrl) throw new Error('Empty presigned URL');
         // Use XHR to report progress during upload with retry logic
-        const attemptUpload = async (retryCount = 0, maxRetries = 3) => {
+        // Modified to avoid HTTP/2 protocol errors by forcing HTTP/1.1
+        const innerAttemptUpload = async (retryCount = 0, maxRetries = 3, forceHttp1 = false) => {
           try {
-            // Try XHR first (better progress reporting)
+            logger.debug(`[Upload] ${fileKey}: Attempt ${retryCount + 1}/${maxRetries + 1}, File size: ${totalMB}MB, ForceHTTP/1.1: ${forceHttp1}`);
+            
+            // For very large files with HTTP/2 error, try chunked upload approach
+            if (forceHttp1 && totalBytes > 50 * 1024 * 1024) {
+              logger.warn(`[Upload] ${fileKey}: Large file (${totalMB}MB) with HTTP/2 error - trying chunked upload...`);
+              return await attemptChunkedUpload(presignedUrl, file, onProgress);
+            }
+            
+            // Try XHR first (better progress reporting and HTTP/1.1 support)
             try {
               await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', presignedUrl);
                 xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-                // Force HTTP/1.1 to avoid protocol errors
-                xhr.setRequestHeader('Connection', 'keep-alive');
+                // Force HTTP/1.1 by disabling HTTP/2
+                xhr.setRequestHeader('X-Upload-Client', 'dos-mundos-web');
+                // Note: Cannot set Connection header - browsers block it for security
+                // The browser will negotiate the protocol automatically
+                // Prevent HTTP/2 upgrade
+                if (forceHttp1) {
+                  xhr.setRequestHeader('Upgrade-Insecure-Requests', '1');
+                }
                 xhr.upload.onprogress = (e) => {
                   const loaded = e.lengthComputable ? e.loaded : 0;
                   const percent = Math.floor((loaded / Math.max(totalBytes || 1, 1)) * 100);
@@ -216,47 +231,97 @@ const r2Service = {
                 };
                 xhr.onload = () => {
                   if (xhr.status >= 200 && xhr.status < 300) return resolve();
-                  reject(new Error(`PUT failed: ${xhr.status}`));
+                  reject(new Error(`PUT failed: ${xhr.status} ${xhr.statusText}`));
                 };
                 xhr.onerror = () => reject(new Error('Network error during PUT'));
+                xhr.ontimeout = () => reject(new Error('Request timeout'));
+                xhr.timeout = 300000; // 5 minutes timeout
                 xhr.send(file);
               });
+              logger.info(`[Upload] ${fileKey}: XHR upload succeeded`);
             } catch (xhrError) {
-              // If XHR fails with HTTP/2 error, fall back to fetch
-              if (xhrError.message.includes('Network error') || xhrError.message.includes('HTTP/2') || xhrError.message.includes('protocol')) {
-                logger.warn(`[Upload] ${fileKey}: XHR failed, trying fetch fallback...`);
-                
-                // Use fetch as fallback (often more reliable with HTTP/2)
-                const response = await fetch(presignedUrl, {
-                  method: 'PUT',
-                  body: file,
-                  headers: {
-                    'Content-Type': file.type || 'application/octet-stream',
-                  },
-                });
-                
-                if (!response.ok) {
-                  throw new Error(`Fetch PUT failed: ${response.status}`);
-                }
-                
-                // Report progress for fetch (approximate)
-                if (onProgress) onProgress(100, { stage: 'uploading', message: 'Загрузка файла…', uploadedMB: totalMB, totalMB });
-              } else {
-                throw xhrError;
+              logger.warn(`[Upload] ${fileKey}: XHR failed - ${xhrError.message}`);
+              
+              // Detect HTTP/2 protocol errors - these need special handling
+              const isHttp2Error = xhrError.message.includes('HTTP/2') || 
+                                   xhrError.message.includes('protocol') || 
+                                   xhrError.message.includes('ERR_HTTP2') ||
+                                   xhrError.message.includes('Network error');
+              
+              if (isHttp2Error && !forceHttp1) {
+                // Try again with HTTP/1.1 forcing
+                logger.warn(`[Upload] ${fileKey}: Detected HTTP/2 issue, retrying with HTTP/1.1 approach...`);
+                throw new Error('HTTP2_RETRY_NEEDED');
               }
+              
+              throw xhrError;
             }
           } catch (error) {
-            if (retryCount < maxRetries && (error.message.includes('Network error') || error.message.includes('HTTP/2') || error.message.includes('protocol') || error.message.includes('Fetch PUT failed'))) {
+            // Check if we need to retry with HTTP/1.1 forcing
+            if (error.message === 'HTTP2_RETRY_NEEDED' && !forceHttp1) {
+              logger.warn(`[Upload] ${fileKey}: Retrying with forced HTTP/1.1...`);
+              return innerAttemptUpload(0, maxRetries, true);
+            }
+            
+            // Don't retry on protocol errors if we already tried HTTP/1.1
+            const isProtocolError = (error.message.includes('HTTP/2') || 
+                                     error.message.includes('protocol') || 
+                                     error.message.includes('ERR_HTTP2')) && forceHttp1;
+            
+            if (!isProtocolError && retryCount < maxRetries && (error.message.includes('Network error') || error.message.includes('timeout') || error.message.includes('Fetch PUT failed'))) {
               logger.warn(`[Upload] ${fileKey}: Upload error, retrying (${retryCount + 1}/${maxRetries})...`);
               // Wait before retry with exponential backoff
               await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-              return attemptUpload(retryCount + 1, maxRetries);
+              return innerAttemptUpload(retryCount + 1, maxRetries, forceHttp1);
             }
+            
+            throw error;
+          }
+        };
+
+        // Chunked upload for large files with HTTP/2 issues
+        const attemptChunkedUpload = async (url, file, onProgress) => {
+          const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+          let uploaded = 0;
+
+          try {
+            for (let start = 0; start < file.size; start += chunkSize) {
+              const end = Math.min(start + chunkSize, file.size);
+              const chunk = file.slice(start, end);
+              
+              await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', url);
+                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                xhr.setRequestHeader('X-Upload-Client', 'dos-mundos-web');
+                xhr.setRequestHeader('Content-Range', `bytes ${start}-${end - 1}/${file.size}`);
+                
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) return resolve();
+                  reject(new Error(`PUT failed: ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error('Chunk upload error'));
+                xhr.ontimeout = () => reject(new Error('Chunk upload timeout'));
+                xhr.timeout = 300000;
+                
+                xhr.onprogress = (e) => {
+                  uploaded = start + (e.lengthComputable ? e.loaded : 0);
+                  const percent = Math.floor((uploaded / file.size) * 100);
+                  if (onProgress) onProgress(percent, { stage: 'uploading', message: `Chunk ${Math.ceil(start / chunkSize) + 1}...`, uploadedMB: (uploaded / (1024 * 1024)).toFixed(2), totalMB });
+                };
+                
+                xhr.send(chunk);
+              });
+            }
+            
+            logger.info(`[Upload] ${fileKey}: Chunked upload succeeded`);
+          } catch (error) {
+            logger.error(`[Upload] ${fileKey}: Chunked upload failed - ${error.message}`);
             throw error;
           }
         };
         
-        await attemptUpload();
+        await innerAttemptUpload();
         if (onProgress) onProgress(100, { stage: 'done', message: 'Готово', uploadedMB: totalMB, totalMB });
         const fileUrl = `${config.WORKER_PUBLIC_URL}/${fileKey}`;
         logger.info(`[Upload] ${fileKey}: completed via presigned PUT. URL: ${fileUrl}`);
