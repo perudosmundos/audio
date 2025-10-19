@@ -7,6 +7,8 @@ const DEFAULT_MARKER_COLOR = '#FFC107';
 const ProgressBar = ({ currentTime, duration, sections, onProgressChange, onSectionJump, currentLanguage = 'ru' }) => {
 
   const progressBarRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const lastUpdateTimeRef = useRef(0);
 
   const handleProgressInteraction = useCallback((clientX) => {
     if (progressBarRef.current && duration > 0) {
@@ -15,15 +17,33 @@ const ProgressBar = ({ currentTime, duration, sections, onProgressChange, onSect
       const newTime = Math.max(0, Math.min(duration, clickPosition * duration));
 
       if (typeof onProgressChange === 'function' && !isNaN(newTime)) {
-        onProgressChange(newTime);
+        // Throttle updates during dragging for better performance
+        const now = Date.now();
+        if (!isDraggingRef.current || now - lastUpdateTimeRef.current > 50) {
+          onProgressChange(newTime);
+          lastUpdateTimeRef.current = now;
+        }
       }
-      // No else clause needed - silently ignore invalid inputs
     }
-    // No else clause needed for invalid progress bar state
   }, [duration, onProgressChange]);
 
   const handleMouseClick = (e) => {
     handleProgressInteraction(e.clientX);
+  };
+
+  const handleMouseDown = (e) => {
+    isDraggingRef.current = true;
+    handleProgressInteraction(e.clientX);
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDraggingRef.current) {
+      handleProgressInteraction(e.clientX);
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
   };
 
   const handleTouchInteraction = (touch) => {
@@ -32,15 +52,20 @@ const ProgressBar = ({ currentTime, duration, sections, onProgressChange, onSect
 
   const handleTouchStart = (e) => {
      if (e.touches.length > 0) {
+      isDraggingRef.current = true;
       handleTouchInteraction(e.touches[0]);
     }
   };
 
   const handleTouchMove = (e) => {
     e.preventDefault();
-    if (e.touches.length > 0) {
+    if (e.touches.length > 0 && isDraggingRef.current) {
       handleTouchInteraction(e.touches[0]);
     }
+  };
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
   };
 
   const handleSectionMarkerClick = useCallback((e, time, id) => {
@@ -50,12 +75,39 @@ const ProgressBar = ({ currentTime, duration, sections, onProgressChange, onSect
     }
   }, [onSectionJump]);
 
+  // Добавляем глобальные обработчики для drag
+  React.useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      if (isDraggingRef.current) {
+        handleMouseMove(e);
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isDraggingRef.current) {
+        handleMouseUp();
+      }
+    };
+
+    if (isDraggingRef.current) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, []);
+
   return (
     <div
       className="h-6 md:h-7 w-full relative cursor-pointer group"
       onClick={handleMouseClick}
+      onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       ref={progressBarRef}
       role="slider"
       aria-valuemin="0"

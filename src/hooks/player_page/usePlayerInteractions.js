@@ -62,6 +62,10 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
 
   const handleSeekToTime = useCallback((time, id = null, playAfterJump = false, questionId = null) => {
     logger.debug('usePlayerInteractions: handleSeekToTime called', { time, id, playAfterJump, questionId });
+    
+    // Оптимизация: обновляем состояние сразу, не дожидаясь URL
+    setJumpDetails({ time, id: id || `segment-${Math.round(time * 1000)}`, questionId, playAfterJump, segmentToHighlight: Math.round(time * 1000) });
+    
     const segmentStartTimeMs = Math.round(time * 1000);
     let newHash = '';
     if (id && typeof id === 'string' && id.startsWith('question-')) {
@@ -70,6 +74,7 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
         newHash = `#segment-${segmentStartTimeMs}${playAfterJump ? '&play=true' : ''}`;
     }
       
+    // Обновляем URL только если он действительно изменился
     if (location.hash !== newHash) {
         if (newHash) {
             navigate(`${location.pathname}${newHash}`, { replace: true, state: location.state });
@@ -77,7 +82,6 @@ const usePlayerInteractions = (audioRef, playerControlsContainerRef, episodeSlug
              navigate(location.pathname, { replace: true, state: location.state });
         }
     }
-    setJumpDetails({ time, id: id || `segment-${segmentStartTimeMs}`, questionId, playAfterJump, segmentToHighlight: segmentStartTimeMs });
   }, [navigate, location.pathname, location.hash, location.state]);
 
   const handlePlayerStateChange = useCallback((newState) => {

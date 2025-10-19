@@ -14,8 +14,6 @@ const usePlayerInitialization = ({
   jumpToTime, // Добавляем параметр для проверки активного перехода
 }) => {
   useEffect(() => {
-
-    
     // Проверяем, есть ли активный переход
     const hasActiveJump = jumpToTime !== null && jumpToTime !== undefined;
     
@@ -28,7 +26,7 @@ const usePlayerInitialization = ({
     
     // Не сбрасываем состояние воспроизведения, если это просто пауза
     if (!isJustPause) {
-    setIsPlayingState(false);
+      setIsPlayingState(false);
     }
     
     // Не сбрасываем currentTime, если есть активный переход или это просто пауза

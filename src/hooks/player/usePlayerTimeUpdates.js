@@ -20,6 +20,12 @@ const usePlayerTimeUpdates = ({
 
     const currentTime = audioRef.current.currentTime;
 
+    // Проверяем валидность времени
+    if (isNaN(currentTime) || currentTime < 0) {
+      console.warn('Invalid currentTime detected:', currentTime);
+      return;
+    }
+
     setCurrentTimeState(currentTime);
 
     let activeQuestion = null;

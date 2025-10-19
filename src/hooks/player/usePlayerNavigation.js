@@ -23,6 +23,7 @@ const usePlayerNavigation = ({
     if (audioRef.current && !isNaN(newTime)) {
       const clampedTime = Math.max(0, Math.min(durationState || 0, newTime));
       
+      // Всегда сохраняем текущее состояние воспроизведения при перемотке
       onQuestionSelectJump(clampedTime, null, isPlayingState);
     }
   }, [audioRef, durationState, onQuestionSelectJump, isPlayingState]);
@@ -31,7 +32,16 @@ const usePlayerNavigation = ({
     if (audioRef.current) {
       const newTime = audioRef.current.currentTime + seconds;
       
-      onQuestionSelectJump(newTime, null, isPlayingState);
+      // Оптимизация: для быстрой перемотки используем прямую установку времени
+      if (Math.abs(seconds) <= 10) {
+        // Быстрая перемотка - обновляем время напрямую для мгновенного отклика
+        audioRef.current.currentTime = newTime;
+        // Обновляем состояние через обычный механизм, но без ожидания
+        onQuestionSelectJump(newTime, null, isPlayingState);
+      } else {
+        // Большие переходы - используем обычную логику
+        onQuestionSelectJump(newTime, null, isPlayingState);
+      }
     }
   }, [onQuestionSelectJump, audioRef, isPlayingState]);
 
@@ -53,7 +63,7 @@ const usePlayerNavigation = ({
       }
     }
     
-    const playAfterNav = audioRef.current ? !audioRef.current.paused : false;
+    const playAfterNav = isPlayingState; // Используем состояние React вместо аудио элемента
 
     if (direction < 0) { 
       if (currentQuestionIndex !== -1 && (currentTimeState - currentQuestionStartTime > 2)) {
@@ -77,10 +87,7 @@ const usePlayerNavigation = ({
   }, [onQuestionSelectJump]);
 
   const togglePlayPause = useCallback(() => {
-
-    
     if (!episodeData?.audio_url && audioRef.current) {
-
         toast({ title: getLocaleString('errorGeneric', currentLanguage), description: getLocaleString('noAudioSource', currentLanguage), variant: 'destructive' });
         setIsPlayingState(false);
         onPlayerStateChange?.({isPlaying: false});
@@ -91,11 +98,9 @@ const usePlayerNavigation = ({
     const audioIsActuallyPlaying = audioRef.current && !audioRef.current.paused;
     const newIsPlaying = !audioIsActuallyPlaying;
     
-
-    
     setIsPlayingState(newIsPlaying);
     onPlayerStateChange?.({isPlaying: newIsPlaying});
-  }, [episodeData?.audio_url, toast, currentLanguage, audioRef, isPlayingState, setIsPlayingState, onPlayerStateChange]);
+  }, [episodeData?.audio_url, toast, currentLanguage, audioRef, setIsPlayingState, onPlayerStateChange]);
 
   const setPlaybackRateByIndex = useCallback((index) => {
     if (index >= 0 && index < playbackRateOptions.length) {

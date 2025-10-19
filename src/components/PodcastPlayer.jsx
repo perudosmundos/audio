@@ -212,6 +212,7 @@ const PodcastPlayer = ({
           playbackRate={playbackRate}
           onError={(e) => {
              if (e.target.error && e.target.error.code !== e.target.error.MEDIA_ERR_ABORTED) {
+                console.error('PodcastPlayer: Audio error occurred', e.target.error);
                 toast({
                 title: getLocaleString('audioErrorTitle', currentLanguage),
                 description: getLocaleString('audioErrorDescriptionPlayer', currentLanguage, {episodeTitle: episodeData.title}),

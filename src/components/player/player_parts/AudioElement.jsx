@@ -35,7 +35,7 @@ const AudioElement = React.memo(({
     console.error('Audio networkState:', e.target.networkState);
     console.error('Audio readyState:', e.target.readyState);
     
-    // Проверяем, не является ли это ошибкой кеша
+    // Проверяем, не является ли это ошибкой кеша или сети
     if (e.target.error?.code === e.target.error?.MEDIA_ERR_SRC_NOT_SUPPORTED || 
         e.target.error?.code === e.target.error?.MEDIA_ERR_NETWORK) {
       console.warn('Audio loading failed, might be cache or network issue');
