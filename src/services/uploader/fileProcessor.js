@@ -7,6 +7,57 @@ import { parseQuestionsFromDescriptionString } from '@/lib/podcastService';
 import { translateTextOpenAI } from '@/lib/openAIService';
 import { startPollingForItem } from './transcriptPoller';
 
+/**
+ * Start transcription manually (called from UI button)
+ */
+export const startManualTranscription = async ({
+  audioUrl,
+  episodeSlug,
+  lang,
+  currentLanguage,
+  toast
+}) => {
+  try {
+    const assemblyLangCode = lang === 'es' ? 'es' : lang === 'ru' ? 'ru' : 'en';
+    
+    const transcriptJob = await assemblyAIService.submitTranscription(
+      audioUrl,
+      assemblyLangCode,
+      episodeSlug,
+      currentLanguage,
+      lang
+    );
+
+    // Save to database
+    const transcriptPayload = {
+      episode_slug: episodeSlug,
+      lang: lang,
+      assemblyai_transcript_id: transcriptJob.id,
+      status: transcriptJob.status,
+      updated_at: new Date().toISOString(),
+      edited_transcript_data: null 
+    };
+    
+    const { error: transcriptDbError } = await supabase
+      .from('transcripts')
+      .upsert(transcriptPayload, { onConflict: 'episode_slug, lang' })
+      .select()
+      .maybeSingle();
+
+    if (transcriptDbError) {
+      throw new Error(`Database error: ${transcriptDbError.message}`);
+    }
+
+    return {
+      success: true,
+      transcriptJob
+    };
+  } catch (error) {
+    console.error('Manual transcription start error:', error);
+    throw error;
+  }
+};
+
 export const processSingleItem = async ({
   itemData,
   forceOverwrite = false,
@@ -27,21 +78,40 @@ export const processSingleItem = async ({
     transcriptionError: null,
   });
   
-  const { file, episodeSlug, episodeTitle, lang, parsedDate, timingsText, sourceLangForEn, originalFileId } = itemData;
+  const { file, episodeSlug, episodeTitle, lang, parsedDate, timingsText, sourceLangForEn, originalFileId, fileGroupId, isSingleTrackFile } = itemData;
+
+  // Check if another item in the same group already uploaded the file
+  let sharedAudioUrl = null;
+  let sharedR2Key = null;
+  
+  if (isSingleTrackFile && fileGroupId) {
+    const allItems = getAllItems();
+    const groupItems = allItems.filter(item => item.fileGroupId === fileGroupId && item.id !== itemData.id);
+    const uploadedItem = groupItems.find(item => item.uploadedAudioUrl && item.r2FileKey);
+    
+    if (uploadedItem) {
+      sharedAudioUrl = uploadedItem.uploadedAudioUrl;
+      sharedR2Key = uploadedItem.r2FileKey;
+      console.log(`Reusing uploaded audio from group ${fileGroupId}: ${sharedAudioUrl}`);
+    }
+  }
 
   if (!episodeSlug) {
     updateItemState(itemData.id, { isUploading: false, uploadError: "Не удалось определить SLUG." });
     return { success: false, requiresDialog: false };
   }
 
-  let workerFileUrl;
-  let r2FileKey;
+  let workerFileUrl = sharedAudioUrl;
+  let r2FileKey = sharedR2Key;
   let bucketNameUsed;
   let userConfirmedOverwriteGlobal = forceOverwrite;
   let userOverwriteChoices = overwriteOptions || null;
+  
+  // Skip upload if we're reusing shared audio
+  const skipUpload = !!(sharedAudioUrl && sharedR2Key);
 
   try {
-    if (!forceOverwrite) {
+    if (!skipUpload && !forceOverwrite) {
       const { data: existingEpisode, error: checkError } = await supabase
         .from('episodes')
         .select('slug, audio_url, r2_object_key, r2_bucket_name')
@@ -89,8 +159,16 @@ export const processSingleItem = async ({
       }
     }
     
-    if (!userConfirmedOverwriteGlobal || !workerFileUrl) {
-      const fileExistsInR2 = await r2Service.checkFileExists(file.name);
+    if (!skipUpload && (!userConfirmedOverwriteGlobal || !workerFileUrl)) {
+      let fileExistsInR2 = { exists: false };
+      try {
+        fileExistsInR2 = await r2Service.checkFileExists(file.name);
+      } catch (checkError) {
+        // If file existence check fails (e.g., network error), just proceed with upload
+        console.warn('[fileProcessor] File existence check failed, proceeding with upload:', checkError.message);
+        fileExistsInR2 = { exists: false };
+      }
+      
       if (fileExistsInR2.exists && !userConfirmedOverwriteGlobal) {
         // Trigger dialog also when only server file exists
         const userConfirmedDialog = await openOverwriteDialog(itemData);
@@ -348,95 +426,15 @@ export const processSingleItem = async ({
         }
       }
 
-      const choices = userOverwriteChoices || { overwriteTranscript: true };
-      if (shouldSubmitTranscription && choices.overwriteTranscript) {
-        try {
-            // Use automatic language detection for better accuracy
-            // This allows AssemblyAI to detect the actual language instead of relying on filename
-            const assemblyLangCode = 'auto';
-
-            // If the public URL is not accessible by AssemblyAI (schema/CDN), fall back to direct upload
-            // Try multiple URL approaches for AssemblyAI compatibility
-            let transcriptJob;
-            try {
-              // Use the correct public URL format for AssemblyAI
-              let assemblyUrl = workerFileUrl;
-              console.log("DEBUG: workerFileUrl before conversion:", workerFileUrl);
-
-              // If we have a file name, construct the correct public URL
-              if (file && file.name) {
-                const fileName = file.name.replace(/\s+/g, '_');
-                assemblyUrl = `https://b2a9e188-93e4-4928-a636-2ad4c9e1094e.srvstatic.kz/${fileName}`;
-                console.log("Constructed correct public URL for AssemblyAI:", assemblyUrl);
-              }
-
-              console.log("DEBUG: Final assemblyUrl:", assemblyUrl);
-              console.log("Submitting to AssemblyAI with automatic language detection for URL:", assemblyUrl);
-              transcriptJob = await assemblyAIService.submitTranscription(assemblyUrl, assemblyLangCode, upsertedEpisode.slug, currentLanguage, lang);
-                        } catch (e) {
-              const msg = (e?.message || '').toLowerCase();
-              if (msg.includes('invalid endpoint schema')) {
-                console.log("Public URL failed, trying presigned GET URL as recommended by AssemblyAI docs");
-                try {
-                  // Second try: presigned GET URL for server authentication (AssemblyAI best practice)
-                  const objectKey = r2FileKey || (file?.name ? file.name.replace(/\s+/g, '_') : null);
-                  if (objectKey) {
-                    console.log("Getting presigned GET URL for object key:", objectKey);
-                    const presignedUrl = await assemblyAIService.getPresignedGetUrl(objectKey);
-                    if (presignedUrl) {
-                      console.log("Using presigned GET URL (AssemblyAI recommended method):", presignedUrl);
-                      transcriptJob = await assemblyAIService.submitTranscription(presignedUrl, assemblyLangCode, upsertedEpisode.slug, currentLanguage, lang);
-                    } else {
-                      throw new Error('Could not get presigned URL');
-                    }
-                  } else {
-                    throw new Error('No object key available');
-                  }
-                } catch (presignError) {
-                  console.log("Presigned URL also failed:", presignError.message);
-                  console.log("Uploading directly to AssemblyAI as final fallback");
-                  // Final fallback: direct upload
-                  const uploadUrl = await assemblyAIService.uploadDirect(file);
-                  transcriptJob = await assemblyAIService.submitTranscription(uploadUrl, assemblyLangCode, upsertedEpisode.slug, currentLanguage, lang);
-                }
-              } else {
-                throw e;
-              }
-            }
-            
-            const transcriptPayload = {
-                episode_slug: upsertedEpisode.slug,
-                lang: lang,
-                assemblyai_transcript_id: transcriptJob.id,
-                status: transcriptJob.status,
-                updated_at: new Date().toISOString(),
-                        edited_transcript_data: null 
-            };
-            
-            const { error: transcriptDbError } = await supabase.from('transcripts').upsert(transcriptPayload, { onConflict: 'episode_slug, lang' }).select().maybeSingle();
-
-            if (transcriptDbError) {
-              if(transcriptDbError.message.includes('constraint matching the ON CONFLICT specification')) {
-                console.error("ON CONFLICT failed when upserting transcript job, likely due to missing unique constraint on (episode_slug, lang). DB Schema needs 'ALTER TABLE public.transcripts ADD CONSTRAINT transcripts_episode_slug_lang_unique UNIQUE (episode_slug, lang);'");
-                throw new Error(getLocaleString('errorSavingTranscriptionData', currentLanguage, { errorMessage: "Database configuration error (ON CONFLICT)."}));
-              } else {
-                throw new Error(getLocaleString('supabaseTranscriptError', currentLanguage, { errorMessage: transcriptDbError.message }));
-              }
-            }
-            
-            updateItemState(itemData.id, { transcriptionStatus: transcriptJob.status });
-            if (transcriptJob.status === 'queued' || transcriptJob.status === 'processing') {
-              startPollingForItem(itemData, updateItemState, currentLanguage, toast, pollingIntervalsRef, getAllItems);
-            } else if (transcriptJob.status === 'completed') {
-               updateItemState(itemData.id, { transcriptionStatus: 'completed' });
-               toast({ title: getLocaleString('transcriptionCompletedTitle', currentLanguage), description: getLocaleString('transcriptionCompletedDesc', currentLanguage, {episode: itemData.episodeTitle}), variant: 'default' });
-            }
-
-        } catch (assemblyError) {
-            console.error(`AssemblyAI submission error for ${episodeSlug}:`, assemblyError);
-            updateItemState(itemData.id, { transcriptionError: assemblyError.message, transcriptionStatus: 'error' });
-        }
-      }
+      // AUTO-TRANSCRIPTION DISABLED: Now handled manually via TranscriptionButton
+      // Store audio URL for manual transcription
+      updateItemState(itemData.id, { 
+        uploadedAudioUrl: workerFileUrl,
+        r2FileKey: r2FileKey,
+        transcriptionStatus: 'not_started' 
+      });
+      
+      console.log(`Upload complete for ${episodeSlug}. Transcription can be started manually from UI.`);
     }
     updateItemState(itemData.id, { isUploading: false, uploadComplete: true, uploadProgress: 100 });
     return { success: true, requiresDialog: false };

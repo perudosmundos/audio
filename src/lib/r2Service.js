@@ -106,14 +106,21 @@ const r2Service = {
         if (error.name === 'NoSuchKey' || (error.$metadata && error.$metadata.httpStatusCode === 404)) {
           return { exists: false };
         }
-        console.warn(`Error checking file in R2 bucket ${config.BUCKET}:`, error);
-        return { exists: false, error: error }; 
+        // For any other error (network, HTTP/2, timeout, etc.), assume file doesn't exist
+        // This allows upload to proceed even if we can't check
+        logger.warn(`[checkFileExists] Could not verify if file exists in R2 bucket ${config.BUCKET}: ${error.message}. Proceeding with assumption it doesn't exist.`);
+        return { exists: false, checkError: error.message }; 
       }
     };
 
-    const primaryCheck = await attemptCheck(primaryS3Client, R2_PRIMARY_CONFIG);
-    if (primaryCheck.exists) return primaryCheck;
-    return { exists: false };
+    try {
+      const primaryCheck = await attemptCheck(primaryS3Client, R2_PRIMARY_CONFIG);
+      if (primaryCheck.exists) return primaryCheck;
+      return { exists: false };
+    } catch (outerError) {
+      logger.error(`[checkFileExists] Outer error checking file:`, outerError);
+      return { exists: false };
+    }
   },
 
   uploadFile: async (file, onProgress, currentLanguage, originalFilename) => {
