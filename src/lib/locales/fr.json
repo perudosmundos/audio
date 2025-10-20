@@ -725,5 +725,15 @@
   "editRolledBack": "Modification annulée",
   "contentRestored": "Votre contenu précédent a été restauré",
   "rollbackRecordedDesc": "L'annulation a été enregistrée mais la restauration du contenu nécessite une intervention manuelle",
-  "authenticate": "S'authentifier"
+  "authenticate": "S'authentifier",
+  "editorAuthentication": "Authentification d'Éditeur",
+  "editorAuthDescription": "Entrez votre email et nom pour vous authentifier en tant qu'éditeur. Seuls les caractères latins sont autorisés.",
+  "email": "Email",
+  "emailPlaceholder": "votre.email@exemple.fr",
+  "emailLatinOnly": "L'email doit contenir uniquement des caractères latins",
+  "name": "Nom",
+  "namePlaceholder": "Jean Dupont",
+  "nameLatinOnly": "Le nom doit contenir uniquement des caractères latins, espaces et tirets",
+  "loginFailed": "Échec de la connexion",
+  "authenticating": "Authentification en cours..."
 }

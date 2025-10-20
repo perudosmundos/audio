@@ -66,6 +66,7 @@ const AppContent = ({ currentLanguage, handleLanguageSelect, user }) => {
           <EditorAuthModal 
             isOpen={showAuthModal}
             onClose={closeAuthModal}
+            currentLanguage={currentLanguage}
           />
           
           <Toaster />

@@ -725,5 +725,15 @@
   "editRolledBack": "Edición revertida",
   "contentRestored": "Tu contenido anterior ha sido restaurado",
   "rollbackRecordedDesc": "La reversión fue registrada pero la restauración del contenido requiere intervención manual",
-  "authenticate": "Autenticar"
+  "authenticate": "Autenticar",
+  "editorAuthentication": "Autenticación de Editor",
+  "editorAuthDescription": "Ingresa tu email y nombre para autenticarte como editor. Solo se permiten caracteres latinos.",
+  "email": "Email",
+  "emailPlaceholder": "tu.email@ejemplo.com",
+  "emailLatinOnly": "El email debe contener solo caracteres latinos",
+  "name": "Nombre",
+  "namePlaceholder": "Juan Pérez",
+  "nameLatinOnly": "El nombre debe contener solo caracteres latinos, espacios y guiones",
+  "loginFailed": "Error de inicio de sesión",
+  "authenticating": "Autenticando..."
 }

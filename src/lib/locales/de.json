@@ -725,5 +725,15 @@
   "editRolledBack": "Bearbeitung rückgängig gemacht",
   "contentRestored": "Ihr vorheriger Inhalt wurde wiederhergestellt",
   "rollbackRecordedDesc": "Das Rückgängigmachen wurde aufgezeichnet, aber die Inhaltswiederherstellung erfordert manuelles Eingreifen",
-  "authenticate": "Authentifizieren"
+  "authenticate": "Authentifizieren",
+  "editorAuthentication": "Editor-Authentifizierung",
+  "editorAuthDescription": "Geben Sie Ihre E-Mail und Ihren Namen ein, um sich als Editor zu authentifizieren. Nur lateinische Zeichen sind erlaubt.",
+  "email": "E-Mail",
+  "emailPlaceholder": "ihre.email@beispiel.de",
+  "emailLatinOnly": "E-Mail muss nur lateinische Zeichen enthalten",
+  "name": "Name",
+  "namePlaceholder": "Hans Müller",
+  "nameLatinOnly": "Name muss nur lateinische Zeichen, Leerzeichen und Bindestriche enthalten",
+  "loginFailed": "Anmeldung fehlgeschlagen",
+  "authenticating": "Authentifizierung läuft..."
 }

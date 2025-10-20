@@ -207,6 +207,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
         <EditorAuthModal 
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
+          currentLanguage={currentLanguage}
         />
       </div>
     );

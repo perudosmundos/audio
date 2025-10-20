@@ -725,5 +725,15 @@
   "editRolledBack": "Edycja cofnięta",
   "contentRestored": "Twoja poprzednia zawartość została przywrócona",
   "rollbackRecordedDesc": "Cofnięcie zostało zapisane, ale przywrócenie zawartości wymaga ręcznej interwencji",
-  "authenticate": "Uwierzytelnij"
+  "authenticate": "Uwierzytelnij",
+  "editorAuthentication": "Uwierzytelnianie Edytora",
+  "editorAuthDescription": "Wprowadź swój email i imię, aby uwierzytelnić się jako edytor. Dozwolone są tylko znaki łacińskie.",
+  "email": "Email",
+  "emailPlaceholder": "twoj.email@przyklad.pl",
+  "emailLatinOnly": "Email musi zawierać tylko znaki łacińskie",
+  "name": "Imię",
+  "namePlaceholder": "Jan Kowalski",
+  "nameLatinOnly": "Imię musi zawierać tylko znaki łacińskie, spacje i myślniki",
+  "loginFailed": "Logowanie nie powiodło się",
+  "authenticating": "Uwierzytelnianie..."
 }

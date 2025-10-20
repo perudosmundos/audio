@@ -20,11 +20,11 @@ const Footer = ({ currentLanguage, onLanguageChange }) => {
           <button
             onClick={() => setIsEditHistoryOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600/30 text-white rounded-lg shadow-lg backdrop-blur-sm transition-all hover:scale-105"
-            title="История редактирования"
+            title={getLocaleString('editHistoryTitle', currentLanguage)}
           >
             <History className="h-4 w-4" />
             <span className="text-sm font-medium">
-              История редактирования
+              {getLocaleString('editHistoryTitle', currentLanguage)}
             </span>
           </button>
 

@@ -144,6 +144,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
           <EditorAuthModal 
             isOpen={showAuthModal}
             onClose={() => setShowAuthModal(false)}
+            currentLanguage={currentLanguage}
           />
         </CardContent>
       </Card>

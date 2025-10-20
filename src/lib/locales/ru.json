@@ -671,5 +671,15 @@
   "reason": "Причина",
   "editHistoryAdminTitle": "Админ-панель истории редактирования",
   "authenticateToAccessEditHistory": "Аутентифицируйтесь для доступа к истории редактирования",
-  "authenticate": "Аутентифицироваться"
+  "authenticate": "Аутентифицироваться",
+  "editorAuthentication": "Аутентификация редактора",
+  "editorAuthDescription": "Введите ваш email и имя для аутентификации в качестве редактора. Разрешены только латинские символы.",
+  "email": "Email",
+  "emailPlaceholder": "ваш.email@example.com",
+  "emailLatinOnly": "Email должен содержать только латинские символы",
+  "name": "Имя",
+  "namePlaceholder": "Иван Иванов",
+  "nameLatinOnly": "Имя должно содержать только латинские символы, пробелы и дефисы",
+  "loginFailed": "Ошибка входа",
+  "authenticating": "Аутентификация..."
 }

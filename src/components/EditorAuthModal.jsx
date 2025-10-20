@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle, LogIn } from 'lucide-react';
+import { getLocaleString } from '@/lib/locales';
 
-export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
+export const EditorAuthModal = ({ isOpen, onClose, onSuccess, currentLanguage }) => {
   const { login, isAuthenticated } = useEditorAuth();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -27,10 +28,10 @@ export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
         if (onSuccess) onSuccess(result.editor);
         if (onClose) onClose();
       } else {
-        setError(result.error || 'Login failed');
+        setError(result.error || getLocaleString('loginFailed', currentLanguage));
       }
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || getLocaleString('errorGeneric', currentLanguage));
     } finally {
       setIsLoading(false);
     }
@@ -68,24 +69,24 @@ export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <LogIn size={20} className="text-purple-400" />
-            Editor Authentication
+            {getLocaleString('editorAuthentication', currentLanguage)}
           </DialogTitle>
           <DialogDescription className="text-slate-300">
-            Enter your email and name to authenticate as an editor. Only Latin characters are allowed.
+            {getLocaleString('editorAuthDescription', currentLanguage)}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-slate-200">
-              Email
+              {getLocaleString('email', currentLanguage)}
             </Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={handleEmailChange}
-              placeholder="your.email@example.com"
+              placeholder={getLocaleString('emailPlaceholder', currentLanguage)}
               required
               disabled={isLoading}
               className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500"
@@ -93,21 +94,21 @@ export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
             {email && !validateEmail(email) && (
               <p className="text-xs text-amber-400 flex items-center gap-1">
                 <AlertCircle size={12} />
-                Email must contain only Latin characters
+                {getLocaleString('emailLatinOnly', currentLanguage)}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="name" className="text-slate-200">
-              Name
+              {getLocaleString('name', currentLanguage)}
             </Label>
             <Input
               id="name"
               type="text"
               value={name}
               onChange={handleNameChange}
-              placeholder="John Doe"
+              placeholder={getLocaleString('namePlaceholder', currentLanguage)}
               required
               disabled={isLoading}
               className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500"
@@ -115,7 +116,7 @@ export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
             {name && !validateName(name) && (
               <p className="text-xs text-amber-400 flex items-center gap-1">
                 <AlertCircle size={12} />
-                Name must contain only Latin characters, spaces, and hyphens
+                {getLocaleString('nameLatinOnly', currentLanguage)}
               </p>
             )}
           </div>
@@ -137,7 +138,7 @@ export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
               disabled={isLoading}
               className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
             >
-              Cancel
+              {getLocaleString('cancel', currentLanguage)}
             </Button>
             <Button
               type="submit"
@@ -147,12 +148,12 @@ export const EditorAuthModal = ({ isOpen, onClose, onSuccess }) => {
               {isLoading ? (
                 <span className="flex items-center gap-2">
                   <span className="animate-spin">⏳</span>
-                  Authenticating...
+                  {getLocaleString('authenticating', currentLanguage)}
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
                   <CheckCircle size={16} />
-                  Authenticate
+                  {getLocaleString('authenticate', currentLanguage)}
                 </span>
               )}
             </Button>
