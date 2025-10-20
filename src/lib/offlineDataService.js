@@ -405,15 +405,17 @@ class OfflineDataService {
     // Если используем fallback хранилище
     if (this.useFallback) {
       const key = `questions_${episodeSlug}_${lang}`;
+      // Сортируем вопросы по времени перед сохранением
+      const sortedQuestions = [...questions].sort((a, b) => (a.time || 0) - (b.time || 0));
       const questionsData = {
-        questions: questions,
+        questions: sortedQuestions,
         episode_slug: episodeSlug,
         lang: lang,
         cached_at: Date.now(),
         last_updated: Date.now()
       };
       this.fallbackStorage.set(key, questionsData);
-      return questions.length;
+      return sortedQuestions.length;
     }
 
     try {
@@ -427,8 +429,11 @@ class OfflineDataService {
       const transaction = await this.getTransaction(['questions'], 'readwrite');
       const store = transaction.objectStore('questions');
       
+      // Сортируем вопросы по времени перед сохранением
+      const sortedQuestions = [...questions].sort((a, b) => (a.time || 0) - (b.time || 0));
+      
       // Создаем все промисы сразу, чтобы транзакция не завершилась
-      const promises = questions.map(question => {
+      const promises = sortedQuestions.map(question => {
         const questionData = {
           ...question,
           episode_slug: episodeSlug,
@@ -449,7 +454,7 @@ class OfflineDataService {
       
       // Ждем завершения транзакции
       return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve(results.length);
+        transaction.oncomplete = () => resolve(sortedQuestions.length);
         transaction.onerror = (event) => reject(new Error(`Transaction error: ${event.target.error?.message || 'Transaction failed'}`));
       });
     } catch (error) {

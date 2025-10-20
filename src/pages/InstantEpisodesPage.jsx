@@ -73,11 +73,14 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
       }
       counts[ep.slug] = counts[ep.slug] || {};
       ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
-         counts[ep.slug][lang] = (questionsData || []).filter(q => 
+         const episodeQuestions = (questionsData || []).filter(q => 
            q.episode_slug === ep.slug && 
            q.lang === lang && 
            (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''))
-         ).length;
+         );
+         // Сортируем вопросы по времени
+         episodeQuestions.sort((a, b) => (a.time || 0) - (b.time || 0));
+         counts[ep.slug][lang] = episodeQuestions.length;
       });
     });
     
@@ -107,7 +110,8 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
       
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
-        .select('episode_slug, id, title, lang'); 
+        .select('episode_slug, id, title, lang, time')
+        .order('time', { ascending: true }); 
       
       if (questionsError) throw questionsError;
 
@@ -135,7 +139,8 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
       if (!episodesError && episodesData) {
         const { data: questionsData } = await supabase
           .from('questions')
-          .select('episode_slug, id, title, lang');
+          .select('episode_slug, id, title, lang, time')
+          .order('time', { ascending: true });
 
         // Обновляем кэш в фоне
         await cacheIntegration.saveEpisodesPageData(episodesData, questionsData);
@@ -182,11 +187,14 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
     episodesList.forEach(ep => {
       counts[ep.slug] = counts[ep.slug] || {};
       ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
-         counts[ep.slug][lang] = (questionsList || []).filter(q => 
+         const episodeQuestions = (questionsList || []).filter(q => 
            q.episode_slug === ep.slug && 
            q.lang === lang && 
            (q.is_intro || q.is_full_transcript || q.id === 'intro-virtual' || (q.title && q.title.trim() !== ''))
-         ).length;
+         );
+         // Сортируем вопросы по времени
+         episodeQuestions.sort((a, b) => (a.time || 0) - (b.time || 0));
+         counts[ep.slug][lang] = episodeQuestions.length;
       });
     });
     setEpisodeQuestionsCount(counts);

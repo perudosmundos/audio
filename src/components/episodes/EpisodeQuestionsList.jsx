@@ -19,13 +19,16 @@ const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLangua
     navigate(`/episode/${episodeSlug}#question-${questionId}&play=true`);
   };
 
+  // Сортируем вопросы по времени как fallback
+  const sortedQuestions = [...questions].sort((a, b) => (a.time || 0) - (b.time || 0));
+
   return (
     <div key={`questions-${episodeSlug}-${updateTimestamp || ''}`} className="mt-3 pl-2">
       <div className="text-xs text-purple-300 font-semibold mb-1 py-1">
         {getLocaleString('questions', currentLanguage)}
       </div>
       <ul className="space-y-1.5 overflow-hidden pl-2 border-l-2 border-purple-500/20 animate-fade-in">
-        {questions.map(question => (
+        {sortedQuestions.map(question => (
           <li 
             key={question.id}
             className="animate-slide-in-left"

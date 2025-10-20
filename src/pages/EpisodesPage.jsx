@@ -63,7 +63,8 @@ const EpisodesPage = ({ currentLanguage }) => {
       
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
-        .select('episode_slug, id, title, lang'); 
+        .select('episode_slug, id, title, lang, time')
+        .order('time', { ascending: true }); 
       
       if (questionsError) throw questionsError;
       
@@ -85,6 +86,13 @@ const EpisodesPage = ({ currentLanguage }) => {
             questionsByEpisode[q.episode_slug][q.lang] = [];
           }
           questionsByEpisode[q.episode_slug][q.lang].push(q);
+        });
+        
+        // Сортируем вопросы по времени внутри каждой группы
+        Object.keys(questionsByEpisode).forEach(episodeSlug => {
+          Object.keys(questionsByEpisode[episodeSlug]).forEach(lang => {
+            questionsByEpisode[episodeSlug][lang].sort((a, b) => (a.time || 0) - (b.time || 0));
+          });
         });
         
         // Сохраняем вопросы в офлайн кеш

@@ -85,7 +85,9 @@ export const parseQuestionsFromDescriptionString = (descriptionText, episodeLang
       }
     }
   }
-  return questions;
+  
+  // Сортируем вопросы по времени
+  return questions.sort((a, b) => (a.time || 0) - (b.time || 0));
 };
 
 
