@@ -374,6 +374,51 @@ const usePlayerPlayback = ({
     }
   }, [episodeData?.slug]); // Срабатывает только при смене эпизода
 
+  // Автозапуск при первоначальной загрузке эпизода
+  useEffect(() => {
+    if (audioRef.current && episodeData?.audio_url && !isSeekingRef.current) {
+      // Проверяем что это первый запуск (нет предыдущего src)
+      const isFirstLoad = !audioRef.current.src || audioRef.current.src === '';
+      
+      if (isFirstLoad) {
+        logger.debug('usePlayerPlayback: First load detected, setting up auto-play');
+        
+        // Устанавливаем src и загружаем
+        audioRef.current.src = episodeData.audio_url;
+        audioRef.current.load();
+        
+        // Ждем готовности и запускаем
+        const handleFirstAutoPlay = () => {
+          audioRef.current?.removeEventListener('canplay', handleFirstAutoPlay);
+          
+          // Дополнительная проверка чтобы избежать конфликтов
+          if (audioRef.current && !audioRef.current.paused) {
+            logger.debug('usePlayerPlayback: Audio already playing on first load, skipping auto-play');
+            return;
+          }
+          
+          logger.debug('usePlayerPlayback: Auto-playing on first load');
+          
+          const playPromise = audioRef.current.play();
+          playPromise?.then(() => {
+            logger.debug('usePlayerPlayback: First load auto-play successful');
+            safeSetIsPlayingState(true);
+            onPlayerStateChange?.({ isPlaying: true });
+          }).catch(error => {
+            if (error.name === 'NotAllowedError') {
+              logger.debug('usePlayerPlayback: First load auto-play blocked by browser');
+              if (typeof setShowPlayOverlay === 'function') setShowPlayOverlay(true);
+            } else if (error.name !== 'AbortError') {
+              console.error("First load auto-play error:", error);
+            }
+          });
+        };
+        
+        audioRef.current.addEventListener('canplay', handleFirstAutoPlay);
+      }
+    }
+  }, [episodeData?.audio_url]); // Срабатывает при загрузке аудио URL
+
 };
 
 export default usePlayerPlayback;

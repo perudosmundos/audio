@@ -129,7 +129,35 @@ const PodcastPlayer = ({
     }
   }, [setCurrentPlaybackRateIndex, audioRef, onPlayerStateChange]);
 
-  // Убираем дублирующий автозапуск - оставляем только в usePlayerPlayback
+  // Дополнительная гарантия автозапуска (только если основной не сработал)
+  useEffect(() => {
+    if (episodeData?.audio_url && audioRef.current && !isPlayingState) {
+      // Ждем немного дольше, чтобы основной автозапуск успел сработать
+      const fallbackTimer = setTimeout(() => {
+        if (audioRef.current && !isPlayingState && episodeData?.audio_url) {
+          console.log('PodcastPlayer: Fallback auto-play attempt');
+          
+          // Проверяем готовность аудио
+          if (audioRef.current.readyState >= audioRef.current.HAVE_METADATA) {
+            const playPromise = audioRef.current.play();
+            playPromise?.then(() => {
+              console.log('PodcastPlayer: Fallback auto-play successful');
+              setIsPlayingState(true);
+              onPlayerStateChange?.({ isPlaying: true });
+            }).catch(error => {
+              if (error.name === 'NotAllowedError') {
+                console.log('PodcastPlayer: Fallback auto-play blocked by browser');
+              } else if (error.name !== 'AbortError') {
+                console.error('PodcastPlayer: Fallback auto-play error:', error);
+              }
+            });
+          }
+        }
+      }, 500); // 500ms задержка для fallback
+
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [episodeData?.audio_url, episodeData?.slug]); // Срабатывает при смене эпизода
 
   useEffect(() => {
     if(typeof window !== 'undefined'){
