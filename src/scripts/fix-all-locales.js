@@ -96,9 +96,10 @@ files.forEach(({ path: filePath, data, lang }) => {
   console.log(`  ✅ ${lang}: ${Object.keys(data).length} keys`);
 });
 
+const totalKeys = Object.keys(ru).length;
 console.log('\n✅ Localization update complete!');
 console.log('📊 Summary - All languages now have:');
-console.log(`  ✓ ${Object.keys(ru).length} keys (${Object.keys(ru).length} total)`);
+console.log(`  ✓ ${totalKeys} keys (${totalKeys} total)`);
 console.log(`  ✓ 6 languages supported:`);
 console.log(`    🇷🇺 Russian (RU) - Base language`);
 console.log(`    🇬🇧 English (EN)`);

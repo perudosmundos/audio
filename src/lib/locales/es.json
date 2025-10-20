@@ -674,5 +674,19 @@
   "textEditing": "Редактирование текста",
   "autoSync": "Автоматическая синхронизация",
   "localStorage": "Локальное хранение",
-  "translateTimingsToEnglish": "Перевести тайминги на английский"
+  "translateTimingsToEnglish": "Перевести тайминги на английский",
+  "themeSettings": "Theme Settings",
+  "themeDefault": "Default",
+  "themeDefaultDesc": "Default theme",
+  "themeDark": "Dark",
+  "themeDarkDesc": "Dark theme",
+  "themeLight": "Light",
+  "themeLightDesc": "Light theme",
+  "themeGreen": "Green",
+  "themeGreenDesc": "Green theme",
+  "themeOrange": "Orange",
+  "themeOrangeDesc": "Orange theme",
+  "themeChangeHint": "Theme will be applied after page refresh",
+  "interfaceLanguage": "Interface Language",
+  "languageChangeHint": "Language change will take effect immediately"
 }
