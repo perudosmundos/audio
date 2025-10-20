@@ -724,5 +724,6 @@
   "confirmRollback": "Êtes-vous sûr de vouloir annuler cette modification ?\n\nCela restaurera le contenu précédent.",
   "editRolledBack": "Modification annulée",
   "contentRestored": "Votre contenu précédent a été restauré",
-  "rollbackRecordedDesc": "L'annulation a été enregistrée mais la restauration du contenu nécessite une intervention manuelle"
+  "rollbackRecordedDesc": "L'annulation a été enregistrée mais la restauration du contenu nécessite une intervention manuelle",
+  "authenticate": "S'authentifier"
 }

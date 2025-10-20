@@ -724,5 +724,6 @@
   "confirmRollback": "Czy na pewno chcesz cofnąć tę edycję?\n\nTo przywróci poprzednią zawartość.",
   "editRolledBack": "Edycja cofnięta",
   "contentRestored": "Twoja poprzednia zawartość została przywrócona",
-  "rollbackRecordedDesc": "Cofnięcie zostało zapisane, ale przywrócenie zawartości wymaga ręcznej interwencji"
+  "rollbackRecordedDesc": "Cofnięcie zostało zapisane, ale przywrócenie zawartości wymaga ręcznej interwencji",
+  "authenticate": "Uwierzytelnij"
 }

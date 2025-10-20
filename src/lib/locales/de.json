@@ -724,5 +724,6 @@
   "confirmRollback": "Sind Sie sicher, dass Sie diese Bearbeitung rückgängig machen möchten?\n\nDies wird den vorherigen Inhalt wiederherstellen.",
   "editRolledBack": "Bearbeitung rückgängig gemacht",
   "contentRestored": "Ihr vorheriger Inhalt wurde wiederhergestellt",
-  "rollbackRecordedDesc": "Das Rückgängigmachen wurde aufgezeichnet, aber die Inhaltswiederherstellung erfordert manuelles Eingreifen"
+  "rollbackRecordedDesc": "Das Rückgängigmachen wurde aufgezeichnet, aber die Inhaltswiederherstellung erfordert manuelles Eingreifen",
+  "authenticate": "Authentifizieren"
 }

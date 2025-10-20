@@ -724,5 +724,6 @@
   "confirmRollback": "Are you sure you want to rollback this edit?\n\nThis will restore the previous content.",
   "editRolledBack": "Edit rolled back",
   "contentRestored": "Your previous content has been restored",
-  "rollbackRecordedDesc": "The rollback was recorded but content restoration requires manual intervention"
+  "rollbackRecordedDesc": "The rollback was recorded but content restoration requires manual intervention",
+  "authenticate": "Authenticate"
 }

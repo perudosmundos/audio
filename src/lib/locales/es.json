@@ -724,5 +724,6 @@
   "confirmRollback": "¿Estás seguro de que quieres revertir esta edición?\n\nEsto restaurará el contenido anterior.",
   "editRolledBack": "Edición revertida",
   "contentRestored": "Tu contenido anterior ha sido restaurado",
-  "rollbackRecordedDesc": "La reversión fue registrada pero la restauración del contenido requiere intervención manual"
+  "rollbackRecordedDesc": "La reversión fue registrada pero la restauración del contenido requiere intervención manual",
+  "authenticate": "Autenticar"
 }
