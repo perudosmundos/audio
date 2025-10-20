@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { RussianFlag, SpanishFlag, USFlag, GermanFlag, FrenchFlag, PolishFlag } from './ui/flags';
 
-const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
+const LanguageSwitcher = ({ currentLanguage, onLanguageChange, dropdownPosition = 'down' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   
@@ -94,7 +94,9 @@ const LanguageSwitcher = ({ currentLanguage, onLanguageChange }) => {
             className="fixed inset-0 bg-transparent" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-1 w-[180px] rounded-lg overflow-hidden bg-slate-800/95 shadow-lg border border-slate-600/30 backdrop-blur-sm">
+          <div className={`absolute right-0 w-[180px] rounded-lg overflow-hidden bg-slate-800/95 shadow-lg border border-slate-600/30 backdrop-blur-sm ${
+            dropdownPosition === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}>
             <div className="py-1">
               {languages.map((lang) => (
                 <button

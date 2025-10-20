@@ -179,7 +179,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
     const recentEpisodes = episodesData.slice(0, 5);
     
     for (const episode of recentEpisodes) {
-      for (const lang of ['ru', 'es', 'en']) {
+      for (const lang of ['ru', 'es', 'en', 'de', 'fr', 'pl']) {
         optimizedCacheService.addToBackgroundQueue('transcript', `${episode.slug}:${lang}`, 'low');
       }
     }
@@ -197,7 +197,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
       finalQuestionsData = [];
       // Загружаем вопросы из кэша для отфильтрованных эпизодов
       for (const episode of langFilteredEpisodes) {
-        for (const lang of ['ru', 'es', 'en']) {
+        for (const lang of ['ru', 'es', 'en', 'de', 'fr', 'pl']) {
           const cachedQuestions = await optimizedCacheService.smartGet('questions', `${episode.slug}:${lang}`, false);
           if (cachedQuestions && cachedQuestions.questions) {
             finalQuestionsData.push(...cachedQuestions.questions);
@@ -213,7 +213,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
         years.add(new Date(ep.date).getFullYear().toString());
       }
       counts[ep.slug] = counts[ep.slug] || {};
-      ['ru', 'es', 'en'].forEach(lang => {
+      ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
          counts[ep.slug][lang] = (finalQuestionsData || []).filter(q => 
            q.episode_slug === ep.slug && 
            q.lang === lang && 

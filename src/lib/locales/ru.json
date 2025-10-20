@@ -1,5 +1,5 @@
 {
-  "appName": "DM Подкасты",
+  "appName": "Dos Mundos Radio",
   "loading": "Загрузка...",
   "loadingPodcast": "Загрузка подкаста...",
   "loadingEpisodes": "Загрузка медитаций...",
@@ -421,6 +421,20 @@
   "editLogPageTitle": "История Изменений",
   "errorFetchingLogs": "Ошибка загрузки логов",
   "noEditHistory": "История изменений не найдена",
+  "editHistory": "История редактирования",
+  "editHistoryTitle": "История редактирования",
+  "rolledBack": "Отменено",
+  "errorLoadingHistory": "Ошибка загрузки истории",
+  "errorRollback": "Ошибка отмены",
+  "rollbackSuccessful": "Отмена выполнена успешно",
+  "rollbackFailed": "Не удалось выполнить отмену",
+  "editType": "Тип изменения",
+  "targetType": "Тип цели",
+  "rolledBackBy": "Отменено пользователем",
+  "unknownUser": "Неизвестный пользователь",
+  "showRolledBackEdits": "Показать отмененные изменения",
+  "editHistoryAdmin": "Администрирование истории редактирования",
+  "editHistoryCount": "История редактирования ({count} изменений)",
   "backButton": "Назад",
   "actionReverted": "Отменено",
   "revertButton": "Отменить",
@@ -682,8 +696,5 @@
   "migrationComplete": "Миграция хранилища завершена",
   "migrationError": "Ошибка миграции",
   "filesSelectedForMigration": "Файлы выбраны для миграции",
-  "storageProvider": "Поставщик хранилища",
-  "questionCount_one": "{count} вопрос",
-  "questionCount_few": "{count} вопроса",
-  "questionCount_many": "{count} вопросов"
+  "storageProvider": "Поставщик хранилища"
 }

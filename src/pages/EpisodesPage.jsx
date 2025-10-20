@@ -98,7 +98,7 @@ const EpisodesPage = ({ currentLanguage }) => {
       // Загружаем и сохраняем транскрипты для всех эпизодов
       console.log('🔄 Загружаем транскрипты для кеширования...');
       for (const episode of episodesData) {
-        for (const lang of ['ru', 'es', 'en']) {
+        for (const lang of ['ru', 'es', 'en', 'de', 'fr', 'pl']) {
           try {
             const { data: transcriptData, error: transcriptError } = await supabase
               .from('transcripts')
@@ -148,7 +148,7 @@ const EpisodesPage = ({ currentLanguage }) => {
           years.add(new Date(ep.date).getFullYear().toString());
         }
         counts[ep.slug] = counts[ep.slug] || {};
-        ['ru', 'es', 'en'].forEach(lang => {
+        ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
            counts[ep.slug][lang] = (questionsData || []).filter(q => 
              q.episode_slug === ep.slug && 
              q.lang === lang && 
@@ -228,7 +228,7 @@ const EpisodesPage = ({ currentLanguage }) => {
             // Загружаем вопросы из кеша
             const allCachedQuestions = [];
             for (const episode of langFilteredEpisodes) {
-              for (const lang of ['ru', 'es', 'en']) {
+              for (const lang of ['ru', 'es', 'en', 'de', 'fr', 'pl']) {
                 const questions = await offlineDataService.getQuestions(episode.slug, lang);
                 if (questions.length > 0) {
                   console.log(`📝 Найдены вопросы для ${episode.slug} (${lang}):`, questions.length);
@@ -247,7 +247,7 @@ const EpisodesPage = ({ currentLanguage }) => {
                 years.add(new Date(ep.date).getFullYear().toString());
               }
               counts[ep.slug] = counts[ep.slug] || {};
-              ['ru', 'es', 'en'].forEach(lang => {
+              ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
                  counts[ep.slug][lang] = allCachedQuestions.filter(q => 
                    q.episode_slug === ep.slug && 
                    q.lang === lang && 
@@ -360,7 +360,7 @@ const EpisodesPage = ({ currentLanguage }) => {
                 years.add(new Date(ep.date).getFullYear().toString());
               }
               counts[ep.slug] = counts[ep.slug] || {};
-              ['ru', 'es', 'en'].forEach(lang => {
+              ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
                  counts[ep.slug][lang] = allCachedQuestions.filter(q => 
                    q.episode_slug === ep.slug && 
                    q.lang === lang && 

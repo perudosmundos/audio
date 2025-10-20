@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import { getLocaleString } from '@/lib/locales';
 import { 
   History, 
   Undo2, 
@@ -76,7 +77,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
       }
     } catch (error) {
       toast({
-        title: 'Error loading data',
+        title: getLocaleString('errorLoadingHistory', currentLanguage),
         description: error.message,
         variant: 'destructive'
       });
@@ -187,10 +188,10 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <History size={24} className="text-purple-400" />
-              Edit History Admin
+              {getLocaleString('editHistoryAdminTitle', currentLanguage)}
             </CardTitle>
             <CardDescription className="text-slate-300">
-              Please authenticate to access the edit history admin panel
+              {getLocaleString('authenticateToAccessEditHistory', currentLanguage)}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -219,10 +220,10 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2">
               <History size={32} className="text-purple-400" />
-              Edit History Admin
+              {getLocaleString('editHistoryAdmin', currentLanguage)}
             </h1>
             <p className="text-slate-300">
-              Logged in as: <span className="text-purple-400 font-semibold">{editor.name}</span> ({editor.email})
+              {getLocaleString('loggedInAs', currentLanguage)}: <span className="text-purple-400 font-semibold">{editor.name}</span> ({editor.email})
             </p>
           </div>
           <div className="flex gap-2">
@@ -262,7 +263,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
             </Card>
             <Card className="bg-slate-800 border-slate-700">
               <CardHeader className="pb-2">
-                <CardDescription className="text-slate-400">Rolled Back</CardDescription>
+                <CardDescription className="text-slate-400">{getLocaleString('rolledBack', currentLanguage)}</CardDescription>
                 <CardTitle className="text-2xl text-amber-400">{stats.rolledBack}</CardTitle>
               </CardHeader>
             </Card>
@@ -352,7 +353,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
                 className="w-4 h-4"
               />
               <label htmlFor="showRolledBack" className="text-sm text-slate-300">
-                Show rolled back edits
+                {getLocaleString('showRolledBackEdits', currentLanguage)}
               </label>
             </div>
           </CardContent>
@@ -362,7 +363,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white">
-              Edit History ({filteredHistory.length} edits)
+              {getLocaleString('editHistoryCount', currentLanguage, { count: filteredHistory.length })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -391,7 +392,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
                               </Badge>
                               {edit.is_rolled_back && (
                                 <Badge variant="outline" className="bg-amber-900/30 text-amber-300 border-amber-500/30">
-                                  Rolled Back
+                                  {getLocaleString('rolledBack', currentLanguage)}
                                 </Badge>
                               )}
                             </div>

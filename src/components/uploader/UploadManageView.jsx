@@ -51,7 +51,7 @@ const UploadManageView = ({
   };
 
   // Функция для безопасного вызова перевода с защитой от множественных кликов
-  const handleTranslateClick = async (sourceEpisode, targetLang, sourceLang) => {
+  const handleTranslateClick = async (sourceEpisode, targetLang, sourceLang, overwrite = true) => {
     const buttonKey = `${sourceEpisode.slug}-${sourceLang}-${targetLang}`;
     
     if (clickedButtons.has(buttonKey)) {
@@ -62,7 +62,7 @@ const UploadManageView = ({
     setClickedButtons(prev => new Set([...prev, buttonKey]));
     
     try {
-      await translateEpisode(sourceEpisode, targetLang, sourceLang);
+      await translateEpisode(sourceEpisode, targetLang, sourceLang, { overwrite });
     } finally {
       // Убираем кнопку из списка нажатых через 2 секунды
       setTimeout(() => {
@@ -119,7 +119,8 @@ const UploadManageView = ({
   // Массовый перевод всех эпизодов
   const handleBatchTranslateAll = (sourceLang) => {
     const targetLangs = availableLanguages.filter(lang => !['es', 'ru'].includes(lang));
-    batchTranslateFromLanguage(episodes, sourceLang, targetLangs);
+    // По умолчанию НЕ перезаписываем — переводим только отсутствующие
+    batchTranslateFromLanguage(episodes, sourceLang, targetLangs, { overwrite: false });
   };
 
   // Массовый перевод одного эпизода на все языки
@@ -132,7 +133,8 @@ const UploadManageView = ({
     const targetLangs = availableLanguages.filter(lang => !['es', 'ru'].includes(lang));
     
     for (const targetLang of targetLangs) {
-      await translateEpisode(sourceEpisode, targetLang, sourceLang);
+      // Для кнопки "ES → Все"/"RU → Все" оставим поведение как у массового — только отсутствующие
+      await translateEpisode(sourceEpisode, targetLang, sourceLang, { overwrite: false });
     }
   };
 
@@ -304,7 +306,7 @@ const UploadManageView = ({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleTranslateClick(spanishEpisode, targetLang, 'es')}
+                            onClick={() => handleTranslateClick(spanishEpisode, targetLang, 'es', true)}
                             disabled={!hasSpanishTranscript || isTranslating}
                             className={`h-6 px-1 text-xs flex-1 ${
                               isTranslatingFromES 
@@ -318,7 +320,7 @@ const UploadManageView = ({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleTranslateClick(russianEpisode, targetLang, 'ru')}
+                            onClick={() => handleTranslateClick(russianEpisode, targetLang, 'ru', true)}
                             disabled={!hasRussianTranscript || isTranslating}
                             className={`h-6 px-1 text-xs flex-1 ${
                               isTranslatingFromRU 
@@ -393,7 +395,7 @@ const UploadManageView = ({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => translateEpisode(spanishEpisode, targetLang, 'es')}
+                            onClick={() => translateEpisode(spanishEpisode, targetLang, 'es', { overwrite: true })}
                             disabled={!hasSpanishTranscript || isTranslating}
                             className={`h-5 px-1 text-xs flex-1 ${
                               isTranslatingFromES 
@@ -407,7 +409,7 @@ const UploadManageView = ({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => translateEpisode(russianEpisode, targetLang, 'ru')}
+                            onClick={() => translateEpisode(russianEpisode, targetLang, 'ru', { overwrite: true })}
                             disabled={!hasRussianTranscript || isTranslating}
                             className={`h-5 px-1 text-xs flex-1 ${
                               isTranslatingFromRU 

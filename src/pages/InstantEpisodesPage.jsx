@@ -44,7 +44,7 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
           years.add(new Date(ep.date).getFullYear().toString());
         }
         counts[ep.slug] = counts[ep.slug] || {};
-        ['ru', 'es', 'en'].forEach(lang => {
+        ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
           counts[ep.slug][lang] = 0; // Временно 0, обновим позже
         });
       });
@@ -72,7 +72,7 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
         years.add(new Date(ep.date).getFullYear().toString());
       }
       counts[ep.slug] = counts[ep.slug] || {};
-      ['ru', 'es', 'en'].forEach(lang => {
+      ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
          counts[ep.slug][lang] = (questionsData || []).filter(q => 
            q.episode_slug === ep.slug && 
            q.lang === lang && 
@@ -158,7 +158,7 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
       const allQuestions = [];
       
       for (const episode of episodesList) {
-        for (const lang of ['ru', 'es', 'en']) {
+        for (const lang of ['ru', 'es', 'en', 'de', 'fr', 'pl']) {
           const cachedQuestions = await cacheIntegration.loadPlayerPageData(episode.slug, currentLanguage);
           if (cachedQuestions.questions) {
             allQuestions.push(...cachedQuestions.questions);
@@ -181,7 +181,7 @@ const InstantEpisodesPage = ({ currentLanguage, onLanguageChange }) => {
     const counts = {};
     episodesList.forEach(ep => {
       counts[ep.slug] = counts[ep.slug] || {};
-      ['ru', 'es', 'en'].forEach(lang => {
+      ['ru', 'es', 'en', 'de', 'fr', 'pl'].forEach(lang => {
          counts[ep.slug][lang] = (questionsList || []).filter(q => 
            q.episode_slug === ep.slug && 
            q.lang === lang && 

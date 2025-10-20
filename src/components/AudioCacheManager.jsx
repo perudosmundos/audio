@@ -129,48 +129,24 @@ const AudioCacheManager = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Встроенный режим для отдельного эпизода
+  // Встроенный режим для отдельного эпизода - только статус без кнопок
   if (showInline && episodeData) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
-        {isDownloading ? (
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-4 text-blue-500 animate-pulse">⬇️</div>
-            <div className="flex flex-col gap-1 min-w-[100px]">
-              <div className="text-xs text-slate-400">
-                {downloadProgress.progress || 0}%
-              </div>
-              <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${downloadProgress.progress || 0}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        ) : isCached ? (
+        {isCached ? (
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 text-green-500">✅</div>
             <span className="text-xs text-green-400">
               {getLocaleString('cached', currentLanguage)}
             </span>
-            <button
-              onClick={handleRemoveEpisode}
-              className="h-6 w-6 p-0 text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer"
-            >
-              🗑️
-            </button>
           </div>
         ) : (
-          <button
-            onClick={handleDownloadEpisode}
-            className="flex items-center gap-1 h-6 px-2 text-blue-400 hover:text-blue-300 bg-transparent border-none cursor-pointer"
-          >
-            <div className="h-3 w-3">⬇️</div>
-            <span className="text-xs">
-              {getLocaleString('cache', currentLanguage)}
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 text-slate-500">📁</div>
+            <span className="text-xs text-slate-400">
+              {getLocaleString('notCached', currentLanguage) || 'Не в кэше'}
             </span>
-          </button>
+          </div>
         )}
       </div>
     );
@@ -280,30 +256,17 @@ const AudioCacheManager = ({
               )}
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="text-center text-slate-400 text-sm py-4">
               {isCached ? (
-                <>
-                  <button
-                    onClick={handleRefreshCache}
-                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                  >
-                    🔄 {getLocaleString('refreshCache', currentLanguage)}
-                  </button>
-                  <button
-                    onClick={handleRemoveEpisode}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                  >
-                    🗑️ {getLocaleString('removeFromCache', currentLanguage)}
-                  </button>
-                </>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-4 w-4 text-green-500">✅</div>
+                  <span>{getLocaleString('cached', currentLanguage)}</span>
+                </div>
               ) : (
-                <button
-                  onClick={handleDownloadEpisode}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors disabled:opacity-50"
-                  disabled={!navigator.onLine}
-                >
-                  ⬇️ {getLocaleString('cacheForOffline', currentLanguage)}
-                </button>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-4 w-4 text-slate-500">📁</div>
+                  <span>{getLocaleString('notCached', currentLanguage) || 'Не в кэше'}</span>
+                </div>
               )}
             </div>
           )}

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import { getLocaleString } from '@/lib/locales';
 import { 
   History, 
   Undo2, 
@@ -48,14 +49,14 @@ export const UserEditHistory = ({ currentLanguage }) => {
         setEditHistory(result.data);
       } else {
         toast({
-          title: 'Error loading history',
+          title: getLocaleString('errorLoadingHistory', currentLanguage),
           description: result.error,
           variant: 'destructive'
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
+        title: getLocaleString('errorGeneric', currentLanguage),
         description: error.message,
         variant: 'destructive'
       });
@@ -202,7 +203,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
                 <p className="text-2xl text-green-400 font-bold">{activeEdits.length}</p>
               </div>
               <div className="bg-slate-700 p-3 rounded">
-                <p className="text-xs text-slate-400">Rolled Back</p>
+                <p className="text-xs text-slate-400">{getLocaleString('rolledBack', currentLanguage)}</p>
                 <p className="text-2xl text-amber-400 font-bold">{rolledBackEdits.length}</p>
               </div>
             </div>
@@ -239,7 +240,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
                                 variant="outline" 
                                 className="text-xs bg-amber-900/30 text-amber-300 border-amber-500/30"
                               >
-                                Rolled Back
+                                {getLocaleString('rolledBack', currentLanguage)}
                               </Badge>
                             )}
                           </div>

@@ -13,7 +13,7 @@ const Header = ({ podcastData, currentLanguage = 'ru' }) => {
         )}
         <div>
           <h1 className="text-lg font-semibold text-white">
-            {podcastData?.title || 'Dos Mundos Podcast'}
+            {podcastData?.title || 'Dos Mundos Radio'}
           </h1>
           {podcastData?.author && (
             <p className="text-sm text-slate-400">

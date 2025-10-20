@@ -10,12 +10,14 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
   const [isTranslating, setIsTranslating] = useState(false);
 
   // Перевод транскрипта и вопросов с указанного языка на целевой язык
-  const translateEpisode = useCallback(async (sourceEpisode, targetLang, sourceLang) => {
+  const translateEpisode = useCallback(async (sourceEpisode, targetLang, sourceLang, options = {}) => {
+    const overwrite = options?.overwrite ?? true; // По умолчанию перезаписываем существующие переводы в массовом режиме
     console.log('[translateEpisode] Starting translation:', {
       sourceSlug: sourceEpisode?.slug,
       sourceLang,
       targetLang,
-      isTranslating
+      isTranslating,
+      overwrite
     });
 
     if (!sourceEpisode || !sourceEpisode.slug) {
@@ -83,7 +85,7 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
       }
 
       // 2. Создаем эпизод для целевого языка (если не существует)
-      let targetSlug;
+  let targetSlug;
       if (sourceEpisode.slug.match(/_[a-z]{2}$/)) {
         // Если slug уже имеет языковой суффикс, заменяем его
         targetSlug = sourceEpisode.slug.replace(/_[a-z]{2}$/, `_${targetLang}`);
@@ -145,6 +147,12 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
         if (insertError) {
           throw new Error(`Ошибка создания эпизода: ${insertError.message}`);
         }
+      } else if (overwrite) {
+        // Если эпизод уже существует и включен overwrite, сообщим в лог
+        console.log('[translateEpisode] Target episode exists, will overwrite transcript and questions:', {
+          targetSlug,
+          targetLang
+        });
       }
 
       // 3. Переводим транскрипт
@@ -174,6 +182,18 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
       }
 
       // 4. Сохраняем переведенный транскрипт
+      // Если overwrite включен, удалим старый транскрипт перед upsert, чтобы очистить лишние поля
+      if (overwrite) {
+        try {
+          await supabase
+            .from('transcripts')
+            .delete()
+            .eq('episode_slug', targetSlug)
+            .eq('lang', targetLang);
+        } catch (e) {
+          console.warn('[translateEpisode] Failed to delete existing transcript before overwrite (continuing):', e?.message);
+        }
+      }
       const compactTranslated = buildEditedTranscriptData(translatedTranscript);
       
       const { error: transcriptUpsertError } = await supabase
@@ -256,12 +276,14 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
         });
 
         if (translatedQuestions.length > 0) {
-          // Удаляем старые вопросы для целевого языка
-          await supabase
-            .from('questions')
-            .delete()
-            .eq('episode_slug', targetSlug)
-            .eq('lang', targetLang);
+          // Удаляем старые вопросы для целевого языка (или всегда, если overwrite)
+          if (overwrite) {
+            await supabase
+              .from('questions')
+              .delete()
+              .eq('episode_slug', targetSlug)
+              .eq('lang', targetLang);
+          }
 
           // Вставляем новые переведенные вопросы
           const { error: questionsInsertError } = await supabase
@@ -376,7 +398,9 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
   }, [currentLanguage, toast, setEpisodes, isTranslating]);
 
   // Массовый перевод всех эпизодов с указанного языка
-  const batchTranslateFromLanguage = useCallback(async (episodes, sourceLang, targetLangs) => {
+  const batchTranslateFromLanguage = useCallback(async (episodes, sourceLang, targetLangs, options = {}) => {
+    // По умолчанию в массовом режиме НЕ перезаписываем — переводим только отсутствующие/незавершенные
+    const overwrite = options?.overwrite ?? false;
     const sourceEpisodes = episodes.filter(e => e.lang === sourceLang && e.transcript?.status === 'completed');
     
     if (sourceEpisodes.length === 0) {
@@ -396,10 +420,31 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
 
     let successCount = 0;
     let failCount = 0;
+    let skippedCount = 0;
+
+    const getTargetSlug = (slug, targetLang) => {
+      if (slug.match(/_[a-z]{2}$/)) {
+        return slug.replace(/_[a-z]{2}$/, `_${targetLang}`);
+      }
+      return `${slug}_${targetLang}`;
+    };
 
     for (const episode of sourceEpisodes) {
       for (const targetLang of targetLangs) {
-        const success = await translateEpisode(episode, targetLang, sourceLang);
+        // Пропускаем, если уже есть завершенный перевод и overwrite выключен
+        try {
+          const targetSlug = getTargetSlug(episode.slug, targetLang);
+          const existing = episodes.find(e => e.slug === targetSlug && e.lang === targetLang);
+          const isTranslated = existing?.transcript?.status === 'completed';
+          if (!overwrite && isTranslated) {
+            skippedCount++;
+            continue;
+          }
+        } catch (e) {
+          // В случае ошибки проверки — не скипаем, а пробуем перевести
+        }
+
+        const success = await translateEpisode(episode, targetLang, sourceLang, { overwrite });
         if (success) {
           successCount++;
         } else {
@@ -408,9 +453,10 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
       }
     }
 
+    const summary = `Успешно: ${successCount}, Пропущено (уже переведены): ${skippedCount}, Ошибок: ${failCount}`;
     toast({
-      title: successCount > 0 ? '✅ Массовый перевод завершен' : '❌ Ошибка перевода',
-      description: `Успешно: ${successCount}, Ошибок: ${failCount}`,
+      title: successCount > 0 ? '✅ Массовый перевод завершен' : (failCount > 0 ? '❌ Ошибка перевода' : 'ℹ️ Нечего переводить'),
+      description: summary,
       variant: failCount > 0 ? 'destructive' : 'default',
       duration: 8000
     });

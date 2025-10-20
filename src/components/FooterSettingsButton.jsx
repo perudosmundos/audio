@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
-import { Settings, X, Palette, HardDrive, Languages } from 'lucide-react';
+import { Settings, X, Languages } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getLocaleString } from '@/lib/locales';
-import ThemeSettings from './ThemeSettings';
-import CacheSettings from './CacheSettings';
 import LanguageSelectionModal from './LanguageSelectionModal';
 
 const FooterSettingsButton = ({ currentLanguage, onLanguageSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('theme');
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -21,8 +17,6 @@ const FooterSettingsButton = ({ currentLanguage, onLanguageSelect }) => {
 
   const handleLanguageChange = (lang) => {
     onLanguageSelect(lang);
-    // Можно автоматически переключиться на другую вкладку после выбора языка
-    setActiveTab('theme');
   };
 
   return (
@@ -52,48 +46,27 @@ const FooterSettingsButton = ({ currentLanguage, onLanguageSelect }) => {
             </button>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
-            <TabsList className="grid grid-cols-3 mb-6">
-              <TabsTrigger value="theme" className="flex items-center gap-2">
-                <Palette className="h-4 w-4" />
-                {getLocaleString('theme', currentLanguage) || 'Тема'}
-              </TabsTrigger>
-              <TabsTrigger value="cache" className="flex items-center gap-2">
-                <HardDrive className="h-4 w-4" />
-                {getLocaleString('cache', currentLanguage) || 'Кэш'}
-              </TabsTrigger>
-              <TabsTrigger value="language" className="flex items-center gap-2">
-                <Languages className="h-4 w-4" />
-                {getLocaleString('language', currentLanguage) || 'Язык'}
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-6">
+              <Languages className="h-5 w-5" />
+              <h3 className="text-lg font-semibold text-white">
+                {getLocaleString('languageSettings', currentLanguage) || 'Настройки языка'}
+              </h3>
+            </div>
 
             <div className="overflow-y-auto max-h-[60vh] custom-scrollbar">
-              <TabsContent value="theme" className="mt-0">
-                <ThemeSettings currentLanguage={currentLanguage} />
-              </TabsContent>
-
-              <TabsContent value="cache" className="mt-0">
-                <CacheSettings currentLanguage={currentLanguage} embedded={true} />
-              </TabsContent>
-
-              <TabsContent value="language" className="mt-0">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">
-                    {getLocaleString('languageSettings', currentLanguage) || 'Настройки языка'}
-                  </h3>
-                  <p className="text-sm text-slate-400">
-                    {getLocaleString('languageChangeNotice', currentLanguage) || 'Выберите язык интерфейса'}
-                  </p>
-                  <LanguageSelectionModal 
-                    onLanguageSelect={handleLanguageChange}
-                    currentLanguage={currentLanguage}
-                    compact={true}
-                  />
-                </div>
-              </TabsContent>
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400">
+                  {getLocaleString('languageChangeNotice', currentLanguage) || 'Выберите язык интерфейса'}
+                </p>
+                <LanguageSelectionModal 
+                  onLanguageSelect={handleLanguageChange}
+                  currentLanguage={currentLanguage}
+                  compact={true}
+                />
+              </div>
             </div>
-          </Tabs>
+          </div>
         </DialogContent>
       </Dialog>
     </>
