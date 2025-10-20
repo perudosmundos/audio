@@ -69,7 +69,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
     if (!editor) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to rollback this edit?\n\nThis will restore the previous content.`
+      getLocaleString('confirmRollback', currentLanguage)
     );
     
     if (!confirmed) return;
@@ -87,13 +87,13 @@ export const UserEditHistory = ({ currentLanguage }) => {
       
       if (applyResult.success) {
         toast({
-          title: 'Edit rolled back',
-          description: 'Your previous content has been restored'
+          title: getLocaleString('editRolledBack', currentLanguage),
+          description: getLocaleString('contentRestored', currentLanguage)
         });
       } else {
         toast({
-          title: 'Rollback recorded',
-          description: 'The rollback was recorded but content restoration requires manual intervention',
+          title: getLocaleString('rollbackRecorded', currentLanguage),
+          description: getLocaleString('rollbackRecordedDesc', currentLanguage),
           variant: 'default'
         });
       }
@@ -102,7 +102,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
       await loadHistory();
     } catch (error) {
       toast({
-        title: 'Rollback failed',
+        title: getLocaleString('rollbackFailed', currentLanguage),
         description: error.message,
         variant: 'destructive'
       });
@@ -127,10 +127,10 @@ export const UserEditHistory = ({ currentLanguage }) => {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <History size={20} className="text-purple-400" />
-            My Edit History
+            {getLocaleString('editHistoryTitle', currentLanguage)}
           </CardTitle>
           <CardDescription className="text-slate-300">
-            Login to view and manage your edit history
+            {getLocaleString('loginToViewEditHistory', currentLanguage)}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -139,7 +139,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
             className="w-full bg-purple-600 hover:bg-purple-700"
           >
             <LogIn size={16} className="mr-2" />
-            Login as Editor
+            {getLocaleString('loginAsEditor', currentLanguage)}
           </Button>
           <EditorAuthModal 
             isOpen={showAuthModal}
@@ -160,10 +160,10 @@ export const UserEditHistory = ({ currentLanguage }) => {
           <div>
             <CardTitle className="text-white flex items-center gap-2 mb-2">
               <History size={20} className="text-purple-400" />
-              My Edit History
+              {getLocaleString('editHistoryTitle', currentLanguage)}
             </CardTitle>
             <CardDescription className="text-slate-300">
-              Logged in as: <span className="text-purple-400">{editor.name}</span>
+              {getLocaleString('loggedInAs', currentLanguage)}: <span className="text-purple-400">{editor.name}</span>
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -188,18 +188,18 @@ export const UserEditHistory = ({ currentLanguage }) => {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="text-center py-8 text-slate-400">Loading your edit history...</div>
+          <div className="text-center py-8 text-slate-400">{getLocaleString('loading', currentLanguage)}</div>
         ) : editHistory.length === 0 ? (
           <div className="text-center py-8 text-slate-400">
             <AlertCircle size={32} className="mx-auto mb-2 opacity-50" />
-            <p>No edits yet</p>
+            <p>{getLocaleString('noEditsYet', currentLanguage)}</p>
           </div>
         ) : (
           <div className="space-y-4">
             {/* Stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-700 p-3 rounded">
-                <p className="text-xs text-slate-400">Active Edits</p>
+                <p className="text-xs text-slate-400">{getLocaleString('activeEdits', currentLanguage)}</p>
                 <p className="text-2xl text-green-400 font-bold">{activeEdits.length}</p>
               </div>
               <div className="bg-slate-700 p-3 rounded">
@@ -271,7 +271,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
                             className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20"
                           >
                             <Undo2 size={12} className="mr-1" />
-                            Undo
+                            {getLocaleString('undo', currentLanguage)}
                           </Button>
                         )}
                       </div>
@@ -282,7 +282,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
                         <div>
                           <p className="text-xs text-slate-400 mb-1 flex items-center gap-1">
                             <XCircle size={10} />
-                            Before:
+                            {getLocaleString('beforeLabel', currentLanguage)}:
                           </p>
                           <div className="bg-slate-800 p-2 rounded text-xs text-slate-300 font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
                             {edit.content_before || '(empty)'}
@@ -291,7 +291,7 @@ export const UserEditHistory = ({ currentLanguage }) => {
                         <div>
                           <p className="text-xs text-slate-400 mb-1 flex items-center gap-1">
                             <CheckCircle2 size={10} />
-                            After:
+                            {getLocaleString('afterLabel', currentLanguage)}:
                           </p>
                           <div className="bg-slate-800 p-2 rounded text-xs text-green-300 font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
                             {edit.content_after || '(empty)'}
@@ -300,11 +300,11 @@ export const UserEditHistory = ({ currentLanguage }) => {
                         {edit.is_rolled_back && (
                           <div className="bg-amber-900/20 p-2 rounded">
                             <p className="text-xs text-amber-300">
-                              Rolled back {formatDistanceToNow(new Date(edit.rolled_back_at), { addSuffix: true })}
+                              {getLocaleString('rolledBack', currentLanguage)} {formatDistanceToNow(new Date(edit.rolled_back_at), { addSuffix: true })}
                             </p>
                             {edit.rollback_reason && (
                               <p className="text-xs text-amber-200 mt-1">
-                                Reason: {edit.rollback_reason}
+                                {getLocaleString('reason', currentLanguage)}: {edit.rollback_reason}
                               </p>
                             )}
                           </div>

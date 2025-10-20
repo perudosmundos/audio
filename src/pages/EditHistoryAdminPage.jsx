@@ -200,7 +200,7 @@ const EditHistoryAdminPage = ({ currentLanguage }) => {
               className="w-full bg-purple-600 hover:bg-purple-700"
             >
               <LogIn size={16} className="mr-2" />
-              Authenticate
+              {getLocaleString('authenticate', currentLanguage)}
             </Button>
           </CardContent>
         </Card>

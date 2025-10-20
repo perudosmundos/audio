@@ -22,7 +22,7 @@ const EpisodeQuestionsList = React.memo(({ questions, episodeSlug, currentLangua
   return (
     <div key={`questions-${episodeSlug}-${updateTimestamp || ''}`} className="mt-3 pl-2">
       <div className="text-xs text-purple-300 font-semibold mb-1 py-1">
-        {getLocaleString('questions', currentLanguage)} ({questions.length})
+        {getLocaleString('questions', currentLanguage)}
       </div>
       <ul className="space-y-1.5 overflow-hidden pl-2 border-l-2 border-purple-500/20 animate-fade-in">
         {questions.map(question => (

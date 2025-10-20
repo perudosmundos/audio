@@ -47,7 +47,7 @@ const Footer = ({ currentLanguage, onLanguageChange }) => {
               <div className="flex items-center gap-3">
                 <History className="h-6 w-6 text-blue-400" />
                 <h2 className="text-xl font-bold text-white">
-                  История редактирования
+                  {getLocaleString('editHistoryTitle', currentLanguage)}
                 </h2>
               </div>
               <button

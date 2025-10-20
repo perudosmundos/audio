@@ -715,5 +715,14 @@
   "noAssemblyIdInDB": "El ID de transcripción de AssemblyAI no se encontró en la base de datos para este episodio e idioma.",
   "transcriptionExistsTitle": "La transcripción existe",
   "transcriptionExistsDesc": "La transcripción para el episodio {episode} ya existe y está completa.",
-  "warning": "Advertencia"
+  "warning": "Advertencia",
+  "loginToViewEditHistory": "Zaloguj się, aby zobaczyć i zarządzać historią edycji",
+  "loginAsEditor": "Zaloguj jako Edytor",
+  "noEditsYet": "Brak edycji",
+  "activeEdits": "Aktywne Edycje",
+  "undo": "Cofnij",
+  "confirmRollback": "Czy na pewno chcesz cofnąć tę edycję?\n\nTo przywróci poprzednią zawartość.",
+  "editRolledBack": "Edycja cofnięta",
+  "contentRestored": "Twoja poprzednia zawartość została przywrócona",
+  "rollbackRecordedDesc": "Cofnięcie zostało zapisane, ale przywrócenie zawartości wymaga ręcznej interwencji"
 }

@@ -715,5 +715,14 @@
   "allEditors": "All Editors",
   "allTypes": "All Types",
   "allTargets": "All Targets",
-  "searchContent": "Search content..."
+  "searchContent": "Search content...",
+  "loginToViewEditHistory": "Inicia sesión para ver y gestionar tu historial de edición",
+  "loginAsEditor": "Iniciar sesión como Editor",
+  "noEditsYet": "Aún no hay ediciones",
+  "activeEdits": "Ediciones Activas",
+  "undo": "Deshacer",
+  "confirmRollback": "¿Estás seguro de que quieres revertir esta edición?\n\nEsto restaurará el contenido anterior.",
+  "editRolledBack": "Edición revertida",
+  "contentRestored": "Tu contenido anterior ha sido restaurado",
+  "rollbackRecordedDesc": "La reversión fue registrada pero la restauración del contenido requiere intervención manual"
 }

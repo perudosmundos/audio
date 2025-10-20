@@ -155,7 +155,7 @@ const LanguageCard = ({
           {episode.transcript?.status === 'completed' && (
             <div className="flex justify-between items-center">
               <span className="text-xs text-slate-400">
-                Вопросы ({episode.questionsCount}):
+                Вопросы:
               </span>
               <SmartQuestionButton
                 episode={episode}
