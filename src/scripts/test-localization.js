@@ -49,13 +49,23 @@ if (!jsonValid) {
 // 3. Проверка количества ключей
 console.log('\n✓ Test 3: Checking key counts');
 const ruKeyCount = Object.keys(locales.ru).length;
+const enKeyCount = Object.keys(locales.en).length;
+const esKeyCount = Object.keys(locales.es).length;
+const deKeyCount = Object.keys(locales.de).length;
+const frKeyCount = Object.keys(locales.fr).length;
+const plKeyCount = Object.keys(locales.pl).length;
+
 let keyCountOk = true;
-langs.forEach(lang => {
-  const count = Object.keys(locales[lang]).length;
-  const match = count === ruKeyCount;
-  console.log(`  ${match ? '✅' : '❌'} ${lang}: ${count} keys ${match ? '✓' : `(expected ${ruKeyCount})`}`);
-  if (!match) keyCountOk = false;
-});
+const counts = [ruKeyCount, enKeyCount, esKeyCount, deKeyCount, frKeyCount, plKeyCount];
+const allEqual = counts.every(count => count === counts[0]);
+
+if (allEqual) {
+  console.log(`  ✅ All languages have ${ruKeyCount} keys ✓`);
+} else {
+  console.log(`  ❌ Key count mismatch:`);
+  console.log(`    RU: ${ruKeyCount}, EN: ${enKeyCount}, ES: ${esKeyCount}, DE: ${deKeyCount}, FR: ${frKeyCount}, PL: ${plKeyCount}`);
+  keyCountOk = false;
+}
 
 if (!keyCountOk) {
   console.warn('\n⚠️  Warning: Not all languages have the same number of keys');
