@@ -12,8 +12,8 @@ const storageRouter = {
    * Upload file - always uses Hostinger for new files
    */
   uploadFile: async (file, onProgress, currentLanguage, originalFilename) => {
-    logger.info('[StorageRouter] Uploading to R2 (fallback to R2)');
-    return r2Service.uploadFile(file, onProgress, currentLanguage, originalFilename);
+    logger.info('[StorageRouter] Uploading to Hostinger');
+    return hostingerSFTPService.uploadFile(file, onProgress, currentLanguage, originalFilename);
   },
 
   /**
@@ -48,40 +48,62 @@ const storageRouter = {
    * Check file exists - checks both storages for compatibility
    */
   checkFileExists: async (originalFilename) => {
-    logger.info(`[StorageRouter] Checking file existence: ${originalFilename}`);
-    
-    // Проверяем только Hostinger FTP (файлы уже там)
-    try {
-      const hostingerCheck = await hostingerSFTPService.checkFileExists(originalFilename);
-      if (hostingerCheck.exists) {
-        logger.info(`[StorageRouter] File found on Hostinger: ${originalFilename}`);
-        return hostingerCheck;
-      }
-    } catch (error) {
-      logger.warn(`[StorageRouter] Hostinger check failed: ${error.message}`);
+    // Check R2 first (for backward compatibility)
+    const r2Result = await r2Service.checkFileExists(originalFilename);
+    if (r2Result.exists) {
+      return r2Result;
     }
 
-    // Если не найден на Hostinger, считаем что не существует
-    logger.info(`[StorageRouter] File not found on Hostinger: ${originalFilename}`);
+    // Check Hostinger
+    const hostingerResult = await hostingerSFTPService.checkFileExists(originalFilename);
+    if (hostingerResult.exists) {
+      return hostingerResult;
+    }
+
     return { exists: false };
   },
 
   /**
-   * Test both connections
+   * Get correct audio URL based on storage_provider
    */
-  testConnections: async () => {
-    logger.info('[StorageRouter] Testing storage connections...');
+  getCorrectAudioUrl: (episode) => {
+    const provider = episode.storage_provider?.toLowerCase() || 'r2';
     
-    const r2Test = await r2Service.testConnection();
-    const hostingerTest = await hostingerSFTPService.testConnection();
+    console.log('[StorageRouter] getCorrectAudioUrl debug:', {
+      slug: episode.slug,
+      storageProvider: episode.storage_provider,
+      provider: provider,
+      audioUrl: episode.audio_url,
+      hostingerFileKey: episode.hostinger_file_key,
+      r2ObjectKey: episode.r2_object_key,
+      r2BucketName: episode.r2_bucket_name
+    });
     
-    return {
-      r2: r2Test,
-      hostinger: hostingerTest,
-      bothWorking: r2Test.success && hostingerTest.success,
-      message: `R2: ${r2Test.success ? '✅' : '❌'}, Hostinger: ${hostingerTest.success ? '✅' : '❌'}`
-    };
-  },
+    if (provider === 'hostinger') {
+      // For Hostinger, use hostinger_file_key to build URL
+      if (episode.hostinger_file_key) {
+        const hostingerUrl = hostingerSFTPService.getPublicUrl(episode.hostinger_file_key, 'hostinger');
+        console.log('[StorageRouter] Using Hostinger URL:', hostingerUrl);
+        return hostingerUrl;
+      }
+      // Fallback to audio_url if hostinger_file_key is missing
+      console.log('[StorageRouter] Fallback to audio_url for Hostinger:', episode.audio_url);
+      return episode.audio_url;
+    } else {
+      // For R2, use existing audio_url or build from r2_object_key
+      if (episode.audio_url) {
+        console.log('[StorageRouter] Using R2 audio_url:', episode.audio_url);
+        return episode.audio_url;
+      }
+      if (episode.r2_object_key) {
+        const r2Url = r2Service.getPublicUrl(episode.r2_object_key, episode.r2_bucket_name);
+        console.log('[StorageRouter] Built R2 URL:', r2Url);
+        return r2Url;
+      }
+      console.log('[StorageRouter] No URL found for R2');
+      return null;
+    }
+  }
 };
 
 export default storageRouter;

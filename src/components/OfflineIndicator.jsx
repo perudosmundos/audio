@@ -125,22 +125,22 @@ const OfflineIndicator = ({ currentLanguage = 'ru' }) => {
 
   const getStatusText = () => {
     if (!networkStatus.isOnline) {
-      return getLocaleString('offlineMode', currentLanguage) || 'Офлайн режим';
+      return getLocaleString('offlineMode', currentLanguage);
     }
     
     if (syncStatus.isActive) {
-      return getLocaleString('syncing', currentLanguage) || 'Синхронизация...';
+      return getLocaleString('syncing', currentLanguage);
     }
     
     if (syncStatus.error) {
-      return getLocaleString('syncError', currentLanguage) || 'Ошибка синхронизации';
+      return getLocaleString('syncError', currentLanguage);
     }
     
     if (syncStatus.pendingChanges > 0) {
-      return `${syncStatus.pendingChanges} ${getLocaleString('pendingChanges', currentLanguage) || 'изменений ожидает'}`;
+      return `${syncStatus.pendingChanges} ${getLocaleString('pendingChanges', currentLanguage)}`;
     }
     
-    return getLocaleString('online', currentLanguage) || 'Онлайн';
+    return getLocaleString('online', currentLanguage);
   };
 
   const getLastSyncText = () => {
@@ -151,12 +151,12 @@ const OfflineIndicator = ({ currentLanguage = 'ru' }) => {
     const minutes = Math.floor(diff / 60000);
     
     if (minutes < 1) {
-      return getLocaleString('justSynced', currentLanguage) || 'только что';
+      return getLocaleString('justSynced', currentLanguage);
     } else if (minutes < 60) {
-      return `${minutes} ${getLocaleString('minutesAgo', currentLanguage) || 'мин назад'}`;
+      return `${minutes} ${getLocaleString('minutesAgo', currentLanguage)}`;
     } else {
       const hours = Math.floor(minutes / 60);
-      return `${hours} ${getLocaleString('hoursAgo', currentLanguage) || 'ч назад'}`;
+      return `${hours} ${getLocaleString('hoursAgo', currentLanguage)}`;
     }
   };
 
@@ -187,7 +187,7 @@ const OfflineIndicator = ({ currentLanguage = 'ru' }) => {
       <div 
         className="flex items-center gap-1 cursor-pointer hover:bg-slate-700/50 rounded px-1 py-0.5 transition-colors"
         onClick={handleManualSync}
-        title={getLocaleString('clickToSync', currentLanguage) || 'Нажмите для синхронизации'}
+        title={getLocaleString('clickToSync', currentLanguage)}
       >
         {getSyncIcon()}
         <span className="text-xs text-slate-300">

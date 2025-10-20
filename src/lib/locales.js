@@ -8,16 +8,16 @@ import pl from './locales/pl.json';
 const locales = { ru, es, en, de, fr, pl };
 
 export const getLocaleString = (key, lang, params = {}) => {
-  let currentLang = lang || 'ru'; 
+  let currentLang = lang || 'en'; // Изменяем дефолт на английский
   if (!locales[currentLang]) {
-    console.warn(`Language pack for '${currentLang}' not found. Falling back to 'ru'.`);
-    currentLang = 'ru';
+    console.warn(`Language pack for '${currentLang}' not found. Falling back to 'en'.`);
+    currentLang = 'en';
   }
-  
-  let str = locales[currentLang]?.[key] || locales.ru[key]; 
+
+  let str = locales[currentLang]?.[key] || locales.en[key];
 
   if (str === undefined) {
-    console.warn(`Localization key '${key}' not found for language '${currentLang}' or fallback 'ru'. Returning key itself.`);
+    console.warn(`Localization key '${key}' not found for language '${currentLang}' or fallback 'en'. Returning key itself.`);
     str = key;
   }
 
@@ -30,10 +30,10 @@ export const getLocaleString = (key, lang, params = {}) => {
 };
 
 export const getPluralizedLocaleString = (keyBase, lang, count, params = {}) => {
-  let currentLang = lang || 'ru';
+  let currentLang = lang || 'en';
   if (!locales[currentLang]) {
-    console.warn(`Language pack for '${currentLang}' not found for pluralization. Falling back to 'ru'.`);
-    currentLang = 'ru';
+    console.warn(`Language pack for '${currentLang}' not found for pluralization. Falling back to 'en'.`);
+    currentLang = 'en';
   }
   
   let key;
@@ -67,11 +67,11 @@ export const getPluralizedLocaleString = (keyBase, lang, count, params = {}) => 
     key = (count === 1) ? `${keyBase}_one` : `${keyBase}_many`;
   }
   
-  let str = locales[currentLang]?.[key] || locales.ru[key];
-  
+  let str = locales[currentLang]?.[key] || locales.en[key];
+
   if (str === undefined) {
      console.warn(`Pluralization key '${key}' (base: '${keyBase}') not found for lang '${currentLang}'. Falling back to base key or key itself.`);
-     str = locales[currentLang]?.[keyBase] || locales.ru[keyBase] || keyBase;
+     str = locales[currentLang]?.[keyBase] || locales.en[keyBase] || keyBase;
   }
 
 

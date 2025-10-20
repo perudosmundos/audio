@@ -300,6 +300,17 @@ export default function inlineEditPlugin() {
             const output = generateFunction(babelAst, {});
             const newContent = output.code;
 
+            // Extract text from beforeCode and afterCode for history
+            const extractText = (code) => {
+              if (!code) return '';
+              // Simple text extraction from JSX
+              const textMatch = code.match(/>(.*?)</s);
+              return textMatch ? textMatch[1].trim() : '';
+            };
+
+            const contentBefore = extractText(beforeCode);
+            const contentAfter = newFullText;
+
             try {
               fs.writeFileSync(absoluteFilePath, newContent, 'utf-8'); 
             } catch (writeError) {
@@ -313,6 +324,15 @@ export default function inlineEditPlugin() {
                 newFileContent: newContent,
                 beforeCode,
                 afterCode,
+                // Include data for history tracking
+                editData: {
+                  editId,
+                  filePath,
+                  line,
+                  column,
+                  contentBefore,
+                  contentAfter
+                }
             }));
             
           } catch (error) {

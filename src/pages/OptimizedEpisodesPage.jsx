@@ -251,7 +251,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
                           !navigator.onLine;
     
     if (isNetworkError) {
-      setError(getLocaleString('offlineMode', currentLanguage) || 'Работаем в офлайн режиме. Данные загружены из кеша.');
+      setError(getLocaleString('offlineMode', currentLanguage));
     } else {
       setError(getLocaleString('errorFetchingEpisodes', currentLanguage, { errorMessage: err.message }));
     }
@@ -325,7 +325,7 @@ const OptimizedEpisodesPage = ({ currentLanguage }) => {
       }`}>
         <h2 className="text-xl font-bold mb-2">
           {isOfflineMode 
-            ? getLocaleString('offlineModeTitle', currentLanguage) || 'Офлайн режим'
+            ? getLocaleString('offlineModeTitle', currentLanguage)
             : getLocaleString('errorLoadingData', currentLanguage)
           }
         </h2>

@@ -271,7 +271,7 @@ const UploadManageView = ({
             <div className="space-y-2 pt-3 border-t border-slate-700">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  {getLocaleString('translateToEnglish', currentLanguage) || 'Переводы'}:
+                  {getLocaleString('translateToEnglish', currentLanguage)}:
                 </span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

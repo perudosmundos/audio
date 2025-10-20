@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -258,7 +258,7 @@ export default function StorageMigrationPage() {
                   {migrationResults.details.map((detail, idx) => (
                     <div key={idx} className="text-sm py-1 border-b border-slate-700 last:border-b-0">
                       <span className={detail.success ? 'text-emerald-400' : 'text-red-400'}>
-                        {detail.success ? '✅' : '❌'}
+                        {detail.success ? 'Γ£à' : 'Γ¥î'}
                       </span>
                       {' '}{detail.episode}
                       {detail.error && <span className="text-red-300"> - {detail.error}</span>}

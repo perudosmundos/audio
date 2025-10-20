@@ -1,9 +1,9 @@
-import { supabase } from '@/lib/supabaseClient';
+﻿import { supabase } from '@/lib/supabaseClient';
 import logger from '@/lib/logger';
 
 const getApiBase = () => {
   // Always use relative paths for /api routes
-  // In dev: Vite proxy handles /api → localhost:5173/api
+  // In dev: Vite proxy handles /api ΓåÆ localhost:5173/api
   // In prod: Vercel handles /api endpoints
   return '';
 };
@@ -47,9 +47,9 @@ const migrationService = {
     try {
       logger.info(`[Migration] Starting migration for episode: ${slug}`);
       
-      if (onProgress) onProgress({ status: 'updating', episode: slug, message: 'Обновление ссылки...' });
+      if (onProgress) onProgress({ status: 'updating', episode: slug, message: '╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡ ╤ü╤ü╤ï╨╗╨║╨╕...' });
 
-      // Простое решение: файл уже есть на Hostinger, просто меняем ссылку
+      // ╨ƒ╤Ç╨╛╤ü╤é╨╛╨╡ ╤Ç╨╡╤ê╨╡╨╜╨╕╨╡: ╤ä╨░╨╣╨╗ ╤â╨╢╨╡ ╨╡╤ü╤é╤î ╨╜╨░ Hostinger, ╨┐╤Ç╨╛╤ü╤é╨╛ ╨╝╨╡╨╜╤Å╨╡╨╝ ╤ü╤ü╤ï╨╗╨║╤â
       const hostingerUrl = `https://dosmundos.pe/wp-content/uploads/Audio/${r2_object_key}`;
 
       // Update database

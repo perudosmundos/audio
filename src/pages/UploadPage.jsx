@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,8 @@ import { useToast } from '@/components/ui/use-toast';
 import useTranslationManager from '@/hooks/useTranslationManager';
 import timeOldService from '@/lib/timeOldService';
 import { supabase } from '@/lib/supabaseClient';
-import r2Service from '@/lib/r2Service';
+import storageRouter from '@/lib/storageRouter';
+import { startPollingForItem } from '@/services/uploader/transcriptPoller';
 
 const UploadPage = ({ currentLanguage }) => {
   const navigate = useNavigate();
@@ -77,23 +78,28 @@ const UploadPage = ({ currentLanguage }) => {
     };
   }, []);
 
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pollingIntervalsRef.current).forEach(clearInterval);
+    };
+  }, []);
+
   // State for transcription
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribingEpisode, setTranscribingEpisode] = useState(null);
+  const pollingIntervalsRef = useRef({});
 
   // Real transcription function
   const handleStartTranscription = async (episode) => {
-    // Получаем совместимый URL через r2Service
-    const audioUrl = r2Service.getCompatibleUrl(
-      episode.audio_url,
-      episode.r2_object_key,
-      episode.r2_bucket_name
-    );
+    // Use storageRouter to get correct audio URL based on storage_provider
+    const audioUrl = storageRouter.getCorrectAudioUrl(episode);
 
     console.log('[Transcription] Episode data:', {
       slug: episode.slug,
       lang: episode.lang,
-      originalAudioUrl: episode.audio_url,
+      storageProvider: episode.storage_provider,
+      hostingerFileKey: episode.hostinger_file_key,
       r2ObjectKey: episode.r2_object_key,
       r2BucketName: episode.r2_bucket_name,
       finalAudioUrl: audioUrl
@@ -130,15 +136,51 @@ const UploadPage = ({ currentLanguage }) => {
           duration: 5000
         });
 
-        // Обновляем статус в списке эпизодов
+        // Update local state
         setEpisodes(prev => prev.map(ep => 
           ep.id === episode.id 
             ? { ...ep, transcript: { ...ep.transcript, status: 'processing' } }
             : ep
         ));
 
-        // Запускаем опрос статуса
-        pollTranscriptStatus(episode);
+        // Start standard polling
+        const itemData = {
+          id: `${episode.slug}-${episode.lang}`,
+          episodeSlug: episode.slug,
+          lang: episode.lang,
+          episodeTitle: episode.title,
+          transcriptionStatus: 'processing',
+          assemblyai_transcript_id: result.transcriptId
+        };
+
+        startPollingForItem(
+          itemData,
+          (itemId, updates) => {
+            setEpisodes(prev => prev.map(ep => 
+              ep.id === episode.id 
+                ? { ...ep, transcript: { ...ep.transcript, ...updates } }
+                : ep
+            ));
+            
+            if (updates.transcriptionStatus === 'completed') {
+              toast({
+                title: '✅ Транскрипция завершена',
+                description: `Текст для ${episode.lang.toUpperCase()} готов`,
+                duration: 5000
+              });
+            } else if (updates.transcriptionStatus === 'error') {
+              toast({
+                title: '❌ Ошибка транскрипции',
+                description: updates.transcriptionError || 'Неизвестная ошибка',
+                variant: 'destructive',
+                duration: 8000
+              });
+            }
+          },
+          currentLanguage,
+          toast,
+          pollingIntervalsRef
+        );
       } else {
         throw new Error(result.error || 'Неизвестная ошибка');
       }
@@ -338,8 +380,33 @@ const UploadPage = ({ currentLanguage }) => {
     }
   };
 
-  const handleProcessWithAI = (episode) => {
+  const handleProcessWithAI = async (episode) => {
     console.log('Process with AI:', episode);
+    
+    try {
+      toast({
+        title: '🤖 Обработка через AI',
+        description: `Обрабатываем ${episode.slug} через AI...`,
+        duration: 3000
+      });
+
+      // Здесь должна быть логика обработки через AI
+      // Пока что просто показываем сообщение
+      toast({
+        title: '⚠️ Функция в разработке',
+        description: 'Обработка через AI будет добавлена в следующей версии',
+        variant: 'default',
+        duration: 5000
+      });
+    } catch (error) {
+      console.error('Error processing with AI:', error);
+      toast({
+        title: '❌ Ошибка обработки',
+        description: `Не удалось обработать через AI: ${error.message}`,
+        variant: 'destructive',
+        duration: 5000
+      });
+    }
   };
 
   const handleLoadFromDB = async (episode) => {
@@ -380,8 +447,33 @@ const UploadPage = ({ currentLanguage }) => {
     }
   };
 
-  const handleGenerateFromText = (episode) => {
-    console.log('Generate from text:', episode);
+  const handleGenerateFromText = async (episode) => {
+    console.log('Generate questions from text:', episode);
+    
+    try {
+      toast({
+        title: '🤖 Генерация вопросов',
+        description: `Генерируем вопросы для ${episode.slug}...`,
+        duration: 3000
+      });
+
+      // Здесь должна быть логика генерации вопросов через AI
+      // Пока что просто показываем сообщение
+      toast({
+        title: '⚠️ Функция в разработке',
+        description: 'Генерация вопросов через AI будет добавлена в следующей версии',
+        variant: 'default',
+        duration: 5000
+      });
+    } catch (error) {
+      console.error('Error generating questions from text:', error);
+      toast({
+        title: '❌ Ошибка генерации',
+        description: `Не удалось сгенерировать вопросы: ${error.message}`,
+        variant: 'destructive',
+        duration: 5000
+      });
+    }
   };
 
   // Функция загрузки файлов с настройками

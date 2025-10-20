@@ -6,6 +6,9 @@ import { formatFullTime } from '@/lib/utils';
 import EditConfirmationDialog from '@/components/player/questions_manager_parts/EditConfirmationDialog.jsx';
 import SegmentList from '@/components/player/questions_manager_parts/SegmentList.jsx';
 import useSegmentEditing from '@/hooks/useSegmentEditing.js';
+import { useEditorAuth } from '@/contexts/EditorAuthContext';
+import { saveEditToHistory } from '@/services/editHistoryService';
+import { useToast } from '@/components/ui/use-toast';
 
 const QuestionBlockHeader = ({ 
   question, 
@@ -102,6 +105,8 @@ const QuestionBlock = React.memo(({
   questionRangeEndMs
 }) => {
   const [visibleSegmentsCount, setVisibleSegmentsCount] = useState(isReadingMode ? Infinity : 5);
+  const { editor, isAuthenticated, openAuthModal } = useEditorAuth();
+  const { toast } = useToast();
 
   const {
     editingSegment,
@@ -178,6 +183,12 @@ const QuestionBlock = React.memo(({
   }, [utterances]);
 
   const handleSetSegmentSpeaker = useCallback(async (segment, oldSpeakerId, newSpeakerId) => {
+    // Check authentication
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    
     if (!Array.isArray(utterances) || !onSaveEditedSegment) return;
     const targetId = segment?.id || segment?.start;
     const newUtterances = (utterances || []).map(u => {
@@ -189,7 +200,39 @@ const QuestionBlock = React.memo(({
       return u;
     });
     await onSaveEditedSegment(newUtterances, 'update', segment, { ...segment, speaker: newSpeakerId });
-  }, [utterances, onSaveEditedSegment]);
+    
+    // Save to edit history
+    if (editor) {
+      try {
+        const segmentId = segment.id || segment.start;
+        await saveEditToHistory({
+          editorId: editor.id,
+          editorEmail: editor.email,
+          editorName: editor.name,
+          editType: 'transcript',
+          targetType: 'segment',
+          targetId: `${episodeSlug}_segment_${segmentId}`,
+          contentBefore: `Speaker: ${oldSpeakerId || 'None'}`,
+          contentAfter: `Speaker: ${newSpeakerId || 'None'}`,
+          filePath: null,
+          metadata: {
+            episodeSlug: episodeSlug,
+            segmentId: segmentId,
+            action: 'ChangeSpeaker',
+            oldSpeaker: oldSpeakerId,
+            newSpeaker: newSpeakerId,
+            segmentStart: segment.start,
+            segmentEnd: segment.end,
+            timestamp: new Date().toISOString()
+          }
+        });
+        console.log('[QuestionBlock] Speaker change saved to history');
+      } catch (historyError) {
+        console.error('[QuestionBlock] Failed to save edit history:', historyError);
+        // Don't fail the whole operation if history save fails
+      }
+    }
+  }, [utterances, onSaveEditedSegment, isAuthenticated, editor, episodeSlug, toast]);
 
   
   const handleEditSegmentInternal = useCallback((segment) => {

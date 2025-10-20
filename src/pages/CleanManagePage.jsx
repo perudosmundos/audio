@@ -7,7 +7,7 @@ import { UploadCloud, Loader2, PlusCircle, ArrowLeft, Settings2, Trash2, Search,
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
-import r2Service from '@/lib/r2Service';
+import storageRouter from '@/lib/storageRouter';2
 import useFileUploadManager from '@/hooks/useFileUploadManager';
 import FileUploadItem from '@/components/uploader/FileUploadItem';
 import OverwriteDialog from '@/components/uploader/OverwriteDialog';
@@ -68,10 +68,10 @@ const CleanManagePage = ({ currentLanguage }) => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-white">
-            Управление Эпизодами
+            {getLocaleString('episodeManagement', currentLanguage)}
           </h1>
           <p className="text-slate-400 mt-1">
-            Загрузка аудио и управление языковыми версиями
+            {getLocaleString('uploadAudioAndManageVersions', currentLanguage)}
           </p>
         </div>
       </div>
@@ -125,13 +125,13 @@ const FileUploadSection = ({
   return (
     <div className="mb-8">
       <h2 className="text-xl font-bold text-purple-300 mb-4 flex items-center">
-        <UploadCloud className="mr-2 h-5 w-5"/> Загрузка Аудио Файлов
+        <UploadCloud className="mr-2 h-5 w-5"/> {getLocaleString('uploadAudioFiles', currentLanguage)}
       </h2>
       <p className="text-sm text-slate-400 mb-4">
-        Поддерживаются аудио файлы: MP3, WAV, M4A, AAC, OGG, FLAC
+        {getLocaleString('supportedAudioFormatsDescription', currentLanguage)}
         <br/>
         <span className="text-xs text-slate-500">
-          Имена файлов могут содержать суффиксы языка: _es, _ru, _en
+          {getLocaleString('filenameLanguageSuffixes', currentLanguage)}
         </span>
       </p>
       
@@ -139,9 +139,9 @@ const FileUploadSection = ({
         <input {...getInputProps()} style={{ display: 'none' }} />
         <FileAudio2 className="mx-auto h-12 w-12 text-slate-400 mb-2" />
         {isDragActive ? (
-          <p className="text-purple-300 text-lg font-medium">Отпустите файлы сюда!</p>
+          <p className="text-purple-300 text-lg font-medium">{getLocaleString('dropFilesHere', currentLanguage)}</p>
         ) : (
-          <p className="text-slate-300 text-lg font-medium">Перетащите аудио файлы или нажмите для выбора</p>
+          <p className="text-slate-300 text-lg font-medium">{getLocaleString('dragOrClickToUpload', currentLanguage)}</p>
         )}
         <Button 
           type="button" 
@@ -149,7 +149,7 @@ const FileUploadSection = ({
           variant="ghost" 
           className="mt-3 text-purple-400 hover:text-purple-300 focus-visible:ring-purple-400 bg-purple-500/10 hover:bg-purple-500/20"
         >
-          Выбрать файлы
+          {getLocaleString('selectFiles', currentLanguage)}
         </Button>
       </div>
 
@@ -157,7 +157,7 @@ const FileUploadSection = ({
       {filesToProcess.length > 0 && (
         <div className="space-y-3 mb-6">
           <h3 className="text-lg font-semibold text-slate-300">
-            В очереди: {filesToProcess.length} файлов
+            {getPluralizedLocaleString('filesInQueue', currentLanguage, filesToProcess.length)}
           </h3>
           {filesToProcess.map((itemData) => (
             <FileUploadItem 
@@ -181,7 +181,7 @@ const FileUploadSection = ({
           disabled={isProcessingAll}
         >
           <PlusCircle className="mr-2 h-5 w-5" />
-          Добавить файлы
+          {getLocaleString('addFiles', currentLanguage)}
         </Button>
         <Button 
           onClick={handleProcessAllFiles} 
@@ -191,10 +191,10 @@ const FileUploadSection = ({
           {isProcessingAll ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Обработка...
+              {getLocaleString('processing', currentLanguage)}
             </>
           ) : (
-            <>Начать загрузку</>
+            <>{getLocaleString('startUpload', currentLanguage)}</>
           )}
         </Button>
       </div>
@@ -277,10 +277,10 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
 
       setEpisodes(episodesWithData || []);
     } catch (error) {
-      toast({ 
-        title: 'Ошибка', 
-        description: `Ошибка загрузки эпизодов: ${error.message}`, 
-        variant: 'destructive' 
+      toast({
+        title: getLocaleString('errorGeneric', currentLanguage),
+        description: `${getLocaleString('errorLoadingEpisodes', currentLanguage)}: ${error.message}`,
+        variant: 'destructive'
       });
       setEpisodes([]);
     } finally {
@@ -379,12 +379,12 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
   // Core functionality functions
   const handleStartTranscription = async (episode) => {
     if (!episode.audio_url && !episode.r2_object_key) {
-      toast({ title: 'Ошибка', description: 'Аудиофайл недоступен для распознавания', variant: 'destructive' });
+      toast({ title: getLocaleString('errorGeneric', currentLanguage), description: getLocaleString('audioFileNotAvailable', currentLanguage), variant: 'destructive' });
       return;
     }
 
     if (episode.transcript && episode.transcript.status === 'processing') {
-      toast({ title: 'Транскрипция уже запущена', description: 'Дождитесь завершения текущего процесса', variant: 'info' });
+      toast({ title: getLocaleString('transcriptionInProgress', currentLanguage), description: getLocaleString('waitForCompletion', currentLanguage), variant: 'info' });
       return;
     }
 
@@ -400,17 +400,9 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
     }));
 
     try {
-      let audioUrl = episode.audio_url;
-      if (!audioUrl && episode.r2_object_key) {
-        const { data: r2Data } = await supabase
-          .from('episodes')
-          .select('audio_url')
-          .eq('slug', episode.slug)
-          .eq('lang', episode.lang)
-          .single();
-        audioUrl = r2Data?.audio_url;
-      }
-
+      // Use storageRouter to get correct audio URL based on storage_provider
+      const audioUrl = storageRouter.getCorrectAudioUrl(episode);
+      
       if (!audioUrl) {
         throw new Error('Не удалось получить URL аудиофайла');
       }

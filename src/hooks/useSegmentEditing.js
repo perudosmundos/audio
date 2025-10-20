@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { getLocaleString } from '@/lib/locales';
 import logService from '@/lib/logService';
+import { useEditorAuth } from '@/contexts/EditorAuthContext';
+import { saveEditToHistory } from '@/services/editHistoryService';
 
 const useSegmentEditing = (
   utterances, 
@@ -19,8 +21,15 @@ const useSegmentEditing = (
   const [isSaving, setIsSaving] = useState(false);
   const initialAudioState = useRef({ isPlaying: false, currentTime: 0 });
   const { toast } = useToast();
+  const { editor, isAuthenticated, openAuthModal } = useEditorAuth();
 
   const handleEditSegment = useCallback((segmentToEdit) => {
+    // Check authentication before allowing edit
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    
     if (audioRef?.current) {
       initialAudioState.current = {
         isPlaying: !audioRef.current.paused,
@@ -29,7 +38,7 @@ const useSegmentEditing = (
     }
     setEditingSegment(segmentToEdit);
     setEditedText(segmentToEdit ? segmentToEdit.text : '');
-  }, [audioRef]);
+  }, [audioRef, isAuthenticated, toast]);
 
   const restoreAudioState = useCallback(() => {
     if (audioRef?.current && initialAudioState.current.isPlaying && audioRef.current.paused) {
@@ -53,6 +62,36 @@ const useSegmentEditing = (
       
       await onSaveEditedSegment(newUtterances, 'update', originalSegment, updatedSegment);
       
+      // Save to edit history if authenticated
+      if (isAuthenticated && editor) {
+        try {
+          const segmentId = editingSegment.id || editingSegment.start;
+          await saveEditToHistory({
+            editorId: editor.id,
+            editorEmail: editor.email,
+            editorName: editor.name,
+            editType: 'transcript',
+            targetType: 'segment',
+            targetId: `${episodeSlug}_segment_${segmentId}`,
+            contentBefore: originalSegment?.text || '',
+            contentAfter: editedText,
+            filePath: null,
+            metadata: {
+              episodeSlug: episodeSlug,
+              segmentId: segmentId,
+              segmentStart: editingSegment.start,
+              segmentEnd: editingSegment.end,
+              speaker: editingSegment.speaker,
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log('[SegmentEditing] Edit saved to history');
+        } catch (historyError) {
+          console.error('[SegmentEditing] Failed to save edit history:', historyError);
+          // Don't fail the whole operation if history save fails
+        }
+      }
+      
       setEditingSegment(null);
       toast({
         title: getLocaleString('transcriptSegmentUpdatedTitle', currentLanguage),
@@ -66,7 +105,7 @@ const useSegmentEditing = (
     } finally {
       setIsSaving(false);
     }
-  }, [editingSegment, isSaving, editedText, utterances, onSaveEditedSegment, toast, currentLanguage, restoreAudioState]);
+  }, [editingSegment, isSaving, editedText, utterances, onSaveEditedSegment, toast, currentLanguage, restoreAudioState, isAuthenticated, editor, episodeSlug]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingSegment(null);
@@ -161,12 +200,59 @@ const useSegmentEditing = (
     }
     if (newUtterances) {
       await onSaveEditedSegment(newUtterances, actionType.toLowerCase(), segmentToModify, newUtterances.find(utt => utt.id === (actionDetail.resultingSegment?.id || actionDetail.segment1?.id) ) || null, originalUtterances);
+      
+      // Save to edit history if authenticated
+      if (isAuthenticated && editor) {
+        try {
+          const segmentId = segmentToModify.id || segmentToModify.start;
+          let contentBefore = segmentToModify.text;
+          let contentAfter = '';
+          
+          if (actionType === 'Split') {
+            contentAfter = `${actionDetail.segment1.text} | ${actionDetail.segment2.text}`;
+          } else if (actionType === 'Merge') {
+            contentAfter = actionDetail.resultingSegment.text;
+          } else if (actionType === 'Delete') {
+            contentAfter = '[DELETED]';
+          }
+          
+          await saveEditToHistory({
+            editorId: editor.id,
+            editorEmail: editor.email,
+            editorName: editor.name,
+            editType: 'transcript',
+            targetType: 'segment',
+            targetId: `${episodeSlug}_segment_${segmentId}`,
+            contentBefore: contentBefore,
+            contentAfter: contentAfter,
+            filePath: null,
+            metadata: {
+              episodeSlug: episodeSlug,
+              segmentId: segmentId,
+              action: actionType,
+              actionDetail: actionDetail,
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log(`[SegmentEditing] ${actionType} action saved to history`);
+        } catch (historyError) {
+          console.error('[SegmentEditing] Failed to save edit history:', historyError);
+          // Don't fail the whole operation if history save fails
+        }
+      }
+      
       setEditingSegment(null);
       restoreAudioState();
     }
-  }, [utterances, onSaveEditedSegment, toast, currentLanguage, restoreAudioState, textareaRef, user, episodeSlug]);
+  }, [utterances, onSaveEditedSegment, toast, currentLanguage, restoreAudioState, textareaRef, user, episodeSlug, isAuthenticated, editor]);
 
   const insertSegmentManually = useCallback(async (startSec, endSec, textContent) => {
+    // Check authentication before allowing manual segment insert
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
     try {
       if (typeof startSec !== 'number' || typeof endSec !== 'number' || isNaN(startSec) || isNaN(endSec) || startSec < 0 || endSec <= startSec) {
         toast({ title: getLocaleString('errorAddingSegment', currentLanguage), description: getLocaleString('invalidTimeRange', currentLanguage), variant: 'destructive' });
@@ -193,11 +279,41 @@ const useSegmentEditing = (
 
       const newUtterances = [...utterances, newSegment].sort((a, b) => (a.start || 0) - (b.start || 0));
       await onSaveEditedSegment(newUtterances, 'insert', null, newSegment, utterances);
+      
+      // Save to edit history if authenticated
+      if (isAuthenticated && editor) {
+        try {
+          await saveEditToHistory({
+            editorId: editor.id,
+            editorEmail: editor.email,
+            editorName: editor.name,
+            editType: 'transcript',
+            targetType: 'segment',
+            targetId: `${episodeSlug}_segment_${newSegment.id}`,
+            contentBefore: '',
+            contentAfter: textContent || '',
+            filePath: null,
+            metadata: {
+              episodeSlug: episodeSlug,
+              segmentId: newSegment.id,
+              action: 'Insert',
+              startMs: startMs,
+              endMs: endMs,
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log('[SegmentEditing] Manual insert saved to history');
+        } catch (historyError) {
+          console.error('[SegmentEditing] Failed to save edit history:', historyError);
+          // Don't fail the whole operation if history save fails
+        }
+      }
+      
       toast({ title: getLocaleString('segmentAddedTitle', currentLanguage), description: getLocaleString('segmentAddedDesc', currentLanguage), className: "bg-green-600/80 border-green-500 text-white" });
     } catch (error) {
       toast({ title: getLocaleString('errorAddingSegment', currentLanguage), description: error.message, variant: 'destructive' });
     }
-  }, [utterances, onSaveEditedSegment, toast, currentLanguage]);
+  }, [utterances, onSaveEditedSegment, toast, currentLanguage, isAuthenticated, editor, episodeSlug, openAuthModal]);
 
   const performActionWithConfirmation = useCallback((actionType, segmentToModify, textContent, cursorPos) => {
     const dontAskAgainKey = `confirm${actionType}SegmentDisabled`;

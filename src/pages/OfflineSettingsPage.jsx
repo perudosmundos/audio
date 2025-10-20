@@ -101,7 +101,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
     } catch (error) {
       console.error('Error loading stats:', error);
       toast({
-        title: getLocaleString('errorLoadingData', currentLanguage) || 'Ошибка загрузки данных',
+        title: getLocaleString('errorLoadingData', currentLanguage),
         description: error.message,
         variant: "destructive"
       });
@@ -115,14 +115,14 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
     try {
       await offlineDataService.saveCacheSetting('offlineSettings', JSON.stringify(cacheSettings));
       toast({
-        title: getLocaleString('settingsSaved', currentLanguage) || 'Настройки сохранены',
-        description: getLocaleString('offlineSettingsSaved', currentLanguage) || 'Настройки офлайн режима сохранены',
+        title: getLocaleString('settingsSaved', currentLanguage),
+        description: getLocaleString('offlineSettingsSaved', currentLanguage),
         className: "bg-green-600/80 border-green-500 text-white"
       });
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({
-        title: getLocaleString('saveError', currentLanguage) || 'Ошибка сохранения',
+        title: getLocaleString('saveError', currentLanguage),
         description: error.message,
         variant: "destructive"
       });
@@ -138,15 +138,15 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
       await syncService.forcSync();
       
       toast({
-        title: getLocaleString('syncComplete', currentLanguage) || 'Синхронизация завершена',
-        description: getLocaleString('manualSyncComplete', currentLanguage) || 'Ручная синхронизация успешно завершена',
+        title: getLocaleString('syncComplete', currentLanguage),
+        description: getLocaleString('manualSyncComplete', currentLanguage),
         className: "bg-green-600/80 border-green-500 text-white"
       });
       
     } catch (error) {
       console.error('Manual sync error:', error);
       toast({
-        title: getLocaleString('syncError', currentLanguage) || 'Ошибка синхронизации',
+        title: getLocaleString('syncError', currentLanguage),
         description: error.message,
         variant: "destructive"
       });
@@ -174,15 +174,15 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
       await loadStatsAndSettings();
       
       toast({
-        title: getLocaleString('cacheCleared', currentLanguage) || 'Кеш очищен',
-        description: getLocaleString('offlineCacheCleared', currentLanguage) || 'Офлайн кеш успешно очищен',
+        title: getLocaleString('cacheCleared', currentLanguage),
+        description: getLocaleString('offlineCacheCleared', currentLanguage),
         className: "bg-blue-600/80 border-blue-500 text-white"
       });
       
     } catch (error) {
       console.error('Error clearing cache:', error);
       toast({
-        title: getLocaleString('clearCacheError', currentLanguage) || 'Ошибка очистки кеша',
+        title: getLocaleString('clearCacheError', currentLanguage),
         description: error.message,
         variant: "destructive"
       });
@@ -238,10 +238,10 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Settings className="w-8 h-8" />
-            {getLocaleString('offlineSettings', currentLanguage) || 'Настройки офлайн режима'}
+            {getLocaleString('offlineSettings', currentLanguage)}
           </h1>
           <p className="text-slate-400 mt-2">
-            {getLocaleString('offlineSettingsDescription', currentLanguage) || 'Управление офлайн кешем и синхронизацией'}
+            {getLocaleString('offlineSettingsDescription', currentLanguage)}
           </p>
         </div>
       </div>
@@ -252,7 +252,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           <CardHeader className="pb-3">
             <CardTitle className="text-white flex items-center gap-2">
               {isOnline ? <Wifi className="w-5 h-5 text-green-500" /> : <WifiOff className="w-5 h-5 text-red-500" />}
-              {getLocaleString('networkStatus', currentLanguage) || 'Статус сети'}
+              {getLocaleString('networkStatus', currentLanguage)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -266,7 +266,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           <CardHeader className="pb-3">
             <CardTitle className="text-white flex items-center gap-2">
               {syncStatusInfo.icon}
-              {getLocaleString('syncStatus', currentLanguage) || 'Статус синхронизации'}
+              {getLocaleString('syncStatus', currentLanguage)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -282,10 +282,10 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <HardDrive className="w-5 h-5" />
-            {getLocaleString('storageUsage', currentLanguage) || 'Использование хранилища'}
+            {getLocaleString('storageUsage', currentLanguage)}
           </CardTitle>
           <CardDescription className="text-slate-400">
-            {getLocaleString('storageUsageDescription', currentLanguage) || 'Информация об использовании офлайн кеша'}
+            {getLocaleString('storageUsageDescription', currentLanguage)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -295,7 +295,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-300">
-                    {getLocaleString('audioCache', currentLanguage) || 'Аудио кеш'}
+                    {getLocaleString('audioCache', currentLanguage)}
                   </span>
                   <span className="text-sm text-slate-400">
                     {formatSize(storageStats.audioSize || 0)} / {storageStats.maxAudioCache || cacheSettings.maxAudioCache} MB
@@ -311,7 +311,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-300">
-                    {getLocaleString('dataCache', currentLanguage) || 'Данные'}
+                    {getLocaleString('dataCache', currentLanguage)}
                   </span>
                   <span className="text-sm text-slate-400">
                     {formatSize(storageStats.dataSize || 0)} / {cacheSettings.maxDataCache} MB
@@ -330,7 +330,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
                     {storageStats.episodeCount || 0}
                   </div>
                   <div className="text-sm text-slate-400">
-                    {getLocaleString('episodes', currentLanguage) || 'Эпизоды'}
+                    {getLocaleString('episodes', currentLanguage)}
                   </div>
                 </div>
                 <div className="text-center">
@@ -338,7 +338,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
                     {storageStats.transcriptCount || 0}
                   </div>
                   <div className="text-sm text-slate-400">
-                    {getLocaleString('transcripts', currentLanguage) || 'Транскрипты'}
+                    {getLocaleString('transcripts', currentLanguage)}
                   </div>
                 </div>
               </div>
@@ -347,7 +347,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
               <p className="text-slate-400">
-                {getLocaleString('loadingStats', currentLanguage) || 'Загрузка статистики...'}
+                {getLocaleString('loadingStats', currentLanguage)}
               </p>
             </div>
           )}
@@ -359,10 +359,10 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Database className="w-5 h-5" />
-            {getLocaleString('cacheSettings', currentLanguage) || 'Настройки кеша'}
+            {getLocaleString('cacheSettings', currentLanguage)}
           </CardTitle>
           <CardDescription className="text-slate-400">
-            {getLocaleString('cacheSettingsDescription', currentLanguage) || 'Настройки офлайн кеша и синхронизации'}
+            {getLocaleString('cacheSettingsDescription', currentLanguage)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -370,10 +370,10 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           <div className="flex items-center justify-between">
             <div>
               <label className="text-sm font-medium text-white">
-                {getLocaleString('autoSync', currentLanguage) || 'Автоматическая синхронизация'}
+                {getLocaleString('autoSync', currentLanguage)}
               </label>
               <p className="text-sm text-slate-400">
-                {getLocaleString('autoSyncDescription', currentLanguage) || 'Автоматически синхронизировать данные при подключении к интернету'}
+                {getLocaleString('autoSyncDescription', currentLanguage)}
               </p>
             </div>
             <Switch
@@ -387,7 +387,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           {/* Максимальный размер аудио кеша */}
           <div>
             <label className="text-sm font-medium text-white mb-2 block">
-              {getLocaleString('maxAudioCache', currentLanguage) || 'Максимальный размер аудио кеша'} ({cacheSettings.maxAudioCache} MB)
+              {getLocaleString('maxAudioCache', currentLanguage)} ({cacheSettings.maxAudioCache} MB)
             </label>
             <Slider
               value={[cacheSettings.maxAudioCache]}
@@ -398,7 +398,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
               className="w-full"
             />
             <p className="text-sm text-slate-400 mt-1">
-              {getLocaleString('maxAudioCacheDescription', currentLanguage) || 'Максимальный размер аудио файлов в кеше'}
+              {getLocaleString('maxAudioCacheDescription', currentLanguage)}
             </p>
           </div>
 
@@ -407,7 +407,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           {/* Максимальный размер данных */}
           <div>
             <label className="text-sm font-medium text-white mb-2 block">
-              {getLocaleString('maxDataCache', currentLanguage) || 'Максимальный размер данных'} ({cacheSettings.maxDataCache} MB)
+              {getLocaleString('maxDataCache', currentLanguage)} ({cacheSettings.maxDataCache} MB)
             </label>
             <Slider
               value={[cacheSettings.maxDataCache]}
@@ -418,7 +418,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
               className="w-full"
             />
             <p className="text-sm text-slate-400 mt-1">
-              {getLocaleString('maxDataCacheDescription', currentLanguage) || 'Максимальный размер транскриптов и метаданных'}
+              {getLocaleString('maxDataCacheDescription', currentLanguage)}
             </p>
           </div>
 
@@ -427,7 +427,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           {/* Интервал синхронизации */}
           <div>
             <label className="text-sm font-medium text-white mb-2 block">
-              {getLocaleString('syncInterval', currentLanguage) || 'Интервал синхронизации'} ({cacheSettings.syncInterval} мин)
+              {getLocaleString('syncInterval', currentLanguage)} ({cacheSettings.syncInterval} мин)
             </label>
             <Slider
               value={[cacheSettings.syncInterval]}
@@ -438,7 +438,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
               className="w-full"
             />
             <p className="text-sm text-slate-400 mt-1">
-              {getLocaleString('syncIntervalDescription', currentLanguage) || 'Как часто проверять наличие обновлений'}
+              {getLocaleString('syncIntervalDescription', currentLanguage)}
             </p>
           </div>
 
@@ -448,10 +448,10 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           <div className="flex items-center justify-between">
             <div>
               <label className="text-sm font-medium text-white">
-                {getLocaleString('autoCleanup', currentLanguage) || 'Автоматическая очистка'}
+                {getLocaleString('autoCleanup', currentLanguage)}
               </label>
               <p className="text-sm text-slate-400">
-                {getLocaleString('autoCleanupDescription', currentLanguage) || 'Автоматически очищать старые данные при превышении лимитов'}
+                {getLocaleString('autoCleanupDescription', currentLanguage)}
               </p>
             </div>
             <Switch
@@ -466,7 +466,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
             className="w-full bg-blue-600 hover:bg-blue-700"
             disabled={isLoading}
           >
-            {getLocaleString('saveSettings', currentLanguage) || 'Сохранить настройки'}
+            {getLocaleString('saveSettings', currentLanguage)}
           </Button>
         </CardContent>
       </Card>
@@ -476,10 +476,10 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <RefreshCw className="w-5 h-5" />
-            {getLocaleString('syncQueue', currentLanguage) || 'Очередь синхронизации'}
+            {getLocaleString('syncQueue', currentLanguage)}
           </CardTitle>
           <CardDescription className="text-slate-400">
-            {getLocaleString('syncQueueDescription', currentLanguage) || 'Элементы, ожидающие синхронизации'}
+            {getLocaleString('syncQueueDescription', currentLanguage)}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -510,7 +510,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
             <div className="text-center py-8">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <p className="text-slate-400">
-                {getLocaleString('syncQueueEmpty', currentLanguage) || 'Очередь синхронизации пуста'}
+                {getLocaleString('syncQueueEmpty', currentLanguage)}
               </p>
             </div>
           )}
@@ -525,7 +525,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           disabled={isLoading || !isOnline}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
-          {getLocaleString('manualSync', currentLanguage) || 'Ручная синхронизация'}
+          {getLocaleString('manualSync', currentLanguage)}
         </Button>
 
         <Button 
@@ -534,7 +534,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           disabled={isLoading}
         >
           <Download className="w-4 h-4 mr-2" />
-          {getLocaleString('refreshStats', currentLanguage) || 'Обновить статистику'}
+          {getLocaleString('refreshStats', currentLanguage)}
         </Button>
 
         <Button 
@@ -543,7 +543,7 @@ const OfflineSettingsPage = ({ currentLanguage }) => {
           disabled={isLoading}
         >
           <Trash2 className="w-4 h-4 mr-2" />
-          {getLocaleString('clearCache', currentLanguage) || 'Очистить кеш'}
+          {getLocaleString('clearCache', currentLanguage)}
         </Button>
       </div>
     </div>

@@ -25,7 +25,8 @@ const usePlayerInitialization = ({
                        audioRef.current.readyState > 0; // Аудио уже загружено
     
     // Не сбрасываем состояние воспроизведения, если это просто пауза
-    if (!isJustPause) {
+    // И не сбрасываем для новых эпизодов - пусть автозапуск сам решит
+    if (!isJustPause && !episodeData?.audio_url) {
       setIsPlayingState(false);
     }
     
@@ -61,7 +62,9 @@ const usePlayerInitialization = ({
     }
     
     const currentTime = hasActiveJump ? jumpToTime : (isJustPause ? audioRef.current?.currentTime || 0 : 0);
-    onPlayerStateChange?.({isPlaying: false, currentTime, duration: episodeData?.duration || 0, activeQuestionTitle: ''});
+    // Не устанавливаем isPlaying: false для новых эпизодов - пусть автозапуск сам решит
+    const shouldSetPlaying = !episodeData?.audio_url ? false : undefined;
+    onPlayerStateChange?.({...shouldSetPlaying !== undefined && {isPlaying: shouldSetPlaying}, currentTime, duration: episodeData?.duration || 0, activeQuestionTitle: ''});
   }, [
       episodeData?.slug, 
       episodeData?.audio_url, 

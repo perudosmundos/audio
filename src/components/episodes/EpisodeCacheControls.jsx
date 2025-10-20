@@ -91,15 +91,15 @@ const EpisodeCacheControls = ({ episode, currentLanguage = 'ru' }) => {
 
   const getButtonText = () => {
     if (isDownloading) {
-      return downloadProgress > 0 ? `${downloadProgress}%` : getLocaleString('downloading', currentLanguage) || 'Загрузка...';
+      return downloadProgress > 0 ? `${downloadProgress}%` : getLocaleString('downloading', currentLanguage);
     }
     if (isRemoving) {
-      return getLocaleString('removing', currentLanguage) || 'Удаление...';
+      return getLocaleString('removing', currentLanguage);
     }
     if (isCached) {
-      return getLocaleString('cached', currentLanguage) || 'Кешировано';
+      return getLocaleString('cached', currentLanguage);
     }
-    return getLocaleString('cacheForOffline', currentLanguage) || 'Кешировать';
+    return getLocaleString('cacheForOffline', currentLanguage);
   };
 
   const getButtonIcon = () => {
@@ -130,8 +130,8 @@ const EpisodeCacheControls = ({ episode, currentLanguage = 'ru' }) => {
         className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 ${getButtonClass()}`}
         title={
           isCached 
-            ? getLocaleString('removeFromCache', currentLanguage) || 'Удалить из кеша'
-            : getLocaleString('cacheForOffline', currentLanguage) || 'Кешировать для офлайн'
+            ? getLocaleString('removeFromCache', currentLanguage)
+            : getLocaleString('cacheForOffline', currentLanguage)
         }
       >
         {isCached ? <Trash2 className="h-3.5 w-3.5" /> : getButtonIcon()}

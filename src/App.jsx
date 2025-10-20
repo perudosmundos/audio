@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import FooterLanguageSwitcher from '@/components/FooterLanguageSwitcher';
-import CacheSettings from '@/components/CacheSettings';
+import Footer from '@/components/Footer';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 import { TelegramProvider } from '@/contexts/TelegramContext';
 import { getLocaleString } from '@/lib/locales';
@@ -22,113 +21,59 @@ import { supabase } from '@/lib/supabaseClient';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import cacheIntegration from '@/lib/cacheIntegration';
 import { useToast } from '@/components/ui/use-toast';
+import { EditorAuthProvider, useEditorAuth } from '@/contexts/EditorAuthContext';
+import { EditorAuthModal } from '@/components/EditorAuthModal';
+import EditHistoryAdminPage from '@/pages/EditHistoryAdminPage';
 
 
-const FooterContent = ({ currentLanguage, onLanguageSelect }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [availableLanguages, setAvailableLanguages] = useState(['ru', 'es', 'en', 'de', 'fr', 'pl']);
+// Internal component that has access to EditorAuthContext
+const AppContent = ({ currentLanguage, handleLanguageSelect, user }) => {
+  const { showAuthModal, closeAuthModal } = useEditorAuth();
 
-  // Определяем доступные языки для текущего эпизода
-  useEffect(() => {
-    const fetchAvailableLanguages = async () => {
-      const pathParts = window.location.pathname.split('/');
-      if (pathParts.length === 3 && pathParts[1] === 'episode') {
-        const currentSlug = pathParts[2];
-        
-        try {
-          const { data: currentEpisode } = await supabase
-            .from('episodes')
-            .select('date')
-            .eq('slug', currentSlug)
-            .single();
-
-          if (currentEpisode) {
-            // Получаем все эпизоды с той же датой
-            const { data: episodesWithSameDate } = await supabase
-              .from('episodes')
-              .select('lang')
-              .eq('date', currentEpisode.date);
-
-            if (episodesWithSameDate && episodesWithSameDate.length > 0) {
-              const langs = episodesWithSameDate.map(ep => ep.lang);
-              setAvailableLanguages(langs);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching available languages:', error);
-        }
-      } else {
-        // На других страницах показываем все языки
-        setAvailableLanguages(['ru', 'es', 'en', 'de', 'fr', 'pl']);
-      }
-    };
-
-    fetchAvailableLanguages();
-  }, [location.pathname]);
-
-  const handleLanguageSwitchInPlayer = async (newLang) => {
-    const pathParts = window.location.pathname.split('/');
-    if (pathParts.length === 3 && pathParts[1] === 'episode') {
-      const currentSlug = pathParts[2];
-      
-      const { data: currentEpisode, error: currentEpError } = await supabase
-        .from('episodes')
-        .select('date, lang, slug')
-        .eq('slug', currentSlug)
-        .single();
-
-      if (currentEpError || !currentEpisode) {
-        console.error("Error fetching current episode details for lang switch:", currentEpError);
-        onLanguageSelect(newLang); 
-        return;
-      }
-      
-      const datePartFromSlug = currentEpisode.slug.substring(0, currentEpisode.slug.lastIndexOf('_'));
-      const targetSlugPart = `${datePartFromSlug}_${newLang}`;
-      
-      const { data: targetEpisode, error: targetEpError } = await supabase
-        .from('episodes')
-        .select('slug')
-        .eq('date', currentEpisode.date) 
-        .eq('lang', newLang) 
-        .eq('slug', targetSlugPart)
-        .single();
-
-      if (!targetEpError && targetEpisode) {
-        onLanguageSelect(newLang);
-        navigate(`/episode/${targetEpisode.slug}${window.location.hash}`);
-      } else {
-         const { data: anyEpisodeSameDate, error: anyEpError } = await supabase
-            .from('episodes')
-            .select('slug')
-            .eq('date', currentEpisode.date)
-            .eq('lang', newLang)
-            .limit(1)
-            .single();
-        
-        if(!anyEpError && anyEpisodeSameDate){
-            onLanguageSelect(newLang);
-            navigate(`/episode/${anyEpisodeSameDate.slug}${window.location.hash}`);
-        } else {
-            console.warn("No equivalent episode found for the new language with the same date. Defaulting to language switch only.");
-            onLanguageSelect(newLang);
-        }
-      }
-    } else {
-      onLanguageSelect(newLang);
-    }
-  };
-  
   return (
-    <footer className="py-3 sm:py-4 text-center text-xs sm:text-sm text-white/60 flex flex-col items-center gap-2">
-      <div className="flex gap-2 items-center">
-        {currentLanguage && <FooterLanguageSwitcher currentLanguage={currentLanguage} onLanguageChange={handleLanguageSwitchInPlayer} availableLanguages={availableLanguages} />}
-        <CacheSettings currentLanguage={currentLanguage} />
-      </div>
-    </footer>
+    <TooltipProvider>
+      <Router>
+        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white flex flex-col">
+          <main className="flex-grow w-full">
+            <Routes>
+              <Route path="/" element={<Navigate to="/episodes" replace />} />
+              <Route path="/episodes" element={<InstantEpisodesPage currentLanguage={currentLanguage} />} />
+              <Route path="/episode/:episodeSlug" element={<PlayerPage currentLanguage={currentLanguage} user={user} />} />
+              <Route path="/manage" element={<ManagePage currentLanguage={currentLanguage} />} />
+              <Route path="/upload" element={<UploadPage currentLanguage={currentLanguage} />} />
+              <Route path="/deep-search" element={<DeepSearchPage currentLanguage={currentLanguage} />} />
+              <Route path="/spotify-upload" element={<SpotifyUploadPage currentLanguage={currentLanguage} />} />
+              <Route path="/edit" element={<EditHistoryAdminPage currentLanguage={currentLanguage} />} />
+              <Route path="/offline-settings" element={
+                <OfflineSettingsPage 
+                  currentLanguage={currentLanguage} 
+                  onBack={() => window.history.back()} 
+                />
+              } />
+              <Route path="/migration" element={<MigrationMenuPage currentLanguage={currentLanguage} />} />
+              <Route path="/migration/storage" element={<StorageMigrationPage currentLanguage={currentLanguage} />} />
+              <Route path="/hostinger-migration" element={<HostingerMigrationPage currentLanguage={currentLanguage} />} />
+              <Route path="*" element={<NotFoundPage currentLanguage={currentLanguage} />} />
+            </Routes>
+          </main>
+          
+          <Footer 
+            currentLanguage={currentLanguage} 
+            onLanguageChange={handleLanguageSelect}
+          />
+          
+          {/* Global Auth Modal */}
+          <EditorAuthModal 
+            isOpen={showAuthModal}
+            onClose={closeAuthModal}
+          />
+          
+          <Toaster />
+        </div>
+      </Router>
+    </TooltipProvider>
   );
-}
+};
 
 
 function App() {
@@ -213,40 +158,13 @@ function App() {
 
   return (
     <TelegramProvider>
-      <TooltipProvider>
-        <Router>
-          <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white flex flex-col">
-            <main className="flex-grow w-full">
-              <Routes>
-                <Route path="/" element={<Navigate to="/episodes" replace />} />
-                <Route path="/episodes" element={<InstantEpisodesPage currentLanguage={currentLanguage} />} />
-                <Route path="/episode/:episodeSlug" element={<PlayerPage currentLanguage={currentLanguage} user={user} />} />
-                <Route path="/manage" element={<ManagePage currentLanguage={currentLanguage} />} />
-                <Route path="/upload" element={<UploadPage currentLanguage={currentLanguage} />} />
-                <Route path="/deep-search" element={<DeepSearchPage currentLanguage={currentLanguage} />} />
-                <Route path="/spotify-upload" element={<SpotifyUploadPage currentLanguage={currentLanguage} />} />
-                <Route path="/offline-settings" element={
-                  <OfflineSettingsPage 
-                    currentLanguage={currentLanguage} 
-                    onBack={() => window.history.back()} 
-                  />
-                } />
-                <Route path="/migration" element={<MigrationMenuPage currentLanguage={currentLanguage} />} />
-                <Route path="/migration/storage" element={<StorageMigrationPage currentLanguage={currentLanguage} />} />
-                <Route path="/hostinger-migration" element={<HostingerMigrationPage currentLanguage={currentLanguage} />} />
-                <Route path="*" element={<NotFoundPage currentLanguage={currentLanguage} />} />
-              </Routes>
-            </main>
-            
-            <FooterContent 
-              currentLanguage={currentLanguage} 
-              onLanguageSelect={handleLanguageSelect}
-            />
-            
-            <Toaster />
-          </div>
-        </Router>
-      </TooltipProvider>
+      <EditorAuthProvider>
+        <AppContent 
+          currentLanguage={currentLanguage}
+          handleLanguageSelect={handleLanguageSelect}
+          user={user}
+        />
+      </EditorAuthProvider>
     </TelegramProvider>
   );
 }

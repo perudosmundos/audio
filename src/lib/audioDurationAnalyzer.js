@@ -28,6 +28,8 @@ const audioDurationAnalyzer = {
           resolve(null);
         };
 
+        let cleanupTimeout = null;
+
         const handleTimeout = () => {
           logger.warn(`[AudioDuration] Timeout loading ${audioUrl}`);
           cleanup();
@@ -35,6 +37,9 @@ const audioDurationAnalyzer = {
         };
 
         const cleanup = () => {
+          if (cleanupTimeout) {
+            clearTimeout(cleanupTimeout);
+          }
           audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
           audio.removeEventListener('error', handleError);
           audio.src = '';
@@ -45,14 +50,7 @@ const audioDurationAnalyzer = {
         audio.addEventListener('error', handleError);
 
         // Таймаут на случай если файл не загрузится
-        const timeout = setTimeout(handleTimeout, 10000); // 10 секунд
-
-        // Переопределяем cleanup чтобы включить таймаут
-        const originalCleanup = cleanup;
-        cleanup = () => {
-          clearTimeout(timeout);
-          originalCleanup();
-        };
+        cleanupTimeout = setTimeout(handleTimeout, 10000); // 10 секунд
 
         // Загружаем файл
         audio.crossOrigin = 'anonymous';

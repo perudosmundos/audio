@@ -15,6 +15,7 @@ import usePlayerTimeUpdates from '@/hooks/player/usePlayerTimeUpdates';
 import useSpeakerAssignment from '@/hooks/player/useSpeakerAssignment';
 import { getLocaleString } from '@/lib/locales';
 import textExportService from '@/lib/textExportService';
+import { useEditorAuth } from '@/contexts/EditorAuthContext';
 
 const playbackRateOptions = [
   { label: "1x", value: 1},
@@ -43,6 +44,7 @@ const PodcastPlayer = ({
  }) => {
   
   const { toast } = useToast();
+  const { isAuthenticated, openAuthModal } = useEditorAuth();
   const internalQuestions = episodeData?.questions || [];
   const internalTranscriptUtterances = episodeData?.transcript?.utterances || [];
   
@@ -107,8 +109,14 @@ const PodcastPlayer = ({
   });
   
   const handleQuestionsChange = useCallback((action, questionDataOrArray) => {
+    // Check authentication for add, update, and delete operations
+    if ((action === 'add' || action === 'update' || action === 'delete') && !isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    
     onQuestionUpdate(action, questionDataOrArray);
-  }, [onQuestionUpdate]);
+  }, [onQuestionUpdate, isAuthenticated, openAuthModal]);
 
   const handleSetPlaybackRate = useCallback((rateValue) => {
     const index = playbackRateOptions.findIndex(opt => opt.value === rateValue);
@@ -120,6 +128,8 @@ const PodcastPlayer = ({
       onPlayerStateChange?.({ playbackRate: rateValue });
     }
   }, [setCurrentPlaybackRateIndex, audioRef, onPlayerStateChange]);
+
+  // Убираем дублирующий автозапуск - оставляем только в usePlayerPlayback
 
   useEffect(() => {
     if(typeof window !== 'undefined'){
@@ -186,9 +196,15 @@ const PodcastPlayer = ({
   }, [handleQuestionsChange, langForContent, setIsAddQuestionPlayerDialogOpen]);
 
   const handleOpenAddQuestionDialogFromPlayer = useCallback(() => {
+    // Check authentication before opening add question dialog
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
     setAddQuestionDialogInitialTime(currentTimeState);
     setIsAddQuestionPlayerDialogOpen(true);
-  }, [currentTimeState, setAddQuestionDialogInitialTime, setIsAddQuestionPlayerDialogOpen]);
+  }, [currentTimeState, setAddQuestionDialogInitialTime, setIsAddQuestionPlayerDialogOpen, isAuthenticated, openAuthModal]);
 
   if (!episodeData) return <div className="p-4 text-center">{getLocaleString('selectAnEpisode', currentLanguage)}</div>;
 

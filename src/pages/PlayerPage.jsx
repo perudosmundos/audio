@@ -17,6 +17,8 @@ import SpeakerAssignmentDialog from '@/components/transcript/SpeakerAssignmentDi
 import useQuestionManagement from '@/hooks/useQuestionManagement';
 import AddQuestionFromSegmentDialog from '@/components/player/questions_manager_parts/AddQuestionFromSegmentDialog';
 import AddQuestionDialog from '@/components/transcript/AddQuestionDialog';
+import { useEditorAuth } from '@/contexts/EditorAuthContext';
+import { saveEditToHistory } from '@/services/editHistoryService';
 
 
 const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
@@ -24,6 +26,7 @@ const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const location = useLocation();
+  const { editor, isAuthenticated, openAuthModal } = useEditorAuth();
   
   // Read language from URL parameter, fallback to app language
   const urlParams = new URLSearchParams(location.search);
@@ -228,17 +231,75 @@ const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
     if (dbError) {
       toast({ title: getLocaleString('errorGeneric', currentLanguage), description: dbError.message, variant: 'destructive' });
     } else {
+      // Save to edit history if authenticated
+      if (isAuthenticated && editor) {
+        try {
+          let contentBefore = '';
+          let contentAfter = '';
+          let targetId = '';
+          
+          if (action === 'add') {
+            contentBefore = '';
+            contentAfter = `Title: ${questionData.title}, Time: ${questionData.time}s`;
+            targetId = `${episodeData.slug}_question_new_${Date.now()}`;
+          } else if (action === 'update') {
+            const originalQuestion = questions.find(q => q.id === questionData.id);
+            if (originalQuestion) {
+              contentBefore = `Title: ${originalQuestion.title}, Time: ${originalQuestion.time}s`;
+              contentAfter = `Title: ${questionData.title}, Time: ${questionData.time}s`;
+            }
+            targetId = `${episodeData.slug}_question_${questionData.id}`;
+          } else if (action === 'delete') {
+            const originalQuestion = questions.find(q => q.id === questionData.id);
+            if (originalQuestion) {
+              contentBefore = `Title: ${originalQuestion.title}, Time: ${originalQuestion.time}s`;
+              contentAfter = '';
+            }
+            targetId = `${episodeData.slug}_question_${questionData.id}`;
+          }
+          
+          await saveEditToHistory({
+            editorId: editor.id,
+            editorEmail: editor.email,
+            editorName: editor.name,
+            editType: 'question',
+            targetType: 'question',
+            targetId: targetId,
+            contentBefore: contentBefore,
+            contentAfter: contentAfter,
+            filePath: null,
+            metadata: {
+              episodeSlug: episodeData.slug,
+              questionId: questionData.id || 'new',
+              action: action,
+              questionData: questionData,
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log(`[PlayerPage] Question ${action} saved to history`);
+        } catch (historyError) {
+          console.error('[PlayerPage] Failed to save edit history:', historyError);
+          // Don't fail the whole operation if history save fails
+        }
+      }
+      
       fetchQuestionsForEpisode(episodeData.slug, langForQuestions);
     }
-  }, [episodeData, currentLanguage, toast, fetchQuestionsForEpisode]);
+  }, [episodeData, currentLanguage, toast, fetchQuestionsForEpisode, isAuthenticated, editor, questions]);
 
   const handleEditQuestion = useCallback((question) => {
+    // Check authentication before opening edit dialog
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
     if (question.id === 'full-transcript-virtual') {
       console.warn('Attempted to edit virtual question:', question.id);
       return;
     }
     setEditingQuestion(question);
-  }, []);
+  }, [isAuthenticated, openAuthModal]);
 
   const handleTranscriptUpdate = useCallback(async (newTranscriptData) => {
     if (!episodeData || !episodeData.slug) return;
@@ -290,7 +351,7 @@ const PlayerPage = ({ currentLanguage: appCurrentLanguage, user }) => {
     } catch (error) {
       console.error('Error saving segment edit:', error);
       toast({
-        title: getLocaleString('saveError', currentLanguage) || 'Ошибка сохранения',
+        title: getLocaleString('saveError', currentLanguage),
         description: error.message,
         variant: "destructive"
       });

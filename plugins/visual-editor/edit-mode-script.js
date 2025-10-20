@@ -9,6 +9,85 @@ const ALLOWED_PARENT_ORIGINS = [
 	'http://localhost:4000',
 ];
 
+// Helper function to check editor authentication
+function checkEditorAuth() {
+  try {
+    const editorData = localStorage.getItem('editor_auth');
+    if (!editorData) return null;
+    
+    const editor = JSON.parse(editorData);
+    if (editor && editor.id && editor.email && editor.name) {
+      return editor;
+    }
+  } catch (error) {
+    console.error('[INLINE EDITOR] Error checking editor auth:', error);
+  }
+  return null;
+}
+
+// Function to save edit to history
+async function saveEditToHistory(editId, contentBefore, contentAfter, editData) {
+  const editor = checkEditorAuth();
+  if (!editor) {
+    console.warn('[INLINE EDITOR] No authenticated editor - edit not saved to history');
+    return;
+  }
+
+  try {
+    // Dynamically import supabase
+    const { supabase } = await import('/src/lib/supabaseClient.js');
+    
+    // Parse editId to extract file info
+    const parts = editId.split(':');
+    let filePath = editId;
+    let line = null;
+    let column = null;
+    
+    if (parts.length >= 3) {
+      column = parseInt(parts.pop(), 10);
+      line = parseInt(parts.pop(), 10);
+      filePath = parts.join(':');
+    }
+    
+    const historyRecord = {
+      editor_id: editor.id,
+      editor_email: editor.email,
+      editor_name: editor.name,
+      edit_type: 'text_edit',
+      target_type: 'ui_element',
+      target_id: editId,
+      file_path: filePath,
+      content_before: contentBefore || '',
+      content_after: contentAfter || '',
+      metadata: {
+        line: line,
+        column: column,
+        timestamp: new Date().toISOString(),
+        ...editData
+      }
+    };
+
+    console.log('[INLINE EDITOR] Saving edit to history:', historyRecord);
+
+    const { data, error } = await supabase
+      .from('edit_history')
+      .insert(historyRecord)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[INLINE EDITOR] Error saving to history:', error);
+      throw error;
+    }
+    
+    console.log('[INLINE EDITOR] Edit saved to history successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('[INLINE EDITOR] Failed to save edit history:', error);
+    throw error;
+  }
+}
+
 let popupElement = null;
 let popupTextarea = null;
 let popupSaveButton = null;
@@ -60,6 +139,22 @@ function createPopup() {
 
 function showPopup(targetElement, editId, currentText) {
   if (!popupElement) createPopup();
+
+  // Check if user is authenticated
+  const editor = checkEditorAuth();
+  if (!editor) {
+    const shouldAuth = confirm(
+      'You need to be authenticated to make edits.\n\n' +
+      'Would you like to login now?\n\n' +
+      '(You can login in Settings → Edit History)'
+    );
+    
+    if (shouldAuth) {
+      // Open settings to login
+      alert('Please open Settings (bottom right) → Edit History → Login');
+    }
+    return;
+  }
 
   currentEditingInfo = { editId, targetElement };
 
@@ -149,6 +244,7 @@ function getParentOrigin() {
 async function handlePopupSave() {
   if (!currentEditingInfo) return;
   
+  const oldText = currentEditingInfo.targetElement?.textContent || '';
   const newText = popupTextarea.value
   // Replacing characters that cause Babel parser to crash
     .replace(/</g, '&lt;')
@@ -172,6 +268,13 @@ async function handlePopupSave() {
 
     const result = await response.json();
     if (result.success) {
+      // Save to edit history
+      try {
+        await saveEditToHistory(editId, oldText, newText, result.editData);
+      } catch (historyError) {
+        console.warn('[INLINE EDITOR] Failed to save edit history:', historyError);
+      }
+
       const parentOrigin = getParentOrigin();
       if (parentOrigin && ALLOWED_PARENT_ORIGINS.includes(parentOrigin)) {
         window.parent.postMessage({

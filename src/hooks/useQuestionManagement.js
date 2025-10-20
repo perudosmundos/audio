@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useEditorAuth } from '@/contexts/EditorAuthContext';
 
 const useQuestionManagement = (
   currentTime,
@@ -10,6 +11,7 @@ const useQuestionManagement = (
   episodeDate,
   episodeLang // Added episodeLang
 ) => {
+  const { isAuthenticated, openAuthModal } = useEditorAuth();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isBatchAddDialogOpen, setIsBatchAddDialogOpen] = useState(false);
   const [currentQuestionData, setCurrentQuestionData] = useState(null);
@@ -23,6 +25,12 @@ const useQuestionManagement = (
 
 
   const openEditDialog = useCallback((question) => {
+    // Check authentication before opening edit dialog
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
     let langForDialog = question.lang || currentLanguage;
     if (currentLanguage === 'en' && episodeLang === 'es' && question.lang !== 'en') {
       langForDialog = 'en';
@@ -34,9 +42,15 @@ const useQuestionManagement = (
     setIsAddingQuestion(false);
     setIsEditDialogOpen(true);
     setInitialDialogTimeSet(true);
-  }, [currentLanguage, episodeLang]);
+  }, [currentLanguage, episodeLang, isAuthenticated, openAuthModal]);
 
   const openAddDialog = useCallback(() => {
+    // Check authentication before opening add dialog
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
     const newTime = parseFloat(audioRef.current?.currentTime.toFixed(2) || currentTime.toFixed(2));
     let langForNewQuestion = currentLanguage;
     if (currentLanguage === 'en' && episodeLang === 'es') {
@@ -48,16 +62,22 @@ const useQuestionManagement = (
     setIsAddingQuestion(true);
     setIsEditDialogOpen(true);
     setInitialDialogTimeSet(false);
-  }, [currentTime, currentLanguage, audioRef, episodeSlug, episodeLang]);
+  }, [currentTime, currentLanguage, audioRef, episodeSlug, episodeLang, isAuthenticated, openAuthModal]);
 
   const openBatchAddDialog = useCallback(() => {
     setIsBatchAddDialogOpen(true);
   }, []);
   
   const openAddQuestionFromSegmentDialog = useCallback((segment) => {
+    // Check authentication before opening segment question dialog
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+
     setSegmentForQuestion(segment);
     setIsAddQuestionFromSegmentDialogOpen(true);
-  }, []);
+  }, [isAuthenticated, openAuthModal]);
 
   const closeDialog = useCallback(() => {
     setIsEditDialogOpen(false);

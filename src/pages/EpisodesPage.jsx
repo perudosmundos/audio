@@ -268,7 +268,7 @@ const EpisodesPage = ({ currentLanguage }) => {
             });
             
             // Показываем предупреждение о работе в офлайн режиме
-            setError(getLocaleString('offlineMode', currentLanguage) || 'Работаем в офлайн режиме. Данные загружены из кеша.');
+            setError(getLocaleString('offlineMode', currentLanguage));
           } else {
             console.log('❌ Кеш пустой или недоступен');
             console.log('🔍 Проверяем состояние кеша...');
@@ -461,7 +461,7 @@ const EpisodesPage = ({ currentLanguage }) => {
       }`}>
         <h2 className="text-xl font-bold mb-2">
           {isOfflineMode 
-            ? getLocaleString('offlineModeTitle', currentLanguage) || 'Офлайн режим'
+            ? getLocaleString('offlineModeTitle', currentLanguage)
             : getLocaleString('errorLoadingData', currentLanguage)
           }
         </h2>

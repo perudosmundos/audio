@@ -291,21 +291,21 @@ const useOfflineEpisodeData = (episodeSlug, currentLanguage, toast) => {
 
       if (isOfflineMode) {
         toast({
-          title: getLocaleString('savedOffline', currentLanguage) || 'Сохранено офлайн',
-          description: getLocaleString('transcriptSavedOffline', currentLanguage) || 'Изменения сохранены локально и будут синхронизированы при подключении к интернету',
+          title: getLocaleString('savedOffline', currentLanguage),
+          description: getLocaleString('transcriptSavedOffline', currentLanguage),
           className: "bg-yellow-600/80 border-yellow-500 text-white"
         });
       } else {
         toast({
-          title: getLocaleString('transcriptSaved', currentLanguage) || 'Транскрипт сохранен',
-          description: getLocaleString('transcriptSavedSuccessfully', currentLanguage) || 'Изменения успешно сохранены',
+          title: getLocaleString('transcriptSaved', currentLanguage),
+          description: getLocaleString('transcriptSavedSuccessfully', currentLanguage),
           className: "bg-green-600/80 border-green-500 text-white"
         });
       }
     } catch (error) {
       console.error('Error saving transcript:', error);
       toast({
-        title: getLocaleString('saveError', currentLanguage) || 'Ошибка сохранения',
+        title: getLocaleString('saveError', currentLanguage),
         description: error.message,
         variant: "destructive"
       });

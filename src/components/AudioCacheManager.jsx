@@ -152,7 +152,7 @@ const AudioCacheManager = ({
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 text-green-500">✅</div>
             <span className="text-xs text-green-400">
-              {getLocaleString('cached', currentLanguage) || 'Кешировано'}
+              {getLocaleString('cached', currentLanguage)}
             </span>
             <button
               onClick={handleRemoveEpisode}
@@ -168,7 +168,7 @@ const AudioCacheManager = ({
           >
             <div className="h-3 w-3">⬇️</div>
             <span className="text-xs">
-              {getLocaleString('cache', currentLanguage) || 'Кешировать'}
+              {getLocaleString('cache', currentLanguage)}
             </span>
           </button>
         )}
@@ -195,7 +195,7 @@ const AudioCacheManager = ({
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-white flex items-center gap-2">
           <div className="h-5 w-5">💾</div>
-          {getLocaleString('audioCache', currentLanguage) || 'Кеш аудио'}
+          {getLocaleString('audioCache', currentLanguage)}
         </h3>
         <div className="flex items-center gap-2">
           {navigator.onLine ? (
@@ -211,7 +211,7 @@ const AudioCacheManager = ({
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">
-              {getLocaleString('cacheUsage', currentLanguage) || 'Использование кеша'}
+              {getLocaleString('cacheUsage', currentLanguage)}
             </span>
             <span className="text-white">
               {formatBytes(cacheStats.totalSize)} / {formatBytes(cacheStats.maxSize)}
@@ -227,10 +227,10 @@ const AudioCacheManager = ({
           
           <div className="flex justify-between text-xs text-slate-500">
             <span>
-              {cacheStats.fileCount} {getLocaleString('files', currentLanguage) || 'файлов'}
+              {cacheStats.fileCount} {getLocaleString('files', currentLanguage)}
             </span>
             <span>
-              {cacheStats.usagePercentage}% {getLocaleString('used', currentLanguage) || 'использовано'}
+              {cacheStats.usagePercentage}% {getLocaleString('used', currentLanguage)}
             </span>
           </div>
         </div>
@@ -245,7 +245,7 @@ const AudioCacheManager = ({
                 {episodeData.title}
               </div>
               <div className="text-xs text-slate-400">
-                {getLocaleString('currentEpisode', currentLanguage) || 'Текущий эпизод'}
+                {getLocaleString('currentEpisode', currentLanguage)}
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -261,7 +261,7 @@ const AudioCacheManager = ({
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">
-                  {getLocaleString('downloading', currentLanguage) || 'Загрузка...'}
+                  {getLocaleString('downloading', currentLanguage)}
                 </span>
                 <span className="text-blue-400">
                   {downloadProgress.progress || 0}%
@@ -287,13 +287,13 @@ const AudioCacheManager = ({
                     onClick={handleRefreshCache}
                     className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm transition-colors"
                   >
-                    🔄 {getLocaleString('refreshCache', currentLanguage) || 'Обновить кеш'}
+                    🔄 {getLocaleString('refreshCache', currentLanguage)}
                   </button>
                   <button
                     onClick={handleRemoveEpisode}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
                   >
-                    🗑️ {getLocaleString('removeFromCache', currentLanguage) || 'Удалить из кеша'}
+                    🗑️ {getLocaleString('removeFromCache', currentLanguage)}
                   </button>
                 </>
               ) : (
@@ -302,7 +302,7 @@ const AudioCacheManager = ({
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors disabled:opacity-50"
                   disabled={!navigator.onLine}
                 >
-                  ⬇️ {getLocaleString('cacheForOffline', currentLanguage) || 'Кешировать для офлайн'}
+                  ⬇️ {getLocaleString('cacheForOffline', currentLanguage)}
                 </button>
               )}
             </div>
@@ -315,10 +315,10 @@ const AudioCacheManager = ({
         <div className="flex justify-between items-center">
           <div>
             <div className="text-sm font-medium text-white">
-              {getLocaleString('cacheManagement', currentLanguage) || 'Управление кешем'}
+              {getLocaleString('cacheManagement', currentLanguage)}
             </div>
             <div className="text-xs text-slate-400">
-              {getLocaleString('manageStoredAudio', currentLanguage) || 'Управление сохраненными аудиофайлами'}
+              {getLocaleString('manageStoredAudio', currentLanguage)}
             </div>
           </div>
           <button
@@ -326,7 +326,7 @@ const AudioCacheManager = ({
             disabled={!cacheStats || cacheStats.fileCount === 0}
             className="text-red-400 border-red-400/30 hover:bg-red-400/10 px-3 py-2 rounded text-sm border transition-colors disabled:opacity-50"
           >
-            🗑️ {getLocaleString('clearAll', currentLanguage) || 'Очистить все'}
+            🗑️ {getLocaleString('clearAll', currentLanguage)}
           </button>
         </div>
       </div>
@@ -335,7 +335,7 @@ const AudioCacheManager = ({
       {cacheStats && cacheStats.files.length > 0 && (
         <div className="border-t border-slate-700 pt-4">
           <div className="text-sm font-medium text-white mb-3">
-            {getLocaleString('cachedFiles', currentLanguage) || 'Кешированные файлы'}
+            {getLocaleString('cachedFiles', currentLanguage)}
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {cacheStats.files.map((file, index) => (

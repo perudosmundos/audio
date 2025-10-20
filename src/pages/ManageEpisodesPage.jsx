@@ -7,7 +7,7 @@ import { UploadCloud, Loader2, PlusCircle, ArrowLeft, Settings2, Trash2, Search,
 import { getLocaleString, getPluralizedLocaleString } from '@/lib/locales';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
-import r2Service from '@/lib/r2Service';
+import storageRouter from '@/lib/storageRouter';
 import useFileUploadManager from '@/hooks/useFileUploadManager';
 import FileUploadItem from '@/components/uploader/FileUploadItem';
 import OverwriteDialog from '@/components/uploader/OverwriteDialog';
@@ -715,17 +715,9 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
     }));
 
     try {
-      let audioUrl = episode.audio_url;
-      if (!audioUrl && episode.r2_object_key) {
-        const { data: r2Data } = await supabase
-          .from('episodes')
-          .select('audio_url')
-          .eq('slug', episode.slug)
-          .eq('lang', episode.lang)
-          .single();
-        audioUrl = r2Data?.audio_url;
-      }
-
+      // Use storageRouter to get correct audio URL based on storage_provider
+      const audioUrl = storageRouter.getCorrectAudioUrl(episode);
+      
       if (!audioUrl) {
         throw new Error(getLocaleString('audioUrlNotAvailable', currentLanguage));
       }
@@ -1750,7 +1742,6 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                                   languageEpisodes={baseSlugGroups}
                                   handleSmartFileUpload={handleSmartFileUpload}
                                   episodes={episodes}
-                                  episodes={episodes}
                                 />
                               </div>
                             </div>
@@ -1915,7 +1906,6 @@ const EpisodeManagementSection = ({ currentLanguage }) => {
                             getEpisodeActions={getEpisodeActions}
                             languageEpisodes={baseSlugGroups}
                             handleSmartFileUpload={handleSmartFileUpload}
-                            episodes={episodes}
                             episodes={episodes}
                           />
                         </div>
