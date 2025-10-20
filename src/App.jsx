@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from '@/components/ui/toaster';
 import Footer from '@/components/Footer';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
@@ -70,6 +71,7 @@ const AppContent = ({ currentLanguage, handleLanguageSelect, user }) => {
           />
           
           <Toaster />
+          <Analytics />
         </div>
       </Router>
     </TooltipProvider>
@@ -152,6 +154,7 @@ function App() {
          <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white flex flex-col">
             <LanguageSelectionModal onLanguageSelect={handleLanguageSelect} currentLanguage={currentLanguage || 'ru'} />
             <Toaster />
+            <Analytics />
           </div>
       </TelegramProvider>
     );
