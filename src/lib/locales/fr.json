@@ -735,5 +735,10 @@
   "namePlaceholder": "Jean Dupont",
   "nameLatinOnly": "Le nom doit contenir uniquement des caractères latins, espaces et tirets",
   "loginFailed": "Échec de la connexion",
-  "authenticating": "Authentification en cours..."
+  "authenticating": "Authentification en cours...",
+  "translateQuestionsFromRussian": "Traduire les questions du russe",
+  "translateQuestionsToAllLanguages": "Traduire les questions dans toutes les langues",
+  "questionsTranslatedFromRussian": "Questions traduites du russe",
+  "noRussianQuestionsToTranslate": "Aucune question russe à traduire",
+  "translateQuestionsButton": "Traduire les questions"
 }

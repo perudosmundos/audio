@@ -681,5 +681,10 @@
   "namePlaceholder": "Иван Иванов",
   "nameLatinOnly": "Имя должно содержать только латинские символы, пробелы и дефисы",
   "loginFailed": "Ошибка входа",
-  "authenticating": "Аутентификация..."
+  "authenticating": "Аутентификация...",
+  "translateQuestionsFromRussian": "Перевести вопросы с русского",
+  "translateQuestionsToAllLanguages": "Перевести вопросы на все языки",
+  "questionsTranslatedFromRussian": "Вопросы переведены с русского",
+  "noRussianQuestionsToTranslate": "Нет русских вопросов для перевода",
+  "translateQuestionsButton": "Перевести вопросы"
 }

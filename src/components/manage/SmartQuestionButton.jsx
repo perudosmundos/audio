@@ -71,6 +71,10 @@ const SmartQuestionButton = ({
     );
 
     sameSlugEpisodes.forEach(sourceEpisode => {
+      // Приоритет для русского языка - показываем его первым
+      const isRussian = sourceEpisode.lang === 'ru';
+      const priority = isRussian ? 0 : 1;
+      
       options.push({
         type: 'translate',
         text: `${getLocaleString('translateQuestionsFrom', currentLanguage)} ${sourceEpisode.lang.toUpperCase()}`,
@@ -78,11 +82,14 @@ const SmartQuestionButton = ({
         loading: translatingFrom[sourceEpisode.lang],
         icon: <Languages className="h-3 w-3 mr-1" />,
         action: 'translate',
-        sourceLang: sourceEpisode.lang
+        sourceLang: sourceEpisode.lang,
+        priority: priority,
+        isRussian: isRussian
       });
     });
 
-    return options;
+    // Сортируем по приоритету (русский первым)
+    return options.sort((a, b) => a.priority - b.priority);
   };
 
   const questionOptions = getQuestionOptions();
@@ -117,6 +124,8 @@ const SmartQuestionButton = ({
               ? 'bg-blue-600/20 border-blue-500 text-blue-300 hover:bg-blue-600/40 hover:text-blue-200'
               : option.type === 'from_text'
               ? 'bg-purple-600/20 border-purple-500 text-purple-300 hover:bg-purple-600/40 hover:text-purple-200'
+              : option.isRussian
+              ? 'bg-blue-600/20 border-blue-500 text-blue-300 hover:bg-blue-600/40 hover:text-blue-200'
               : 'bg-green-600/20 border-green-500 text-green-300 hover:bg-green-600/40 hover:text-green-200'
           }`}
           title={option.text}

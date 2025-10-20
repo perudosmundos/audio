@@ -735,5 +735,10 @@
   "namePlaceholder": "Juan Pérez",
   "nameLatinOnly": "El nombre debe contener solo caracteres latinos, espacios y guiones",
   "loginFailed": "Error de inicio de sesión",
-  "authenticating": "Autenticando..."
+  "authenticating": "Autenticando...",
+  "translateQuestionsFromRussian": "Traducir preguntas del ruso",
+  "translateQuestionsToAllLanguages": "Traducir preguntas a todos los idiomas",
+  "questionsTranslatedFromRussian": "Preguntas traducidas del ruso",
+  "noRussianQuestionsToTranslate": "No hay preguntas rusas para traducir",
+  "translateQuestionsButton": "Traducir preguntas"
 }

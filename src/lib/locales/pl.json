@@ -735,5 +735,10 @@
   "namePlaceholder": "Jan Kowalski",
   "nameLatinOnly": "Imię musi zawierać tylko znaki łacińskie, spacje i myślniki",
   "loginFailed": "Logowanie nie powiodło się",
-  "authenticating": "Uwierzytelnianie..."
+  "authenticating": "Uwierzytelnianie...",
+  "translateQuestionsFromRussian": "Przetłumacz pytania z rosyjskiego",
+  "translateQuestionsToAllLanguages": "Przetłumacz pytania na wszystkie języki",
+  "questionsTranslatedFromRussian": "Pytania przetłumaczone z rosyjskiego",
+  "noRussianQuestionsToTranslate": "Brak rosyjskich pytań do tłumaczenia",
+  "translateQuestionsButton": "Przetłumacz pytania"
 }

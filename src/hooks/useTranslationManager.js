@@ -12,12 +12,14 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
   // Перевод транскрипта и вопросов с указанного языка на целевой язык
   const translateEpisode = useCallback(async (sourceEpisode, targetLang, sourceLang, options = {}) => {
     const overwrite = options?.overwrite ?? true; // По умолчанию перезаписываем существующие переводы в массовом режиме
+    const questionsOnly = options?.questionsOnly ?? false; // Флаг для перевода только вопросов
     console.log('[translateEpisode] Starting translation:', {
       sourceSlug: sourceEpisode?.slug,
       sourceLang,
       targetLang,
       isTranslating,
-      overwrite
+      overwrite,
+      questionsOnly
     });
 
     if (!sourceEpisode || !sourceEpisode.slug) {
@@ -155,61 +157,63 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
         });
       }
 
-      // 3. Переводим транскрипт
-      toast({
-        title: '🔄 Перевод транскрипта',
-        description: `Переводим с ${sourceLang.toUpperCase()} на ${targetLang.toUpperCase()}...`
-      });
-
-      const translatedTranscript = await translateTranscriptOpenAI(
-        sourceTranscript.edited_transcript_data || sourceTranscript.transcript_data,
-        targetLang,
-        currentLanguage,
-        (current, total, message) => {
-          setTranslationProgress({
-            [translationKey]: {
-              current,
-              total,
-              message,
-              percentage: Math.round((current / total) * 100)
-            }
-          });
-        }
-      );
-
-      if (!translatedTranscript || !translatedTranscript.utterances) {
-        throw new Error('Ошибка перевода: получен пустой результат');
-      }
-
-      // 4. Сохраняем переведенный транскрипт
-      // Если overwrite включен, удалим старый транскрипт перед upsert, чтобы очистить лишние поля
-      if (overwrite) {
-        try {
-          await supabase
-            .from('transcripts')
-            .delete()
-            .eq('episode_slug', targetSlug)
-            .eq('lang', targetLang);
-        } catch (e) {
-          console.warn('[translateEpisode] Failed to delete existing transcript before overwrite (continuing):', e?.message);
-        }
-      }
-      const compactTranslated = buildEditedTranscriptData(translatedTranscript);
-      
-      const { error: transcriptUpsertError } = await supabase
-        .from('transcripts')
-        .upsert([{
-          episode_slug: targetSlug,
-          lang: targetLang,
-          status: 'completed',
-          edited_transcript_data: compactTranslated,
-          updated_at: new Date().toISOString()
-        }], {
-          onConflict: 'episode_slug,lang'
+      // 3. Переводим транскрипт (только если не questionsOnly)
+      if (!questionsOnly) {
+        toast({
+          title: '🔄 Перевод транскрипта',
+          description: `Переводим с ${sourceLang.toUpperCase()} на ${targetLang.toUpperCase()}...`
         });
 
-      if (transcriptUpsertError) {
-        throw new Error(`Ошибка сохранения транскрипта: ${transcriptUpsertError.message}`);
+        const translatedTranscript = await translateTranscriptOpenAI(
+          sourceTranscript.edited_transcript_data || sourceTranscript.transcript_data,
+          targetLang,
+          currentLanguage,
+          (current, total, message) => {
+            setTranslationProgress({
+              [translationKey]: {
+                current,
+                total,
+                message,
+                percentage: Math.round((current / total) * 100)
+              }
+            });
+          }
+        );
+
+        if (!translatedTranscript || !translatedTranscript.utterances) {
+          throw new Error('Ошибка перевода: получен пустой результат');
+        }
+
+        // 4. Сохраняем переведенный транскрипт
+        // Если overwrite включен, удалим старый транскрипт перед upsert, чтобы очистить лишние поля
+        if (overwrite) {
+          try {
+            await supabase
+              .from('transcripts')
+              .delete()
+              .eq('episode_slug', targetSlug)
+              .eq('lang', targetLang);
+          } catch (e) {
+            console.warn('[translateEpisode] Failed to delete existing transcript before overwrite (continuing):', e?.message);
+          }
+        }
+        const compactTranslated = buildEditedTranscriptData(translatedTranscript);
+        
+        const { error: transcriptUpsertError } = await supabase
+          .from('transcripts')
+          .upsert([{
+            episode_slug: targetSlug,
+            lang: targetLang,
+            status: 'completed',
+            edited_transcript_data: compactTranslated,
+            updated_at: new Date().toISOString()
+          }], {
+            onConflict: 'episode_slug,lang'
+          });
+
+        if (transcriptUpsertError) {
+          throw new Error(`Ошибка сохранения транскрипта: ${transcriptUpsertError.message}`);
+        }
       }
 
       // 5. Переводим вопросы (если есть)
@@ -227,7 +231,7 @@ const useTranslationManager = (currentLanguage, toast, episodes, setEpisodes) =>
 
       if (!questionsError && sourceQuestions && sourceQuestions.length > 0) {
         toast({
-          title: '🔄 Перевод вопросов',
+          title: questionsOnly ? '🔄 Перевод только вопросов' : '🔄 Перевод вопросов',
           description: `Переводим ${sourceQuestions.length} вопросов с ${sourceLang.toUpperCase()} на ${targetLang.toUpperCase()}...`
         });
 

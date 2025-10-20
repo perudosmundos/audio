@@ -138,6 +138,21 @@ const UploadManageView = ({
     }
   };
 
+  // Перевод вопросов с русского на все языки
+  const handleTranslateQuestionsFromRussian = async (group) => {
+    const russianEpisode = group.languages['ru'];
+    if (!russianEpisode || !russianEpisode.transcript || russianEpisode.transcript.status !== 'completed' || russianEpisode.questionsCount === 0) {
+      return;
+    }
+
+    const targetLangs = availableLanguages.filter(lang => lang !== 'ru');
+    
+    for (const targetLang of targetLangs) {
+      // Переводим вопросы с русского на целевой язык
+      await translateEpisode(russianEpisode, targetLang, 'ru', { overwrite: true, questionsOnly: true });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Кнопки массового перевода всех эпизодов */}
@@ -191,6 +206,19 @@ const UploadManageView = ({
               
               {/* Кнопки массового перевода для этого эпизода */}
               <div className="flex gap-2">
+                {/* Кнопка перевода вопросов с русского */}
+                {hasRussianTranscript && russianEpisode?.questionsCount > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleTranslateQuestionsFromRussian(group)}
+                    disabled={!!translatingFrom}
+                    className="h-7 px-2 text-xs bg-blue-600/20 border border-blue-500 text-blue-300 hover:bg-blue-600/40"
+                    title={getLocaleString('translateQuestionsFromRussian', currentLanguage)}
+                  >
+                    <Languages className="h-3 w-3 mr-1" />
+                    {getLocaleString('translateQuestionsButton', currentLanguage)}
+                  </Button>
+                )}
                 {hasSpanishTranscript && (
                   <Button
                     size="sm"

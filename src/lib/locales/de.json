@@ -735,5 +735,10 @@
   "namePlaceholder": "Hans Müller",
   "nameLatinOnly": "Name muss nur lateinische Zeichen, Leerzeichen und Bindestriche enthalten",
   "loginFailed": "Anmeldung fehlgeschlagen",
-  "authenticating": "Authentifizierung läuft..."
+  "authenticating": "Authentifizierung läuft...",
+  "translateQuestionsFromRussian": "Fragen aus dem Russischen übersetzen",
+  "translateQuestionsToAllLanguages": "Fragen in alle Sprachen übersetzen",
+  "questionsTranslatedFromRussian": "Fragen aus dem Russischen übersetzt",
+  "noRussianQuestionsToTranslate": "Keine russischen Fragen zum Übersetzen",
+  "translateQuestionsButton": "Fragen übersetzen"
 }

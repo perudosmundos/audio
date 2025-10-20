@@ -735,5 +735,10 @@
   "namePlaceholder": "John Doe",
   "nameLatinOnly": "Name must contain only Latin characters, spaces, and hyphens",
   "loginFailed": "Login failed",
-  "authenticating": "Authenticating..."
+  "authenticating": "Authenticating...",
+  "translateQuestionsFromRussian": "Translate questions from Russian",
+  "translateQuestionsToAllLanguages": "Translate questions to all languages",
+  "questionsTranslatedFromRussian": "Questions translated from Russian",
+  "noRussianQuestionsToTranslate": "No Russian questions to translate",
+  "translateQuestionsButton": "Translate questions"
 }
